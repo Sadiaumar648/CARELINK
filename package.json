@@ -12,7 +12,7 @@
     "test:backend": "npm run test --workspace carelink-backend",
     "typecheck:backend": "npm run typecheck --workspace carelink-backend",
     "lint:backend": "npm run lint --workspace carelink-backend",
-    "prepare": "husky"
+    "prepare": "node -e \"if(!process.env.VERCEL && !process.env.CI){try{require('child_process').execSync('husky',{stdio:'inherit'})}catch(e){}}\""
   },
   "devDependencies": {
     "husky": "^9.1.6",
