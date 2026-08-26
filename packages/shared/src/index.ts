@@ -12,3 +12,4 @@ export * from "./schemas/booking-request";
 export * from "./schemas/verification";
 export * from "./schemas/payment";
 export * from "./schemas/messaging";
+export * from "./schemas/settings";
