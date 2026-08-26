@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/broadsheet-0f1a8441-db8d-47c6-af37-38a0fadc8268/styles.css">
+  <script src="_ds/broadsheet-0f1a8441-db8d-47c6-af37-38a0fadc8268/_ds_bundle.js"></script>
+  <script src="./doc-page.js"></script>
+  <style>
+    doc-page:not(:defined){visibility:hidden}
+    a{color:var(--color-accent-700);text-decoration:none}
+    a:hover{color:var(--color-accent-2)}
+  </style>
+</helmet>
+<doc-page size="a4" margin="0.85in">
+  <div slot="footer" style="display:flex;justify-content:space-between;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-600);padding-top:8px">
+    <span>CareLink — Design Brief</span>
+    <span>v1.0 · August 2026</span>
+  </div>
+
+  <div style="font-size:10.5px;letter-spacing:0.16em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:var(--space-3)">Document 4 of 6 · Design Brief</div>
+
+  <h1 style="font-size:40px;line-height:1.05;margin:0 0 var(--space-3);max-width:20ch">CareLink Design Brief</h1>
+
+  <p style="font-size:17px;line-height:1.6;font-style:italic;color:var(--color-neutral-800);max-width:60ch;margin:0 0 var(--space-8)">The look, voice and interface vocabulary of the platform — a fixed palette, one typeface, a small set of components, and a stated intent for every key screen, so nothing is decided twice or decided at random.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:0 0 var(--space-2)">1 · Design intent</h2>
+  <p style="max-width:66ch">CareLink is a document, not an app-store product. A parent is choosing who will be alone with their child; a caregiver is presenting their working life. Both deserve an interface that reads as a record — calm, legible, printed-looking — rather than a bright marketplace competing for a tap.</p>
+  <p style="max-width:66ch">Three consequences follow. <strong>Text carries the hierarchy</strong>, not boxes: size, weight and space organise a screen, and cards are used only for genuinely discrete items such as a caregiver in a result list. <strong>Colour is spot colour</strong>: one interactive blue, one rare magenta for alerts and warnings, and nothing else — a screen with colour everywhere has no emphasis. <strong>Nothing decorative</strong>: no illustration, no gradient, no shadow that is not doing the job of lifting a sheet above the page.</p>
+  <p style="max-width:66ch;padding-left:var(--space-4);border-left:2px solid var(--color-accent);font-style:italic">Adjectives to design against: plain, calm, verified, unhurried, unembarrassed by text. Adjectives to design away from: playful, gamified, glossy, crowded.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">2 · Colour</h2>
+  <p style="max-width:66ch">A paper ground with near-black text and two process accents. The blue is the only interactive colour: if something is blue, it can be pressed. Magenta is reserved and rare — destructive confirmation, an unresolved report, a rejected verification — so that seeing it means something.</p>
+
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin:var(--space-4) 0 var(--space-6);break-inside:avoid">
+    <div>
+      <div style="height:56px;background:var(--color-bg);border:1px solid var(--color-neutral-300)"></div>
+      <div style="font-size:12px;margin-top:6px"><strong>Paper</strong><br><span style="color:var(--color-neutral-600)">#f3f2f2 · app background</span></div>
+    </div>
+    <div>
+      <div style="height:56px;background:var(--color-text)"></div>
+      <div style="font-size:12px;margin-top:6px"><strong>Ink</strong><br><span style="color:var(--color-neutral-600)">#201e1d · all body text</span></div>
+    </div>
+    <div>
+      <div style="height:56px;background:var(--color-accent)"></div>
+      <div style="font-size:12px;margin-top:6px"><strong>Process cyan</strong><br><span style="color:var(--color-neutral-600)">#0088b0 · primary action</span></div>
+    </div>
+    <div>
+      <div style="height:56px;background:var(--color-accent-2)"></div>
+      <div style="font-size:12px;margin-top:6px"><strong>Process magenta</strong><br><span style="color:var(--color-neutral-600)">#d6006c · alert, rare</span></div>
+    </div>
+  </div>
+
+  <table class="table" style="width:100%;font-size:13.5px;margin:0 0 var(--space-6)">
+    <thead><tr><th style="width:26%">Role</th><th style="width:24%">Value</th><th>Used for</th></tr></thead>
+    <tbody>
+      <tr><td>Paper</td><td>#f3f2f2</td><td>Every screen background. There are no dark surfaces in this system</td></tr>
+      <tr><td>Sheet</td><td>#f8f4f4</td><td>Cards, sheets and modals lifted a step off the ground</td></tr>
+      <tr><td>Ink</td><td>#201e1d</td><td>All body and heading text</td></tr>
+      <tr><td>Muted ink</td><td>Neutral 600</td><td>Labels, timestamps, secondary metadata — never body copy</td></tr>
+      <tr><td>Hairline</td><td>Neutral 300</td><td>Table rules and input borders only; not for sectioning a page</td></tr>
+      <tr><td>Cyan</td><td>#0088b0, hover #1186ac, pressed #006786</td><td>Primary buttons, links, focus ring, selected state, match-score bars</td></tr>
+      <tr><td>Deep cyan</td><td>#006786</td><td>Accent-coloured text at paragraph size, where the base cyan lacks contrast</td></tr>
+      <tr><td>Magenta</td><td>#d6006c</td><td>Destructive confirmation, rejection, unresolved report, cancellation</td></tr>
+      <tr><td>Verified</td><td>Cyan on a 10% cyan tint</td><td>The verified badge — the single most important signal in the product</td></tr>
+      <tr><td>Pending</td><td>Muted ink on a neutral tint</td><td>Under review, awaiting a response, invited but unclaimed</td></tr>
+    </tbody>
+  </table>
+  <p style="max-width:66ch">Rules: never both accents in one small component; never colour as the only carrier of meaning — a status is always a word as well as a tint; and every text-and-background pair meets WCAG AA, which is why paragraph-sized accent text uses the deep cyan step.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">3 · Typography</h2>
+  <p style="max-width:66ch">One family throughout: <strong>Source Serif 4</strong>, at 400 for body, 600 for headings, with the true italic for emphasis and quoted care instructions. A serif interface reads as a record rather than a feed, and it holds the long instruction text that low-literacy support and care profiles both require. No second family — the serif is the interface chrome too.</p>
+  <table class="table" style="width:100%;font-size:13.5px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:22%">Style</th><th style="width:30%">Size and weight</th><th>Where</th></tr></thead>
+    <tbody>
+      <tr><td>Display</td><td>34–40px / 600 / tight</td><td>Landing headline; one per page at most</td></tr>
+      <tr><td>Screen title</td><td>26px / 600</td><td>The name of the current screen</td></tr>
+      <tr><td>Section</td><td>19px / 600</td><td>Groups within a screen; replaces a divider</td></tr>
+      <tr><td>Card title</td><td>17px / 600</td><td>A caregiver's name, a booking's date</td></tr>
+      <tr><td>Body</td><td>15px / 400 / 1.55</td><td>All prose, care instructions, messages</td></tr>
+      <tr><td>Small</td><td>13px / 400</td><td>Metadata, helper text, table cells</td></tr>
+      <tr><td>Label</td><td>10.5px / 600 / uppercase, 0.12em tracking</td><td>Eyebrows, statuses, table headers</td></tr>
+      <tr><td>Figure</td><td>28–34px / 600, tabular numerals</td><td>Dashboard totals, match scores, amounts</td></tr>
+    </tbody>
+  </table>
+  <p style="max-width:66ch">Never below 13px anywhere; never below 15px for anything a caregiver must read to do their job. Measure caps at 66 characters. Amounts and times use tabular figures so columns align. Currency is always written <em>GH₵</em> with the amount, never a bare number.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">4 · Layout, spacing and motion</h2>
+  <p style="max-width:66ch">A four-step spacing scale — 10, 15, 20, 30, 40px — and nothing between. Corner radius is 2px, effectively square: this system does not round its corners. Content is flush left with air on the right; screens are single-column on mobile and a maximum of two columns on desktop, never three.</p>
+  <p style="max-width:66ch">Sections are separated by space, not by rules or boxes. The only elevation in the system is the sheet that lifts a modal or a bottom sheet above the page, and there is exactly one shadow step for it. Motion is functional and brief: 150ms for a state change, 250ms for a sheet entering, no easing that overshoots, and no animation on data appearing — a list does not perform.</p>
+  <p style="max-width:66ch">Touch targets are 44px minimum, and 52px on every caregiver-facing screen, where the primary action is full-width and unmissable.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">5 · Component vocabulary</h2>
+  <table class="table" style="width:100%;font-size:13.5px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:24%">Component</th><th>Specification</th></tr></thead>
+    <tbody>
+      <tr><td>Primary button</td><td>Solid cyan, paper text, 2px radius, 44px tall (52px for caregivers), full width on mobile. One per screen — the screen's purpose</td></tr>
+      <tr><td>Secondary button</td><td>Hairline border, ink text, transparent fill; used for the alternative, never for the main action</td></tr>
+      <tr><td>Ghost button</td><td>Text only in cyan; used for tertiary actions such as <em>Skip for now</em></td></tr>
+      <tr><td>Destructive</td><td>Magenta text on a magenta tint, always behind a confirmation stating the consequence</td></tr>
+      <tr><td>Input</td><td>Hairline border, 2px radius, 44px tall, label above and always visible, helper text below, error message inline in magenta and never as a toast</td></tr>
+      <tr><td>Voice field</td><td>Any text input with a microphone at its right edge; recording shows a steady indicator, and the transcript appears in the field for confirmation before use</td></tr>
+      <tr><td>Read-aloud control</td><td>A speaker glyph at the top-right of any instruction block or request card; pressing it reads the block, pressing again stops</td></tr>
+      <tr><td>Skill tag</td><td>Small uppercase label on a neutral tint; selectable tags in onboarding are large labelled cards, not checkboxes</td></tr>
+      <tr><td>Status pill</td><td>Word plus tint: verified in cyan, pending in neutral, rejected and disputed in magenta, completed in ink</td></tr>
+      <tr><td>Caregiver card</td><td>Photograph left, name and verified badge, rating with count, experience, rate, area, up to four skill tags, and the match score at the right edge as a figure with an expandable breakdown</td></tr>
+      <tr><td>Score breakdown</td><td>Five labelled rows, each a thin cyan bar with its points; the rows sum visibly to the total</td></tr>
+      <tr><td>Booking summary</td><td>A terms block — date, hours, rate, total, address — set as a definition list; once accepted, marked <em>terms locked</em></td></tr>
+      <tr><td>Care profile block</td><td>Sectioned plain text with allergies and medications first and set in the italic, so the most consequential lines read differently from the rest</td></tr>
+      <tr><td>Table</td><td>Administrator screens only: uppercase label header, hairline row rules, no vertical rules, no zebra striping, tabular figures</td></tr>
+      <tr><td>Empty state</td><td>One line naming what is missing, one line saying what to do, one action. Never an illustration</td></tr>
+      <tr><td>Focus</td><td>2px cyan outline with 2px offset on every interactive element, never removed</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">6 · Imagery and icons</h2>
+  <p style="max-width:66ch">Only three kinds of image exist: caregiver profile photographs, identity documents in the verification review, and the landing page's single photograph. Photographs of children are never collected or displayed. Profile photographs are square with a 2px radius, shown at a consistent size, and never cropped to a circle. The landing photograph takes the system's print treatment — a halftone dot screen — so it reads as printed rather than stock.</p>
+  <p style="max-width:66ch">Icons are Phosphor in the duotone weight, at 20px inline and 24px in navigation, and always accompanied by a word in caregiver-facing navigation. No icon carries meaning alone.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">7 · Voice and copy</h2>
+  <p style="max-width:66ch">Plain, short, second person. Say what a button does — <em>Send request</em>, <em>Pay GH₵120 with Mobile Money</em> — never <em>Submit</em> or <em>Continue</em> where something more specific is true. Errors name the cause and the fix and never blame the user. Nothing in the caregiver flow requires reading a paragraph to complete correctly. And the platform never overstates its own certainty: the photo check is described as <em>a plausibility aid for the agency's reviewer</em>, in those terms, wherever it appears.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">8 · Screen-by-screen guidelines</h2>
+  <p style="max-width:66ch">For each key screen: its single job, its layout, and the one thing that must dominate.</p>
+  <table class="table" style="width:100%;font-size:13.5px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:22%">Screen</th><th style="width:30%">Job</th><th>Layout and emphasis</th></tr></thead>
+    <tbody>
+      <tr><td>Landing</td><td>State what this is and that its staff are verified</td><td>Display headline flush left, one paragraph, two doors. One halftone photograph. No feature grid, no testimonials</td></tr>
+      <tr><td>Parent search</td><td>Get to a shortlist</td><td>The plain-language field is the screen — full width, generous, with the microphone at its edge. Filters collapsed beneath. Results as cards in one column, match score right-aligned as the second-loudest element after the name</td></tr>
+      <tr><td>Caregiver profile</td><td>Answer "can I trust this person"</td><td>Photograph, name and verified badge at the top with what was verified spelled out. Bio, skills, certifications, availability, then reviews. <em>Request booking</em> pinned at the bottom on mobile</td></tr>
+      <tr><td>Booking request sheet</td><td>Agree unambiguous terms</td><td>Four steps, one question each, a live total always visible. The final step is a terms block, and states plainly what will be shared with the caregiver</td></tr>
+      <tr><td>Booking detail</td><td>Say what state we are in and what to do now</td><td>Status and terms in the header; one primary action for the current state; message thread beneath; emergency contact appears in place only while active, with a line explaining it will disappear</td></tr>
+      <tr><td>Payment sheet</td><td>Take payment without doubt</td><td>Three steps; the amount set as a large figure with its hours-at-rate breakdown; the waiting state written and spoken; the reference shown large enough to be read aloud over a phone</td></tr>
+      <tr><td>Ward Care Profile</td><td>Capture a routine once, clearly</td><td>Sections with headings, allergies and medications first and in the italic. Editable in place, last-edited date visible. Voice input on every field</td></tr>
+      <tr><td>Caregiver requests</td><td>Decide, quickly and without reading</td><td>Cards with the largest type on date, time and payment. Read-aloud control at the top right of each card. Accept and Decline as two full-width 52px buttons, Accept in cyan</td></tr>
+      <tr><td>Caregiver verification</td><td>Complete a document submission without literacy as a barrier</td><td>One task per screen. Each instruction spoken on arrival. Camera capture with a live outline and a spoken prompt. A visible three-of-four progress line. Skipping the photo step is a plain, unpenalised choice</td></tr>
+      <tr><td>Active session</td><td>Three things and nothing else</td><td>Care profile, message thread, End session. Emergency contact at the top. No navigation competing for attention</td></tr>
+      <tr><td>Admin overview</td><td>The state of the agency in one glance</td><td>Four figures across the top — bookings, revenue, pending verifications, open reports — as large tabular numerals with their labels above; queues beneath as tables. Every figure clickable through to its list</td></tr>
+      <tr><td>Admin verification review</td><td>Support a human judgment</td><td>Two images side by side at a size where a face is legible, the model's verdict and rationale beneath them clearly attributed to the model, the mandatory-criteria checklist to the right, and Approve and Reject at the foot with reject requiring a reason</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">9 · Accessibility commitments</h2>
+  <p style="max-width:66ch">WCAG AA contrast on every pair. Full keyboard operation with a visible focus ring. Every input labelled, every error associated with its field. Voice input and read-aloud on every caregiver-facing screen, degrading to text where the browser lacks support. Status never carried by colour alone. Usable at 320px and at 200% text zoom without loss of function.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">10 · What this system does not do</h2>
+  <p style="max-width:66ch">No dark surfaces. No gradients. No decorative illustration. No emoji. No card used to fence off a section of a page. No second typeface. No third colour. No animated data. No skeleton shimmer where a plain "loading" line will do. Each of these is cheap to add and expensive to remove, and none of them makes a parent more confident about who is coming to the house.</p>
+</doc-page>
+
+</x-dc>
+</body>
+</html>

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/broadsheet-0f1a8441-db8d-47c6-af37-38a0fadc8268/styles.css">
+  <script src="_ds/broadsheet-0f1a8441-db8d-47c6-af37-38a0fadc8268/_ds_bundle.js"></script>
+  <script src="./doc-page.js"></script>
+  <style>
+    doc-page:not(:defined){visibility:hidden}
+    a{color:var(--color-accent-700);text-decoration:none}
+    a:hover{color:var(--color-accent-2)}
+  </style>
+</helmet>
+<doc-page size="a4" margin="0.85in">
+  <div slot="footer" style="display:flex;justify-content:space-between;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-600);padding-top:8px">
+    <span>CareLink — App Flow Document</span>
+    <span>v1.0 · August 2026</span>
+  </div>
+
+  <div style="font-size:10.5px;letter-spacing:0.16em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:var(--space-3)">Document 3 of 6 · App Flow</div>
+
+  <h1 style="font-size:40px;line-height:1.05;margin:0 0 var(--space-3);max-width:20ch">CareLink App Flow Document</h1>
+
+  <p style="font-size:17px;line-height:1.6;font-style:italic;color:var(--color-neutral-800);max-width:60ch;margin:0 0 var(--space-8)">Every screen, every navigation path and what happens when each button is pressed — for the parent, the caregiver and the agency administrator.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:0 0 var(--space-2)">1 · Navigation model</h2>
+  <p style="max-width:66ch">The application has one public shell and three private shells, chosen by the signed-in account's role. A user never sees navigation belonging to another role, and there is no shared dashboard.</p>
+  <table class="table" style="width:100%;font-size:13.5px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:20%">Shell</th><th style="width:32%">Primary navigation</th><th>Pattern</th></tr></thead>
+    <tbody>
+      <tr><td>Public</td><td>Home, How it works, Sign in, Register</td><td>Top bar; single-column marketing pages</td></tr>
+      <tr><td>Parent</td><td>Search, Bookings, Children, Messages, Account</td><td>Bottom tab bar on mobile, left rail on desktop; five destinations, no more</td></tr>
+      <tr><td>Caregiver</td><td>Requests, Schedule, Profile, Messages, Earnings</td><td>Same pattern, larger targets, icon and word on every tab</td></tr>
+      <tr><td>Administrator</td><td>Overview, Roster, Verifications, Bookings, Reports, Settings</td><td>Persistent left sidebar, desktop-first, dense tables</td></tr>
+    </tbody>
+  </table>
+  <p style="max-width:66ch">Three rules hold everywhere. A destructive or committing action always asks for confirmation and states what it commits to. Every list has an empty state that says what to do next, never a blank panel. And every screen a caregiver uses carries a read-aloud control and voice input on its text fields.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">2 · Entry and onboarding</h2>
+  <h3 style="font-size:19px;margin:var(--space-4) 0 var(--space-2)">2.1 First contact</h3>
+  <p style="max-width:66ch">The landing page states what the agency is, that its staff are verified, and offers two doors: <em>Find a caregiver</em> and <em>I work with the agency</em>. The second door exists because most caregivers arrive already on the roster, holding an invitation rather than choosing to sign up.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">2.2 Parent onboarding — four steps</h3>
+  <ol style="max-width:66ch;padding-left:1.2em">
+    <li style="margin-bottom:8px"><strong>Account.</strong> Name, phone, email, password. <em>Create account</em> writes the account with the parent role and signs the user in. A duplicate email returns to the field with an inline message, never a lost form.</li>
+    <li style="margin-bottom:8px"><strong>Household.</strong> Area, address, household notes, emergency contact name and phone. <em>Continue</em> saves; <em>Skip for now</em> is offered but the parent is told booking requires it.</li>
+    <li style="margin-bottom:8px"><strong>Verify.</strong> ID type and number, a photograph of the document, one reference, and the optional live selfie. <em>Submit for review</em> moves status to pending review and returns to the dashboard with a banner explaining the wait. Browsing is available immediately; requesting a booking is not.</li>
+    <li style="margin-bottom:8px"><strong>First child.</strong> An invitation to build the Ward Care Profile, framed as the thing that means never explaining a routine twice. Skippable, and re-offered on the first booking attempt.</li>
+  </ol>
+  <p style="max-width:66ch">The parent lands on Search with a progress strip showing which of these four remain.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">2.3 Caregiver onboarding — invitation first</h3>
+  <p style="max-width:66ch">The administrator has already created the roster record. The caregiver receives an invitation code, enters it with their phone number, and sets a password — claiming the existing record rather than creating a second one. From the first screen, a prominent speaker control reads each instruction aloud, and every text field offers a microphone alternative.</p>
+  <ol style="max-width:66ch;padding-left:1.2em">
+    <li style="margin-bottom:8px"><strong>Claim.</strong> Invitation code and phone; set a password. Wrong code returns an inline message and an offer to call the agency.</li>
+    <li style="margin-bottom:8px"><strong>Profile.</strong> Photograph, spoken or typed bio, years of experience, hourly rate, service areas, skill tags chosen as large labelled cards rather than a checkbox list, and languages spoken.</li>
+    <li style="margin-bottom:8px"><strong>Availability.</strong> A weekly grid of days against morning, afternoon, evening and overnight, tapped rather than typed, plus specific dates marked unavailable.</li>
+    <li style="margin-bottom:8px"><strong>Verify.</strong> The same submission as the parent, with each field spoken aloud on focus, and photograph capture guided by a live outline and a spoken instruction. Certifications are an optional extra upload.</li>
+    <li style="margin-bottom:8px"><strong>Done.</strong> A confirmation that the agency is reviewing, with an explanation that requests arrive once approved. The caregiver lands on Requests with a pending-verification banner.</li>
+  </ol>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">3 · The parent journey</h2>
+
+  <h3 style="font-size:19px;margin:var(--space-4) 0 var(--space-2)">3.1 Search</h3>
+  <p style="max-width:66ch">The screen opens on one field: <em>Describe who you need.</em> Beneath it, <em>Or use filters</em> expands area, date, start and end time, budget, minimum experience, minimum rating and skill tags. Both routes end in the same query.</p>
+  <table class="table" style="width:100%;font-size:13.5px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:26%">Action</th><th>What happens</th></tr></thead>
+    <tbody>
+      <tr><td><em>Search</em> on the plain-language field</td><td>The sentence goes to the language model; the interpreted filters return as editable chips — "East Legon · Sat 6 Sep · 14:00–18:00 · newborn care · ≤ GH₵30/hr" — with a note that they can be corrected. Confirming runs the search. A parsing failure opens the filter panel pre-filled with whatever was understood, with a plain explanation</td></tr>
+      <tr><td>Microphone on the plain-language field</td><td>Speech-to-text fills the field; the transcript is shown for confirmation before the search runs</td></tr>
+      <tr><td><em>Apply filters</em></td><td>Runs the hard filter, then ranks the survivors; results replace the panel and the applied filters stay visible as removable chips</td></tr>
+      <tr><td>No results</td><td>Names the constraint that eliminated the most candidates — usually the time window — and offers to relax it, rather than showing an empty list</td></tr>
+    </tbody>
+  </table>
+  <p style="max-width:66ch">Each result card carries the photograph, name, verified badge, rating and review count, years of experience, hourly rate, service areas, up to four skill tags, and a match score. Tapping the score expands the breakdown — availability, area, skills, rating and experience, budget — each with its contribution. Tapping the card opens the profile.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">3.2 Caregiver profile and booking request</h3>
+  <p style="max-width:66ch">The profile shows the full bio, verification status and what was verified, certifications, all skill tags, availability for the next fortnight, and reviews with dates. <em>Request booking</em> opens a four-step sheet.</p>
+  <ol style="max-width:66ch;padding-left:1.2em">
+    <li style="margin-bottom:6px"><strong>When.</strong> Date, start and end time, pre-filled from the search. Hours and total recalculate live at the caregiver's rate. Times outside declared availability are refused at the field with the reason.</li>
+    <li style="margin-bottom:6px"><strong>Who.</strong> Which child, selected from the Ward Care Profiles. A parent with none is offered a short create step here.</li>
+    <li style="margin-bottom:6px"><strong>Where and notes.</strong> Address, defaulted from the household, plus one-off notes for this booking only.</li>
+    <li style="margin-bottom:6px"><strong>Review.</strong> The full terms, a statement that the caregiver will see the selected child's care profile, and the emergency contact being shared. <em>Send request</em> writes the booking as pending.</li>
+  </ol>
+  <p style="max-width:66ch">An unverified parent reaching <em>Send request</em> is stopped with an explanation and a link to finish verification — the check happens before the sheet opens, not after the form is filled.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">3.3 Booking detail — the screen that changes with state</h3>
+  <p style="max-width:66ch">One screen, five faces. The header always shows caregiver, date, hours and status; the action area is what changes.</p>
+  <table class="table" style="width:100%;font-size:13.5px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:16%">Status</th><th style="width:32%">What the parent sees</th><th>Available actions</th></tr></thead>
+    <tbody>
+      <tr><td>Pending</td><td>Awaiting the caregiver's answer, with the terms sent</td><td><em>Cancel request</em>; message thread not yet open</td></tr>
+      <tr><td>Accepted</td><td>Locked terms and an amount due, prominently</td><td><em>Pay with Mobile Money</em>; <em>Message</em>; <em>Cancel</em></td></tr>
+      <tr><td>Paid</td><td>Payment reference, and a note that contact details appear when the session starts</td><td><em>Message</em>; <em>Start session</em> on the day; <em>Cancel</em> with a refund note</td></tr>
+      <tr><td>Active</td><td>The caregiver's emergency contact, revealed for the session, and the care profile as the caregiver sees it</td><td><em>Message</em>; <em>End session</em>; <em>Report a problem</em></td></tr>
+      <tr><td>Completed</td><td>A summary, the payment record, and a review prompt</td><td><em>Leave a review</em>; <em>Book again</em>, which pre-fills a new request; <em>Report a problem</em></td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">3.4 Payment</h3>
+  <p style="max-width:66ch"><em>Pay with Mobile Money</em> opens a three-step sheet: choose network (MTN, Telecel, AirtelTigo); confirm the number, defaulted to the account phone; confirm the amount with the breakdown of hours at rate. <em>Confirm payment</em> shows a waiting state with a spoken and written instruction to approve the prompt on the phone. Success shows the reference and moves the booking to paid. Failure states the reason and offers a retry; the booking stays accepted and payable. A timeout keeps the payment recoverable and tells the parent to check before retrying, so nothing is paid twice.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">3.5 Children, messages, account</h3>
+  <p style="max-width:66ch"><strong>Children</strong> lists each Ward Care Profile with its last-edited date; opening one reveals sections for allergies and medications, meals, routine, special needs and house rules, each editable in place. A note states that changes are visible to caregivers on active and future bookings. <strong>Messages</strong> lists booking-scoped threads, newest first, with unread counts; a thread closes when its booking closes and remains readable. <strong>Account</strong> holds the household profile, verification status with a resubmission route if rejected, and the reports the parent has filed with their resolution status.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">4 · The caregiver journey</h2>
+  <h3 style="font-size:19px;margin:var(--space-4) 0 var(--space-2)">4.1 Requests</h3>
+  <p style="max-width:66ch">The landing screen is the inbox of work. Each request card shows the parent's first name and verified badge, date and time, hours, area, the child's age, the total the caregiver will be paid, and how long the request has been waiting. A speaker control reads the whole card aloud.</p>
+  <p style="max-width:66ch">Opening a request shows the full terms, the parent's Ward Care Profile for the named child — allergies, medications, meals, routine, special needs — and the one-off notes. <em>Accept</em> asks for confirmation, states that the terms lock, checks for an overlap against accepted bookings and refuses with the conflicting booking named if one exists. <em>Decline</em> asks for a reason from a short list plus a free field; the request closes and the parent is told without the reason being framed as a judgment.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">4.2 Schedule and session</h3>
+  <p style="max-width:66ch">Schedule is a list by day — today first — of accepted and paid bookings, each showing time, area, child and payment status. On the day, <em>Start session</em> confirms, moves the booking to active and reveals the parent's emergency contact for the duration. During a session the screen holds three things only: the care profile, the message thread, and <em>End session</em>. Ending it confirms, moves the booking to completed, and shows what has been earned. <em>Report a problem</em> is present throughout.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">4.3 Profile and earnings</h3>
+  <p style="max-width:66ch">Profile holds photograph, bio, rate, skills, service areas, certifications and the availability grid, each editable, with a standing note that changes never alter an accepted booking. Verification status is shown plainly with what remains outstanding. Earnings lists completed bookings with amount, date and payment reference, and totals for the week and the month — the caregiver's own record, which they have never had.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">5 · The administrator journey</h2>
+  <table class="table" style="width:100%;font-size:13.5px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:20%">Screen</th><th style="width:34%">What it shows</th><th>Key actions</th></tr></thead>
+    <tbody>
+      <tr><td>Overview</td><td>Bookings by status for the period, revenue with gross value, commission and payouts, roster health by verification status, the verification queue with the age of its oldest item, and open reports</td><td>Change the date range; follow any figure through to its list; export CSV</td></tr>
+      <tr><td>Roster</td><td>Every staff member with status, rating, bookings completed, earnings and utilisation</td><td><em>Add staff</em> creates a record and issues an invitation; open a record to edit details, suspend, or view their bookings</td></tr>
+      <tr><td>Verifications</td><td>The queue of pending submissions from both roles, oldest first, with role, name, waiting time and whether a photo check exists</td><td>Open a submission to see the ID photograph and the selfie side by side, the model's verdict and rationale, the reference contact, and the checklist of mandatory criteria; <em>Approve</em> or <em>Reject with reason</em></td></tr>
+      <tr><td>Bookings</td><td>Every booking with parent, caregiver, date, status and payment state, filterable by status and range</td><td>Open one to see its full history, message thread and payment; override a payment or cancel with a recorded reason</td></tr>
+      <tr><td>Reports</td><td>Open, investigating and resolved reports with reporter, subject, booking and age</td><td>Open a report to read both sides and the booking record; set investigating, add notes, resolve with an outcome; suspend an account if warranted</td></tr>
+      <tr><td>Settings</td><td>Matching weights, commission rate, service areas, skill-tag vocabulary, verification requirements</td><td>Edit and save; a weight change is recorded so an evaluation can attribute a ranking change to it</td></tr>
+    </tbody>
+  </table>
+  <p style="max-width:66ch">The verification review screen carries a standing line: the photo result is a plausibility aid, not a certified match, and the decision is the reviewer's. The administrator's decision is stored separately from the model's verdict, which is what makes the comparison in the evaluation plan possible.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">6 · Cross-cutting behaviour</h2>
+  <table class="table" style="width:100%;font-size:13.5px;margin:var(--space-3) 0 0">
+    <thead><tr><th style="width:26%">Situation</th><th>Behaviour</th></tr></thead>
+    <tbody>
+      <tr><td>Not signed in on a private route</td><td>Redirect to sign-in, then return to the intended screen after authentication</td></tr>
+      <tr><td>Signed in with the wrong role</td><td>The role's own home screen with a brief explanation — never a raw error</td></tr>
+      <tr><td>Verification pending</td><td>A persistent banner naming what is being reviewed and what is unavailable until it clears</td></tr>
+      <tr><td>Verification rejected</td><td>The reason and a direct route to resubmit only the failed item</td></tr>
+      <tr><td>Offline or a failed request</td><td>An inline retry that preserves entered data; no form is ever cleared by a network failure</td></tr>
+      <tr><td>Session expiry</td><td>Sign-in again in place, returning to the same screen with the form intact</td></tr>
+      <tr><td>An AI feature unavailable</td><td>The feature is hidden and the manual path is presented as normal, not as a degraded state</td></tr>
+      <tr><td>Speech unsupported</td><td>Microphone and speaker controls are absent rather than broken; every flow remains completable by typing</td></tr>
+    </tbody>
+  </table>
+</doc-page>
+
+</x-dc>
+</body>
+</html>

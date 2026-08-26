@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/broadsheet-0f1a8441-db8d-47c6-af37-38a0fadc8268/styles.css">
+  <script src="_ds/broadsheet-0f1a8441-db8d-47c6-af37-38a0fadc8268/_ds_bundle.js"></script>
+  <script src="./doc-page.js"></script>
+  <style>
+    doc-page:not(:defined){visibility:hidden}
+    a{color:var(--color-accent-700);text-decoration:none}
+    a:hover{color:var(--color-accent-2)}
+  </style>
+</helmet>
+<doc-page size="a4" margin="0.85in">
+  <div slot="footer" style="display:flex;justify-content:space-between;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-600);padding-top:8px">
+    <span>CareLink — Backend Schema</span>
+    <span>v1.0 · August 2026</span>
+  </div>
+
+  <div style="font-size:10.5px;letter-spacing:0.16em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:var(--space-3)">Document 5 of 6 · Backend Schema</div>
+
+  <h1 style="font-size:40px;line-height:1.05;margin:0 0 var(--space-3);max-width:20ch">CareLink Backend Schema</h1>
+
+  <p style="font-size:17px;line-height:1.6;font-style:italic;color:var(--color-neutral-800);max-width:60ch;margin:0 0 var(--space-8)">The PostgreSQL data model: enumerations, seventeen tables, their relationships, the constraints that protect a booking's terms, the row-level policies that protect a child's record, and the views the agency's dashboard reads.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:0 0 var(--space-2)">1 · Conventions</h2>
+  <p style="max-width:66ch">Every table has a <code>uuid</code> primary key defaulting to <code>gen_random_uuid()</code>, and <code>created_at</code> and <code>updated_at</code> as <code>timestamptz</code> defaulting to <code>now()</code>. Foreign keys are named <code>&lt;entity&gt;_id</code>. Money is stored as <code>integer</code> in pesewas — never a floating-point type — and every amount column is accompanied by the currency <code>GHS</code> implicitly. Times are <code>timestamptz</code> stored in UTC. Soft deletion is used only where a record is evidence: <code>deleted_at</code> on reviews and messages; everything else is deleted for real or cascaded.</p>
+  <p style="max-width:66ch">Text that a user typed is <code>text</code>, never <code>varchar(n)</code>. Enumerations are Postgres <code>enum</code> types, so an impossible state cannot be written even by a mistaken query. Every table has row-level security enabled with no default-permit policy.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">2 · Enumerations</h2>
+  <table class="table" style="width:100%;font-size:13.5px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:26%">Type</th><th>Values</th></tr></thead>
+    <tbody>
+      <tr><td>user_role</td><td>parent, staff, admin</td></tr>
+      <tr><td>account_status</td><td>invited, active, suspended</td></tr>
+      <tr><td>verification_status</td><td>unverified, pending, verified, rejected</td></tr>
+      <tr><td>id_document_type</td><td>ghana_card, passport, voter_id</td></tr>
+      <tr><td>photo_verdict</td><td>likely_match, uncertain, likely_mismatch, not_run</td></tr>
+      <tr><td>booking_status</td><td>pending, accepted, declined, expired, paid, active, completed, cancelled, disputed</td></tr>
+      <tr><td>payment_status</td><td>initiated, pending, succeeded, failed, timed_out, refunded</td></tr>
+      <tr><td>momo_network</td><td>mtn, telecel, airteltigo</td></tr>
+      <tr><td>report_category</td><td>no_show, conduct, payment, safety, other</td></tr>
+      <tr><td>report_status</td><td>open, investigating, resolved</td></tr>
+      <tr><td>skill_tag</td><td>infant_care, toddler_care, school_age_supervision, newborn_care, meal_preparation, special_needs_care, light_housekeeping</td></tr>
+      <tr><td>day_part</td><td>morning, afternoon, evening, overnight</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">3 · Entity relationships</h2>
+  <div style="border-top:3px solid var(--color-text);border-bottom:1px solid var(--color-text);padding:var(--space-4) 0;margin:var(--space-3) 0 var(--space-6);font-size:13.5px;break-inside:avoid">
+    <div style="display:grid;grid-template-columns:1fr;gap:8px">
+      <div><strong>users</strong> 1 — 0..1 <strong>parent_profiles</strong> 1 — 0..n <strong>wards</strong></div>
+      <div><strong>users</strong> 1 — 0..1 <strong>staff_profiles</strong> 1 — 0..n <strong>staff_skills</strong>, <strong>staff_areas</strong>, <strong>availability_windows</strong>, <strong>availability_exceptions</strong>, <strong>certifications</strong></div>
+      <div><strong>users</strong> 1 — 0..n <strong>verification_submissions</strong> (reviewed by a user with the admin role)</div>
+      <div><strong>bookings</strong> n — 1 <strong>parent_profiles</strong>, n — 1 <strong>staff_profiles</strong>, n — 0..1 <strong>wards</strong></div>
+      <div><strong>bookings</strong> 1 — 0..n <strong>payments</strong>, 1 — 0..1 <strong>reviews</strong>, 1 — 0..n <strong>messages</strong>, 1 — 0..n <strong>reports</strong>, 1 — 1..n <strong>booking_events</strong></div>
+      <div><strong>users</strong> 1 — 0..n <strong>notifications</strong>; <strong>platform_settings</strong> and <strong>match_weights</strong> stand alone</div>
+    </div>
+  </div>
+  <p style="max-width:66ch">The shape of the model follows one decision: a <strong>booking is the transaction record</strong>, and payments, messages, reviews, reports and state history all hang from it. Nothing about an agreed arrangement lives anywhere else, which is what makes the booking the artefact the agency can rely on in a dispute.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">4 · Tables</h2>
+
+  <h3 style="font-size:19px;margin:var(--space-4) 0 var(--space-2)">4.1 users</h3>
+  <p style="max-width:66ch">Mirrors the auth provider's user record and carries what the application needs in queries and policies. One row per person, whatever their role.</p>
+  <table class="table" style="width:100%;font-size:13px;margin:var(--space-2) 0 var(--space-6)">
+    <thead><tr><th style="width:26%">Column</th><th style="width:22%">Type</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>uuid PK</td><td>Same value as the auth user id</td></tr>
+      <tr><td>role</td><td>user_role NOT NULL</td><td>Set at creation; not user-editable; read by every policy</td></tr>
+      <tr><td>full_name</td><td>text NOT NULL</td><td>Compared against the ID document during review</td></tr>
+      <tr><td>phone</td><td>text NOT NULL UNIQUE</td><td>Ghanaian format, validated; the identifier the agency actually uses</td></tr>
+      <tr><td>phone_confirmed</td><td>boolean DEFAULT false</td><td>Mandatory for verified status</td></tr>
+      <tr><td>email</td><td>text UNIQUE</td><td>Nullable — a roster-created caregiver may have none</td></tr>
+      <tr><td>verification_status</td><td>verification_status DEFAULT 'unverified'</td><td>Denormalised from the latest submission for fast filtering</td></tr>
+      <tr><td>account_status</td><td>account_status DEFAULT 'active'</td><td><em>invited</em> until a roster record is claimed; <em>suspended</em> blocks sign-in</td></tr>
+      <tr><td>invited_by</td><td>uuid FK → users(id)</td><td>The administrator who created the roster record</td></tr>
+      <tr><td>invitation_code_hash</td><td>text</td><td>Hashed; cleared on claim</td></tr>
+      <tr><td>last_seen_at</td><td>timestamptz</td><td>For the roster's activity column</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">4.2 parent_profiles</h3>
+  <table class="table" style="width:100%;font-size:13px;margin:var(--space-2) 0 var(--space-6)">
+    <thead><tr><th style="width:26%">Column</th><th style="width:22%">Type</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>uuid PK</td><td></td></tr>
+      <tr><td>user_id</td><td>uuid FK → users(id) UNIQUE NOT NULL</td><td>ON DELETE CASCADE</td></tr>
+      <tr><td>area</td><td>text NOT NULL</td><td>Used by area proximity in scoring</td></tr>
+      <tr><td>address</td><td>text</td><td>Default for a booking's address; never shown in search results</td></tr>
+      <tr><td>household_notes</td><td>text</td><td>Pets, house access, parking — shared with a caregiver on an open booking</td></tr>
+      <tr><td>emergency_contact_name</td><td>text NOT NULL</td><td></td></tr>
+      <tr><td>emergency_contact_phone</td><td>text NOT NULL</td><td>Revealed to the caregiver only while a booking is active</td></tr>
+      <tr><td>emergency_contact_relation</td><td>text</td><td></td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">4.3 wards</h3>
+  <p style="max-width:66ch">The Ward Care Profile — the persistent record that removes repeated briefing. Deliberately minimal: nothing about a child is stored that a caregiver does not need to do the job.</p>
+  <table class="table" style="width:100%;font-size:13px;margin:var(--space-2) 0 var(--space-6)">
+    <thead><tr><th style="width:26%">Column</th><th style="width:22%">Type</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>uuid PK</td><td></td></tr>
+      <tr><td>parent_profile_id</td><td>uuid FK → parent_profiles(id) NOT NULL</td><td>ON DELETE CASCADE</td></tr>
+      <tr><td>display_name</td><td>text NOT NULL</td><td>First name or nickname only</td></tr>
+      <tr><td>age_years</td><td>smallint CHECK (age_years BETWEEN 0 AND 17)</td><td>Age, not date of birth — minimisation</td></tr>
+      <tr><td>allergies</td><td>text</td><td>Shown first, and emphasised, in the caregiver's view</td></tr>
+      <tr><td>medications</td><td>text</td><td>Free text covering name, dose and timing</td></tr>
+      <tr><td>meal_notes</td><td>text</td><td>Meal times, foods, restrictions</td></tr>
+      <tr><td>routine_notes</td><td>text</td><td>Naps, homework, play, bedtime</td></tr>
+      <tr><td>special_needs</td><td>text</td><td></td></tr>
+      <tr><td>house_rules</td><td>text</td><td>Screen time, visitors, going outside</td></tr>
+      <tr><td>general_notes</td><td>text</td><td></td></tr>
+      <tr><td>archived_at</td><td>timestamptz</td><td>Retired rather than deleted while historical bookings reference it</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">4.4 staff_profiles</h3>
+  <table class="table" style="width:100%;font-size:13px;margin:var(--space-2) 0 var(--space-6)">
+    <thead><tr><th style="width:26%">Column</th><th style="width:22%">Type</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>uuid PK</td><td></td></tr>
+      <tr><td>user_id</td><td>uuid FK → users(id) UNIQUE NOT NULL</td><td></td></tr>
+      <tr><td>photo_path</td><td>text</td><td>Public bucket — the one image parents see before booking</td></tr>
+      <tr><td>bio</td><td>text</td><td>Often dictated rather than typed</td></tr>
+      <tr><td>years_experience</td><td>smallint CHECK (&gt;= 0)</td><td>Scoring input</td></tr>
+      <tr><td>hourly_rate</td><td>integer NOT NULL CHECK (&gt; 0)</td><td>Pesewas; snapshotted onto a booking at request time</td></tr>
+      <tr><td>languages</td><td>text[]</td><td>Local languages spoken; shown to parents and filterable</td></tr>
+      <tr><td>emergency_contact_name</td><td>text NOT NULL</td><td></td></tr>
+      <tr><td>emergency_contact_phone</td><td>text NOT NULL</td><td>Revealed to the parent only while a booking is active</td></tr>
+      <tr><td>rating_avg</td><td>numeric(3,2) DEFAULT NULL</td><td>Maintained by trigger on reviews; null until the first review</td></tr>
+      <tr><td>rating_count</td><td>integer DEFAULT 0</td><td>Below three, scoring substitutes the roster median</td></tr>
+      <tr><td>bookings_completed</td><td>integer DEFAULT 0</td><td>Maintained by trigger; the roster's activity measure</td></tr>
+      <tr><td>accepting_bookings</td><td>boolean DEFAULT true</td><td>A self-service pause that does not affect accepted bookings</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">4.5 staff_skills · staff_areas · certifications</h3>
+  <table class="table" style="width:100%;font-size:13px;margin:var(--space-2) 0 var(--space-6)">
+    <thead><tr><th style="width:26%">Table</th><th style="width:34%">Columns</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>staff_skills</td><td>staff_profile_id FK, skill skill_tag — composite PK</td><td>A join table rather than an array, so the skill-match factor can be computed in SQL and indexed</td></tr>
+      <tr><td>staff_areas</td><td>staff_profile_id FK, area text, is_primary boolean — composite PK</td><td>Primary area scores full, additional areas score reduced</td></tr>
+      <tr><td>certifications</td><td>id PK, staff_profile_id FK, title text, issuer text, issued_on date, document_path text, verified_by_admin boolean DEFAULT false</td><td>Optional supporting evidence — First Aid/CPR, Early Childhood Education. Private bucket</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">4.6 availability_windows · availability_exceptions</h3>
+  <table class="table" style="width:100%;font-size:13px;margin:var(--space-2) 0 var(--space-6)">
+    <thead><tr><th style="width:26%">Table</th><th style="width:34%">Columns</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>availability_windows</td><td>id PK, staff_profile_id FK, weekday smallint CHECK (0–6), part day_part, start_time time, end_time time</td><td>Recurring weekly declaration, captured as a tapped grid. CHECK (end_time &gt; start_time)</td></tr>
+      <tr><td>availability_exceptions</td><td>id PK, staff_profile_id FK, on_date date, unavailable boolean DEFAULT true, note text</td><td>Specific dates off, and occasionally a one-off extra date. UNIQUE (staff_profile_id, on_date)</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">4.7 verification_submissions</h3>
+  <p style="max-width:66ch">One row per attempt, by either role. Attempts are kept rather than overwritten, so a rejection and its resubmission are both on the record.</p>
+  <table class="table" style="width:100%;font-size:13px;margin:var(--space-2) 0 var(--space-6)">
+    <thead><tr><th style="width:26%">Column</th><th style="width:22%">Type</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>uuid PK</td><td></td></tr>
+      <tr><td>user_id</td><td>uuid FK → users(id) NOT NULL</td><td>Parent or staff — the same table serves both, which is what makes verification bidirectional</td></tr>
+      <tr><td>id_document_type</td><td>id_document_type NOT NULL</td><td></td></tr>
+      <tr><td>id_document_number</td><td>text NOT NULL</td><td>Encrypted at rest; never returned to a client except to its owner and an administrator</td></tr>
+      <tr><td>id_document_path</td><td>text NOT NULL</td><td>Private bucket; signed URL only</td></tr>
+      <tr><td>selfie_path</td><td>text</td><td>Null when the optional live photo step is skipped</td></tr>
+      <tr><td>photo_verdict</td><td>photo_verdict DEFAULT 'not_run'</td><td>The model's result — advisory only</td></tr>
+      <tr><td>photo_rationale</td><td>text</td><td>The model's one-line explanation</td></tr>
+      <tr><td>photo_model_version</td><td>text</td><td>Recorded so the evaluation can attribute results to a model</td></tr>
+      <tr><td>reference_name / _phone / _relation</td><td>text NOT NULL / NOT NULL / text</td><td>At least one contactable reference is mandatory</td></tr>
+      <tr><td>reference_contacted</td><td>boolean DEFAULT false</td><td>Ticked by the administrator during review</td></tr>
+      <tr><td>status</td><td>verification_status DEFAULT 'pending'</td><td></td></tr>
+      <tr><td>reviewed_by</td><td>uuid FK → users(id)</td><td>Must hold the admin role</td></tr>
+      <tr><td>reviewed_at</td><td>timestamptz</td><td></td></tr>
+      <tr><td>rejection_reason</td><td>text</td><td>Required when status is rejected — enforced by CHECK</td></tr>
+      <tr><td>consent_photo_at</td><td>timestamptz</td><td>When consent to the third-party photo check was given; null if skipped</td></tr>
+      <tr><td>images_purge_after</td><td>timestamptz</td><td>Retention deadline for the two images after a decision</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">4.8 bookings</h3>
+  <p style="max-width:66ch">The centre of the model. Rate and total are <em>snapshotted</em> at request time, not read from the caregiver's profile, so a later rate change cannot alter an agreed arrangement.</p>
+  <table class="table" style="width:100%;font-size:13px;margin:var(--space-2) 0 var(--space-6)">
+    <thead><tr><th style="width:26%">Column</th><th style="width:22%">Type</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>uuid PK</td><td></td></tr>
+      <tr><td>reference</td><td>text UNIQUE NOT NULL</td><td>Short human-readable code, quotable over the phone</td></tr>
+      <tr><td>parent_profile_id</td><td>uuid FK NOT NULL</td><td></td></tr>
+      <tr><td>staff_profile_id</td><td>uuid FK NOT NULL</td><td></td></tr>
+      <tr><td>ward_id</td><td>uuid FK → wards(id)</td><td>The child this booking is for; drives which care profile the caregiver sees</td></tr>
+      <tr><td>status</td><td>booking_status DEFAULT 'pending'</td><td>Changed only through the transition function</td></tr>
+      <tr><td>starts_at / ends_at</td><td>timestamptz NOT NULL</td><td>CHECK (ends_at &gt; starts_at)</td></tr>
+      <tr><td>duration_hours</td><td>numeric(4,2) GENERATED</td><td>Derived, so hours and total can never disagree</td></tr>
+      <tr><td>hourly_rate</td><td>integer NOT NULL</td><td>Snapshot in pesewas</td></tr>
+      <tr><td>total_amount</td><td>integer NOT NULL</td><td>Snapshot; CHECK (&gt; 0)</td></tr>
+      <tr><td>address</td><td>text NOT NULL</td><td>Copied from the household but editable per booking</td></tr>
+      <tr><td>one_off_notes</td><td>text</td><td>For this booking only, distinct from the persistent care profile</td></tr>
+      <tr><td>terms_locked_at</td><td>timestamptz</td><td>Set on acceptance; after it, terms are immutable by trigger</td></tr>
+      <tr><td>decline_reason</td><td>text</td><td></td></tr>
+      <tr><td>cancelled_by / cancel_reason</td><td>uuid FK → users(id) / text</td><td></td></tr>
+      <tr><td>session_started_at / session_ended_at</td><td>timestamptz</td><td>The window in which emergency contacts are mutually visible</td></tr>
+      <tr><td>completed_at</td><td>timestamptz</td><td>Enables the review and credits the commission split</td></tr>
+      <tr><td>match_score</td><td>numeric(5,2)</td><td>The score at the moment of the request, kept for evaluating the algorithm</td></tr>
+      <tr><td>match_breakdown</td><td>jsonb</td><td>The five factor contributions as shown to the parent</td></tr>
+    </tbody>
+  </table>
+  <p style="max-width:66ch"><strong>Constraints.</strong> An exclusion constraint prevents two bookings for the same caregiver with overlapping <code>[starts_at, ends_at)</code> in <em>accepted</em>, <em>paid</em> or <em>active</em>. A trigger refuses any change to <code>starts_at</code>, <code>ends_at</code>, <code>hourly_rate</code>, <code>total_amount</code> or <code>address</code> once <code>terms_locked_at</code> is set. Indexes on <code>(staff_profile_id, starts_at)</code>, <code>(parent_profile_id, created_at)</code> and <code>(status, starts_at)</code>.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">4.9 booking_events</h3>
+  <table class="table" style="width:100%;font-size:13px;margin:var(--space-2) 0 var(--space-6)">
+    <thead><tr><th style="width:26%">Column</th><th style="width:22%">Type</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>id / booking_id</td><td>uuid PK / uuid FK NOT NULL</td><td></td></tr>
+      <tr><td>from_status / to_status</td><td>booking_status</td><td><code>from_status</code> null on creation</td></tr>
+      <tr><td>actor_id</td><td>uuid FK → users(id)</td><td>Null where the system acted, as with expiry</td></tr>
+      <tr><td>note</td><td>text</td><td>Reason where one was given</td></tr>
+      <tr><td>occurred_at</td><td>timestamptz DEFAULT now()</td><td>Append-only: no update or delete policy exists on this table</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">4.10 payments</h3>
+  <table class="table" style="width:100%;font-size:13px;margin:var(--space-2) 0 var(--space-6)">
+    <thead><tr><th style="width:26%">Column</th><th style="width:22%">Type</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>id / booking_id</td><td>uuid PK / uuid FK NOT NULL</td><td>Several rows per booking are possible — a failure then a retry</td></tr>
+      <tr><td>network</td><td>momo_network NOT NULL</td><td>MTN, Telecel, AirtelTigo</td></tr>
+      <tr><td>payer_phone</td><td>text NOT NULL</td><td>May differ from the account phone</td></tr>
+      <tr><td>amount</td><td>integer NOT NULL CHECK (&gt; 0)</td><td>Pesewas</td></tr>
+      <tr><td>status</td><td>payment_status DEFAULT 'initiated'</td><td></td></tr>
+      <tr><td>provider_reference</td><td>text UNIQUE</td><td>The artefact that replaces a cash handover; visible to both parties</td></tr>
+      <tr><td>provider_payload</td><td>jsonb</td><td>Raw response, retained for reconciliation</td></tr>
+      <tr><td>is_simulated</td><td>boolean DEFAULT true</td><td>Honest labelling of this phase's sandbox flow</td></tr>
+      <tr><td>commission_rate</td><td>numeric(4,3) NOT NULL</td><td>Copied from settings at completion, so a later change does not rewrite history</td></tr>
+      <tr><td>commission_amount / payout_amount</td><td>integer</td><td>Computed at completion; together they equal <code>amount</code>, enforced by CHECK</td></tr>
+      <tr><td>failure_reason</td><td>text</td><td></td></tr>
+      <tr><td>refunded_amount</td><td>integer DEFAULT 0</td><td>Raised on a paid cancellation for administrator action</td></tr>
+      <tr><td>settled_at</td><td>timestamptz</td><td></td></tr>
+    </tbody>
+  </table>
+  <p style="max-width:66ch">A partial unique index allows at most one <em>succeeded</em> payment per booking, so a double payment is impossible at the storage level rather than only in the interface.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">4.11 reviews · messages</h3>
+  <table class="table" style="width:100%;font-size:13px;margin:var(--space-2) 0 var(--space-6)">
+    <thead><tr><th style="width:26%">Table</th><th style="width:34%">Columns</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>reviews</td><td>id PK, booking_id FK UNIQUE, rating smallint CHECK (1–5), comment text, staff_response text, hidden_by_admin boolean DEFAULT false, hidden_reason text, deleted_at timestamptz</td><td>The unique constraint on <code>booking_id</code> is the anti-fraud mechanism: no completed booking, no review. A trigger recalculates <code>rating_avg</code> and <code>rating_count</code></td></tr>
+      <tr><td>messages</td><td>id PK, booking_id FK NOT NULL, sender_id FK → users(id), body text NOT NULL, read_at timestamptz, deleted_at timestamptz</td><td>Booking-scoped only; there is no direct messaging outside a booking. Index on <code>(booking_id, created_at)</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">4.12 reports</h3>
+  <table class="table" style="width:100%;font-size:13px;margin:var(--space-2) 0 var(--space-6)">
+    <thead><tr><th style="width:26%">Column</th><th style="width:22%">Type</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>id / booking_id</td><td>uuid PK / uuid FK</td><td>Nullable — an account-level report may not concern a booking</td></tr>
+      <tr><td>reporter_id / subject_user_id</td><td>uuid FK → users(id) NOT NULL</td><td>CHECK (reporter_id &lt;&gt; subject_user_id)</td></tr>
+      <tr><td>category</td><td>report_category NOT NULL</td><td></td></tr>
+      <tr><td>description</td><td>text NOT NULL</td><td></td></tr>
+      <tr><td>status</td><td>report_status DEFAULT 'open'</td><td>An open or investigating report blocks the subject reaching verified status</td></tr>
+      <tr><td>assigned_to / resolved_at / resolution_note</td><td>uuid FK / timestamptz / text</td><td>Resolution note required when resolved — CHECK</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">4.13 notifications · platform_settings · match_weights · audit_log</h3>
+  <table class="table" style="width:100%;font-size:13px;margin:var(--space-2) 0 var(--space-6)">
+    <thead><tr><th style="width:26%">Table</th><th style="width:34%">Columns</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>notifications</td><td>id PK, user_id FK, kind text, booking_id FK, body text, read_at timestamptz</td><td>In-app only in this phase; the delivery channel is deliberately not modelled yet</td></tr>
+      <tr><td>platform_settings</td><td>key text PK, value jsonb, updated_by FK, updated_at</td><td>Commission rate, service-area list, request-expiry hours, image-retention days</td></tr>
+      <tr><td>match_weights</td><td>factor text PK, weight numeric(4,3), updated_by FK, updated_at</td><td>The five factors as data, so the agency can retune and the evaluation can compare weightings</td></tr>
+      <tr><td>audit_log</td><td>id PK, actor_id FK, action text, entity text, entity_id uuid, before jsonb, after jsonb, occurred_at</td><td>Verification decisions, suspensions, payment overrides, settings changes. Append-only; no update or delete policy</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">5 · Row-level security</h2>
+  <table class="table" style="width:100%;font-size:13.5px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:26%">Table</th><th>Policy in words</th></tr></thead>
+    <tbody>
+      <tr><td>users</td><td>A user reads and updates their own row, except <code>role</code> and <code>account_status</code>. An administrator reads all and updates status. No one reads another user's row directly — public caregiver data is exposed through a view</td></tr>
+      <tr><td>parent_profiles</td><td>Owner full access. A caregiver reads the area and household notes only through a booking they hold. Administrator reads all</td></tr>
+      <tr><td>wards</td><td>Owner full access. A caregiver reads a ward only where a booking joins that ward to them and its status is accepted, paid, active or completed. Administrator reads only through an open report on that booking</td></tr>
+      <tr><td>staff_profiles and children</td><td>Owner full access. Any authenticated user reads verified, accepting profiles through the public search view. Administrator full access</td></tr>
+      <tr><td>verification_submissions</td><td>Owner reads and inserts their own; only an administrator updates status, reviewer and reason. Nobody deletes</td></tr>
+      <tr><td>bookings</td><td>Read where the requesting user is the parent or the caregiver on the booking, or an administrator. Insert only by a verified parent. Update only through the transition function</td></tr>
+      <tr><td>emergency contacts</td><td>Not a table but a policy: contact columns are returned to a counterparty only where a booking between them is <em>active</em> — the reveal window is enforced in the database, not by hiding a field in the interface</td></tr>
+      <tr><td>payments, messages, reviews</td><td>Visible to the two parties on the booking and to an administrator; insert restricted to the party entitled to act</td></tr>
+      <tr><td>reports</td><td>Reporter reads their own; the subject never reads a report against them; administrators read and resolve all</td></tr>
+      <tr><td>booking_events, audit_log</td><td>Insert by the service role; read by the booking's parties (events) or administrators only (audit); no update, no delete</td></tr>
+    </tbody>
+  </table>
+  <p style="max-width:66ch">Every policy ships with a negative integration test asserting that the request which should be refused is refused. A table without a policy and its negative test is not considered complete.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">6 · Views for search and reporting</h2>
+  <table class="table" style="width:100%;font-size:13.5px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:30%">View</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td>public_caregivers</td><td>Verified, accepting caregivers with photo, bio, rate, experience, rating, skills, areas and languages — and nothing else. The only path by which one user reads another's data</td></tr>
+      <tr><td>caregiver_availability</td><td>Windows and exceptions resolved against accepted bookings, giving bookable time per caregiver per day — the hard filter's input</td></tr>
+      <tr><td>booking_summary</td><td>Bookings joined to parent, caregiver, payment status and review, for the administrator's booking table</td></tr>
+      <tr><td>revenue_by_period</td><td>Succeeded payments grouped by day, week and month with gross value, commission and payouts. The agency's first financial record</td></tr>
+      <tr><td>staff_utilisation</td><td>Per caregiver: hours booked against hours declared available, bookings completed, decline rate, average rating, earnings</td></tr>
+      <tr><td>verification_queue</td><td>Pending submissions with role, waiting time and whether a photo check exists, oldest first</td></tr>
+      <tr><td>ai_evaluation_sample</td><td>Photo verdict against the administrator's independent decision per submission — the dataset the evaluation plan compares</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">7 · Seed and migration notes</h2>
+  <p style="max-width:66ch">Migrations are numbered SQL files in the repository, forward-only, each with its policies and indexes in the same file as its table — a table and its protection are never separated across migrations. The seed script creates one administrator, twelve caregivers across four areas with varied rates, skills and availability, six parents with nine wards, and forty bookings distributed across every status including two disputes, so every screen and every dashboard figure has something real to display from the first run. Seed data is clearly marked and never mixed into production tables.</p>
+</doc-page>
+
+</x-dc>
+</body>
+</html>

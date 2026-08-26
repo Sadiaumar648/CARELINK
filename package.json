@@ -1,0 +1,13 @@
+{
+  "name": "carelink",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": [
+    "carelink-backend",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev --workspace carelink-backend",
+    "build:backend": "npm run build --workspace carelink-backend"
+  }
+}

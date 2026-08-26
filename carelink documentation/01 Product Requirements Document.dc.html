@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/broadsheet-0f1a8441-db8d-47c6-af37-38a0fadc8268/styles.css">
+  <script src="_ds/broadsheet-0f1a8441-db8d-47c6-af37-38a0fadc8268/_ds_bundle.js"></script>
+  <script src="./doc-page.js"></script>
+  <style>
+    doc-page:not(:defined){visibility:hidden}
+    a{color:var(--color-accent-700);text-decoration:none}
+    a:hover{color:var(--color-accent-2)}
+  </style>
+</helmet>
+<doc-page size="a4" margin="0.85in">
+  <div slot="footer" style="display:flex;justify-content:space-between;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-600);padding-top:8px">
+    <span>CareLink — Product Requirements Document</span>
+    <span>v1.0 · August 2026</span>
+  </div>
+
+  <div style="font-size:10.5px;letter-spacing:0.16em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:var(--space-3)">Document 1 of 6 · Product Requirements</div>
+
+  <h1 style="font-size:40px;line-height:1.05;margin:0 0 var(--space-3);max-width:22ch">CareLink Product Requirements Document</h1>
+
+  <p style="font-size:17px;line-height:1.6;font-style:italic;color:var(--color-neutral-800);max-width:60ch;margin:0 0 var(--space-6)">A digital booking and management platform for an existing babysitting and nanny agency in Ghana — giving the agency an online presence, a verified staff roster, structured bookings, cashless payment and, for the first time, a record of its own operations.</p>
+
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:var(--space-2) var(--space-6);font-size:13px;margin:0 0 var(--space-8);max-width:44em">
+    <div><span style="color:var(--color-neutral-600)">Product</span> · CareLink</div>
+    <div><span style="color:var(--color-neutral-600)">Author</span> · Halimatu Sadia Umar</div>
+    <div><span style="color:var(--color-neutral-600)">Status</span> · Approved for build</div>
+    <div><span style="color:var(--color-neutral-600)">Supervisor</span> · Micheal Kolugu</div>
+    <div><span style="color:var(--color-neutral-600)">Phase</span> · MVP, Aug–Sep 2026</div>
+    <div><span style="color:var(--color-neutral-600)">Companion docs</span> · TDD, App Flow, Design Brief, Schema, Engineering Plan</div>
+  </div>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:0 0 var(--space-2)">1 · Overview</h2>
+  <p style="max-width:66ch">CareLink digitises a real, currently operating caregiving agency that places babysitters and nannies with families in Ghana. Today the agency runs entirely on phone calls and in-person conversations: no online presence, no structured record of bookings or payments, no reviewable record of who has been verified and how. The agency's staff are its product, and it has no catalogue of them.</p>
+  <p style="max-width:66ch">CareLink is not a marketplace open to any agency. It is the operating system of <em>this</em> agency: the administrator manages the roster, verification and disputes; staff maintain their own profiles and availability and answer booking requests; parents discover, book, pay for and review that staff. Everything the agency currently holds in memory or in a notebook becomes queryable data — who is available this Saturday in Adenta, which staff are verified, what has been earned this month, and which arrangements are in dispute.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">1.1 Vision statement</h3>
+  <p style="max-width:66ch;padding-left:var(--space-4);border-left:2px solid var(--color-accent);font-style:italic">A parent should be able to find, verify, book and pay a trusted caregiver from the agency in under five minutes — and never have to explain their child's routine twice. The agency should be able to see its whole operation on one screen.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">1.2 What the system tracks</h3>
+  <p style="max-width:66ch">The agency's operations translate into four things the platform must account for continuously. These four are the backbone of the data model and of the administrator's dashboard.</p>
+  <table class="table" style="width:100%;font-size:13.5px;margin:var(--space-3) 0 var(--space-6)">
+    <thead>
+      <tr><th style="width:22%">Tracked</th><th style="width:34%">What it means at CareLink</th><th>Why it matters</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Caregiver supply</strong></td><td>The roster: every staff member, their verification status, skills, service areas, hourly rate and declared availability windows</td><td>The agency's only sellable capacity. Unverified or unavailable staff cannot be booked, so supply must be accurate to the hour</td></tr>
+      <tr><td><strong>Bookings</strong></td><td>Every request, acceptance, decline, cancellation, active session and completion, with locked-in terms</td><td>Replaces verbal arrangements; the single source of truth in a dispute</td></tr>
+      <tr><td><strong>Revenue</strong></td><td>Mobile Money payments against bookings: gross booking value, agency commission, staff payout, refunds</td><td>The agency has no financial record today; this is the first one</td></tr>
+      <tr><td><strong>Trust</strong></td><td>Verification records, reviews and ratings, reports and their resolutions</td><td>The product's core promise. A parent buys confidence before they buy hours</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">2 · Goals and success metrics</h2>
+  <table class="table" style="width:100%;font-size:13.5px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:44%">Goal</th><th style="width:30%">Metric</th><th>Target for this phase</th></tr></thead>
+    <tbody>
+      <tr><td>Booking is faster than a phone call</td><td>Time from search to confirmed booking, measured in timed trials against the manual process</td><td>50% reduction</td></tr>
+      <tr><td>Parents trust the platform more than the informal arrangement</td><td>Post-test questionnaire on perceived trust</td><td>Majority report an increase</td></tr>
+      <tr><td>Search results feel relevant</td><td>Perceived relevance of weighted ranking vs. plain filtering</td><td>Weighted ranking preferred by a majority</td></tr>
+      <tr><td>Care information is not repeated</td><td>Staff report the Ward Care Profile answered their questions before arrival</td><td>Majority agree</td></tr>
+      <tr><td>Natural-language search works</td><td>Correct filter extraction on a labelled query set</td><td>Correct on a majority of queries</td></tr>
+      <tr><td>The photo plausibility check helps the reviewer</td><td>Administrator rating of usefulness vs. manual-only review</td><td>Helpful in a majority of reviewed cases</td></tr>
+      <tr><td>System reliability</td><td>Failed transactions and unhandled errors</td><td>Under 2% of transactions</td></tr>
+      <tr><td>Overall satisfaction</td><td>Post-test questionnaire, 10–15 participants</td><td>Above 4 of 5</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">2.1 Non-goals</h3>
+  <p style="max-width:66ch">Explicitly not in this phase: onboarding other agencies, nurse and home-healthcare placements, native mobile apps, certified biometric KYC, live criminal-record or background-check integrations, real money movement through a Mobile Money aggregator, GPS tracking during a session, and multi-language interfaces. Each is recorded as future scope, not as an omission.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">3 · Users and roles</h2>
+  <table class="table" style="width:100%;font-size:13.5px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:20%">Role</th><th style="width:26%">Who they are</th><th>What the system must let them do</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Parent / guardian</strong></td><td>Working parents in Accra and surrounding areas, comfortable with smartphones and Mobile Money, cautious about who enters their home</td><td>Register and verify identity; keep a household profile and a Ward Care Profile per child; search by filters or plain language; read ranked matches with a score breakdown; request a booking; message the caregiver; pay by Mobile Money; see the caregiver's emergency contact once a session is live; review; report a problem</td></tr>
+      <tr><td><strong>Staff (caregiver)</strong></td><td>Babysitters and nannies already on the agency's books. Variable formal literacy; phone-first; often added to the roster by the administrator before their first login</td><td>Complete their own verification with voice input and read-aloud support; build a profile with experience, rate, skills, service areas and availability; upload certifications; accept or decline requests; read the Ward Care Profile before arriving; message the parent; start and end sessions; see their rating, reviews and earnings; report a problem</td></tr>
+      <tr><td><strong>Administrator</strong></td><td>The agency owner or manager — one or two people, desktop-first, currently the single point of coordination</td><td>Add and manage roster records; review every verification submission from both roles and approve or reject; handle reports and disputes; view bookings, revenue and staff utilisation; configure commission and platform settings</td></tr>
+    </tbody>
+  </table>
+  <p style="max-width:66ch">Role-based access control is absolute: each role sees only its own interfaces and only the records tied to it. A parent never sees another parent's household; a staff member sees a Ward Care Profile only for a booking they have accepted.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">4 · Feature requirements</h2>
+  <p style="max-width:66ch">Each feature carries a priority — <strong>P0</strong> the system is not usable without it, <strong>P1</strong> required for the evaluated MVP, <strong>P2</strong> desirable if time allows. Acceptance criteria in full are in the Engineering Plan; the criteria named here are the ones that define the feature.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">F1 · Accounts and role-based access · P0</h3>
+  <p style="max-width:66ch">Email-and-password registration and sign-in for parents and staff; administrator accounts are provisioned, not self-registered. Every account carries exactly one role, set at creation and not user-editable. Sessions persist across reloads; sign-out clears them. Every protected route and every API endpoint checks role and record ownership on the server, not just in the interface.</p>
+  <p style="max-width:66ch"><strong>Defining criteria.</strong> A staff account requesting a parent-only route is refused by the server. A parent requesting another parent's booking record receives a not-found, not a redirect.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">F2 · Roster management · P0</h3>
+  <p style="max-width:66ch">The administrator can add a staff record directly — name, phone, area, indicative rate — before that person has ever logged in, mirroring how the agency already holds its people. Adding a record issues an invitation and a first-login credential. The staff member then completes their own profile and verification. The roster view lists every staff member with verification status, availability summary, rating, bookings completed and earnings to date, and can be filtered by status.</p>
+  <p style="max-width:66ch"><strong>Defining criteria.</strong> A roster record created by the administrator and never claimed appears as <em>invited</em> and cannot be booked. Claiming the invitation preserves the same record rather than creating a duplicate.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">F3 · Bidirectional identity verification · P0</h3>
+  <p style="max-width:66ch">Both parents and staff verify themselves — not staff only. A submission carries: government ID type and number (Ghana Card, with passport or voter ID as fallback), a photograph of the document, a confirmed phone number, and at least one contactable reference with name, relationship and phone. Status moves <em>unverified → pending review → verified</em> or <em>rejected</em>, with a reason recorded on rejection and resubmission allowed.</p>
+  <p style="max-width:66ch">Mandatory for verified status: an ID matching the profile name and showing the holder is 18 or over, a confirmed phone number, one contactable reference, and no unresolved report against the account. Optional supporting evidence: the live photo check below, and for staff, certification uploads such as First Aid/CPR or an Early Childhood Education certificate.</p>
+  <p style="max-width:66ch"><strong>Defining criteria.</strong> Unverified staff never appear in search results. An unverified parent can browse but cannot submit a booking request.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">F4 · Live photo plausibility check · P1</h3>
+  <p style="max-width:66ch">An optional step within verification: the user captures a live selfie in the browser, which is compared by a vision model against the uploaded ID photograph. The model returns one of three plausibility results — likely match, uncertain, likely mismatch — with a one-line explanation, shown to the administrator alongside both images. It is a second opinion for a human reviewer, never an automated decision.</p>
+  <p style="max-width:66ch"><strong>Defining criteria.</strong> The step can be skipped without blocking verification. The user is told, before the camera opens, that the photograph is sent to a third-party service and that the result is not a certified biometric match. The administrator's decision is recorded independently of the model's result, so the two can be compared during evaluation.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">F5 · Staff profiles and availability · P0</h3>
+  <p style="max-width:66ch">A staff profile carries a photograph, bio, years of experience, hourly rate, service areas, emergency contact, certifications and skill tags drawn from a fixed vocabulary: infant care, toddler care, school-age supervision, newborn care, meal preparation, special-needs care, light housekeeping, and local languages spoken. Availability is declared as recurring weekly windows plus specific unavailable dates. Rate and availability changes never alter the terms of an already-accepted booking.</p>
+  <p style="max-width:66ch"><strong>Defining criteria.</strong> Declared availability drives both search filtering and the availability component of the match score. A staff member cannot hold two accepted bookings that overlap in time.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">F6 · Search, filters and weighted matching · P0</h3>
+  <p style="max-width:66ch">Parents search by area, date and time, budget, minimum experience, minimum rating and skill tags. Results are not a flat filtered list: every candidate is scored and ranked, and every card shows why it ranked where it did — a visible breakdown of the contributing factors.</p>
+  <table class="table" style="width:100%;font-size:13.5px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:26%">Factor</th><th style="width:14%">Weight</th><th>How it scores</th></tr></thead>
+    <tbody>
+      <tr><td>Availability fit</td><td>30%</td><td>Full score when the requested window falls inside declared availability with no conflicting booking; partial when only part of the window is covered</td></tr>
+      <tr><td>Area proximity</td><td>25%</td><td>Full score for the parent's own area, reduced for a declared neighbouring area, zero outside the service areas</td></tr>
+      <tr><td>Skill match</td><td>20%</td><td>Proportion of the requested skill tags the staff member holds</td></tr>
+      <tr><td>Rating and experience</td><td>15%</td><td>Average review rating and years of experience, normalised; staff with fewer than three reviews score at the roster median rather than zero</td></tr>
+      <tr><td>Budget fit</td><td>10%</td><td>Full score at or under the stated budget, tapering above it rather than excluding outright</td></tr>
+    </tbody>
+  </table>
+  <p style="max-width:66ch">Weights live in configuration, not in code branches, so the agency can retune them and the evaluation can compare rankings. <strong>Defining criteria.</strong> Two parents with the same query get the same ranking; the breakdown shown to the parent sums to the score used for ordering.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">F7 · Natural-language search · P1</h3>
+  <p style="max-width:66ch">A parent may instead type or dictate a request in plain language — "someone in East Legon for Saturday afternoon who can handle a newborn, under 30 cedis an hour" — which a language model converts into the same structured filters. The interpreted filters are shown as editable chips before the search runs, so the parent can correct a misreading. If parsing fails or returns anything unexpected, the interface falls back to the manual filters with a plain explanation and no error state.</p>
+  <p style="max-width:66ch"><strong>Defining criteria.</strong> The model's output is validated against a strict filter schema before it touches the query. Nothing beyond the recognised filter fields ever reaches the search.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">F8 · Ward Care Profile · P0</h3>
+  <p style="max-width:66ch">A parent creates one profile per child, once: name or nickname, age, allergies and medications with dosage and timing, meal times and food notes, nap, homework and play schedule, special needs, house rules and general notes. It attaches automatically to every booking for that child and is visible to the assigned staff member from acceptance until the booking is closed — never to anyone else, and never browsable from a staff profile.</p>
+  <p style="max-width:66ch"><strong>Defining criteria.</strong> A parent booking a second time re-enters nothing. Editing the profile updates what staff see on future and currently active bookings, with the edit timestamped so a caregiver can see it changed.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">F9 · Booking lifecycle · P0</h3>
+  <p style="max-width:66ch">A booking moves through <em>pending → accepted → paid → active → completed</em>, with <em>declined</em>, <em>cancelled</em> and <em>disputed</em> as terminal or parallel states. The parent submits date, start and end time, address, the child and any one-off notes; the caregiver sees the request with the parent's verification badge and Ward Care Profile and accepts or declines with a reason. On acceptance the terms — date, hours, hourly rate, total, address — lock: neither side can silently change them, and any change requires a cancellation and a new request.</p>
+  <p style="max-width:66ch">On the day, either party marks the session active; either marks it complete. Only while a session is active do the two sides see each other's emergency contact, symmetrically and temporarily.</p>
+  <p style="max-width:66ch"><strong>Defining criteria.</strong> Every state change is timestamped and attributed. A caregiver cannot accept a request that overlaps an accepted booking. An expired pending request lapses rather than sitting open indefinitely.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">F10 · Mobile Money payment · P1</h3>
+  <p style="max-width:66ch">After acceptance the parent pays via a Mobile Money flow covering MTN, Telecel and AirtelTigo: choose network, confirm the phone number, confirm the amount, receive a payment reference. The reference and status attach to the booking and are visible to both sides and to the administrator. The flow is simulated in this phase — a sandbox that models initiation, pending, success, failure and timeout — behind an interface shaped so a real aggregator can be substituted without touching the booking code. The recorded payment splits into agency commission and staff payout at a configurable rate.</p>
+  <p style="max-width:66ch"><strong>Defining criteria.</strong> A booking cannot enter <em>active</em> without a successful payment or an explicit administrator override recorded as such. A failed payment leaves the booking accepted and retryable, never half-paid.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">F11 · Messaging · P1</h3>
+  <p style="max-width:66ch">Text messaging scoped to a booking, opening on acceptance and closing when the booking is completed or cancelled. Messages are timestamped, ordered, marked read, and retained as part of the booking record so they are available to the administrator if a report is filed.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">F12 · Reviews and ratings · P1</h3>
+  <p style="max-width:66ch">After completion the parent leaves a one-to-five rating and a comment. The caregiver's public average and review count recalculate immediately. One review per booking; reviews are attributable to a completed booking, so they cannot be manufactured. A caregiver may respond once to a review. The administrator can hide a review that breaches conduct rules, with a reason recorded.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">F13 · Reports and dispute resolution · P0</h3>
+  <p style="max-width:66ch">Either party can file a report against a booking at any point — no-show, conduct, payment, safety, other — with a description. Reports route to the administrator, never to the counterparty, and carry a status of open, investigating or resolved with a resolution note. An account with an unresolved report cannot reach verified status.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">F14 · Administrator dashboard and operational reporting · P0</h3>
+  <p style="max-width:66ch">One screen for the agency's whole operation: bookings by status and by period; revenue with gross booking value, commission earned and staff payouts; roster health showing verified, pending and invited counts and the utilisation of each staff member; the verification queue with age of oldest pending item; and the open report queue. Each figure is filterable by date range and exportable as CSV, because the agency will want to reconcile against its own records.</p>
+  <p style="max-width:66ch"><strong>Defining criteria.</strong> Every dashboard figure is derived from booking, payment and verification records — never entered by hand — so the dashboard cannot disagree with the underlying data.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">F15 · Accessibility for low-literacy users · P1</h3>
+  <p style="max-width:66ch">Every step of staff onboarding, verification and booking response supports voice input for text fields and read-aloud for instructions and incoming requests, using the browser's speech APIs. Beyond speech: icon-and-photograph reinforcement of key actions, a plain-language register throughout, and no step that depends on reading a paragraph to complete correctly. Where speech APIs are unavailable, the interface degrades to text without losing function.</p>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">F16 · Notifications · P2</h3>
+  <p style="max-width:66ch">In-app notifications for the events that require a response: a new request, an acceptance or decline, a payment confirmation, a session start, a completed booking awaiting review, and a verification decision. Email or SMS delivery is future scope.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">5 · Non-functional requirements</h2>
+  <table class="table" style="width:100%;font-size:13.5px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:24%">Area</th><th>Requirement</th></tr></thead>
+    <tbody>
+      <tr><td>Performance</td><td>Search results within two seconds on a mid-range Android phone over a 3G connection; Lighthouse performance above 80 on the parent search and dashboard screens</td></tr>
+      <tr><td>Responsiveness</td><td>Usable from 320px to desktop; parent and staff journeys designed mobile-first, administrator screens desktop-first but never broken on a phone</td></tr>
+      <tr><td>Reliability</td><td>Under 2% failed transactions; a failed payment or AI call never leaves a booking in an inconsistent state</td></tr>
+      <tr><td>Security</td><td>Passwords hashed by the auth provider; row-level authorisation on every table; identity documents in private storage reachable only through short-lived signed links; no personal data in logs</td></tr>
+      <tr><td>Privacy</td><td>Data minimisation on children's records — age, care instructions and allergies only, no schools, no photographs of children; selfie and ID images retained only until a verification decision, then deleted on a schedule</td></tr>
+      <tr><td>Compliance</td><td>Ghana's Data Protection Act, 2012 (Act 843): stated purpose, consent captured before collection, right to correction and deletion</td></tr>
+      <tr><td>Accessibility</td><td>WCAG AA contrast, full keyboard operation, labelled form controls, visible focus, and the speech support in F15</td></tr>
+      <tr><td>Auditability</td><td>Verification decisions, booking state changes, payments and report resolutions are append-only records with actor and timestamp</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">6 · Assumptions, constraints and dependencies</h2>
+  <p style="max-width:66ch"><strong>Assumptions.</strong> Users have a smartphone or computer with internet access, and a working camera where they choose live photo verification. Parents and staff will supply accurate information. Electricity and connectivity are workable if intermittent. Users keep their own credentials safe.</p>
+  <p style="max-width:66ch"><strong>Constraints.</strong> A compressed August–September 2026 build window; simulated Mobile Money and mock verification data; AI accuracy that must be measured rather than assumed; and testing in a controlled environment with recruited participants rather than a public launch.</p>
+  <p style="max-width:66ch"><strong>Dependencies.</strong> Supabase for database, authentication and file storage; a hosted language-model API for search parsing and the photo plausibility check; the browser's camera and speech APIs; Vercel for deployment. Each is isolated behind an internal interface so a failure degrades one feature rather than the product.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">7 · Release scope</h2>
+  <table class="table" style="width:100%;font-size:13.5px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:22%">Release</th><th>Contents</th></tr></thead>
+    <tbody>
+      <tr><td>Foundation</td><td>F1 accounts and RBAC, F2 roster, staff and parent profile shells</td></tr>
+      <tr><td>Core</td><td>F5 profiles and availability, F6 search and weighted matching, F8 Ward Care Profile, F9 booking lifecycle</td></tr>
+      <tr><td>Trust and money</td><td>F3 verification, F4 photo check, F10 payment, F13 reports, F14 dashboard</td></tr>
+      <tr><td>Assistance and polish</td><td>F7 natural-language search, F11 messaging, F12 reviews, F15 accessibility, F16 notifications</td></tr>
+      <tr><td>Future scope</td><td>Nurse and home-healthcare placements, multi-agency support, native apps, certified biometric KYC, live payment aggregator, background-check integration, multi-language interface</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">8 · Open questions</h2>
+  <ol style="max-width:66ch;padding-left:1.2em">
+    <li style="margin-bottom:6px">Does the agency take its commission from the parent's payment or invoice staff separately? The dashboard's revenue figures depend on the answer.</li>
+    <li style="margin-bottom:6px">What is the cancellation policy — how late may a parent cancel, and is any portion retained?</li>
+    <li style="margin-bottom:6px">Should a caregiver be able to propose an alternative time instead of only accepting or declining?</li>
+    <li style="margin-bottom:6px">How long should identity documents and selfies be retained after a verification decision, and who at the agency may re-open them?</li>
+    <li style="margin-bottom:6px">Do parents need verification before browsing, or only before booking? The current specification allows browsing.</li>
+  </ol>
+</doc-page>
+
+</x-dc>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/broadsheet-0f1a8441-db8d-47c6-af37-38a0fadc8268/styles.css">
+  <script src="_ds/broadsheet-0f1a8441-db8d-47c6-af37-38a0fadc8268/_ds_bundle.js"></script>
+  <script src="./doc-page.js"></script>
+  <style>
+    doc-page:not(:defined){visibility:hidden}
+    a{color:var(--color-accent-700);text-decoration:none}
+    a:hover{color:var(--color-accent-2)}
+  </style>
+</helmet>
+<doc-page size="a4" margin="0.85in">
+  <div slot="footer" style="display:flex;justify-content:space-between;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-600);padding-top:8px">
+    <span>CareLink — Technical Design Document</span>
+    <span>v1.0 · August 2026</span>
+  </div>
+
+  <div style="font-size:10.5px;letter-spacing:0.16em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:var(--space-3)">Document 2 of 6 · Technical Design</div>
+
+  <h1 style="font-size:40px;line-height:1.05;margin:0 0 var(--space-3);max-width:22ch">CareLink Technical Design Document</h1>
+
+  <p style="font-size:17px;line-height:1.6;font-style:italic;color:var(--color-neutral-800);max-width:60ch;margin:0 0 var(--space-8)">The technology stack, architecture, integrations and the reasoning behind each choice — written so a second developer could pick the project up from this document alone.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:0 0 var(--space-2)">1 · Design principles</h2>
+  <p style="max-width:66ch">Five principles decide the arguments that follow, in this order.</p>
+  <ol style="max-width:66ch;padding-left:1.2em">
+    <li style="margin-bottom:8px"><strong>One developer, five weeks.</strong> Every choice favours a stack where the same language and the same repository cover the interface, the API and the data access. Operational surface is a cost, not a feature.</li>
+    <li style="margin-bottom:8px"><strong>The database enforces the rules.</strong> Authorisation lives with the data, not only in the interface. If a route is forgotten, the row-level policy still refuses.</li>
+    <li style="margin-bottom:8px"><strong>External services are replaceable.</strong> Payments and AI sit behind internal interfaces with a fake implementation used in development, so a simulated Mobile Money flow can become a real one without touching booking logic.</li>
+    <li style="margin-bottom:8px"><strong>AI output is untrusted input.</strong> Model responses are parsed against a schema and rejected if they do not fit. No model output ever reaches the database or the query builder unvalidated.</li>
+    <li style="margin-bottom:8px"><strong>Mobile-first, low-bandwidth.</strong> Server-rendered pages, small payloads, images resized on upload. The system must be usable on a mid-range Android phone on a weak connection.</li>
+  </ol>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">2 · Technology stack</h2>
+  <table class="table" style="width:100%;font-size:13.5px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:20%">Layer</th><th style="width:26%">Choice</th><th>Why this, and what was rejected</th></tr></thead>
+    <tbody>
+      <tr><td>Language</td><td>TypeScript, end to end</td><td>One language across interface, API routes and data access; types shared between client and server catch the mismatches that cost the most time when working alone. Rejected: JavaScript — no compile-time safety on a data model this interconnected</td></tr>
+      <tr><td>Framework</td><td>Next.js (App Router) with React</td><td>Server components for fast first paint on weak connections, API routes for backend logic in the same repository, file-based routing that maps cleanly onto the three role areas, and first-class deployment on Vercel. Rejected: a separate React SPA plus an Express API — two deployments and a CORS surface for no benefit at this scale</td></tr>
+      <tr><td>Styling</td><td>Tailwind CSS with a small set of design tokens</td><td>Design decisions stay next to the markup, and the token layer keeps the palette and type scale of the Design Brief enforceable. Rejected: a component library — its opinions would fight the intended visual identity</td></tr>
+      <tr><td>Database</td><td>PostgreSQL, hosted on Supabase</td><td>The domain is strongly relational — users, bookings, payments, reviews, reports — and needs transactions and foreign keys. Postgres also gives row-level security, enums for state machines, and check constraints for booking terms. Rejected: MongoDB — the referential integrity between bookings, payments and reviews would move into application code</td></tr>
+      <tr><td>Auth</td><td>Supabase Auth with a role claim</td><td>Email and password, session handling and password reset arrive complete, and the role claim is readable inside row-level policies so authorisation is enforced in one place. Rejected: hand-rolled JWT auth — an avoidable security risk on a system holding children's care data</td></tr>
+      <tr><td>File storage</td><td>Supabase Storage, private buckets</td><td>Identity documents and selfies must never be publicly addressable; access is by short-lived signed URL issued only to the owner or an administrator</td></tr>
+      <tr><td>AI</td><td>Hosted large-language-model API with vision (Claude)</td><td>Two jobs, one integration: parsing a plain-language search into filters, and comparing an ID photograph with a live selfie for a plausibility note. Both are prompt-only tasks with no training data and no model hosting. Rejected: a self-hosted face-recognition model — infeasible in the timeline and outside the declared scope</td></tr>
+      <tr><td>Payments</td><td>Simulated Mobile Money provider (MTN, Telecel, AirtelTigo)</td><td>A sandbox implementing the real state machine — initiate, pending, success, failure, timeout — behind the same interface a live aggregator would satisfy. Aggregator onboarding requires a registered merchant account, which is out of scope for this phase</td></tr>
+      <tr><td>Browser APIs</td><td>getUserMedia; Web Speech API</td><td>Live selfie capture without an upload step, and voice input plus read-aloud for staff with limited literacy — both native, both free, both degrade gracefully</td></tr>
+      <tr><td>Validation</td><td>Zod schemas shared by client and server</td><td>One schema validates a form, an API payload and a model response. This is the mechanism behind principle four</td></tr>
+      <tr><td>Testing</td><td>Jest and React Testing Library; Supertest and Postman; Cypress</td><td>Unit tests on the matching algorithm and the booking state machine, integration tests on API routes, end-to-end tests on the three critical journeys</td></tr>
+      <tr><td>Hosting</td><td>Vercel, with Supabase managed</td><td>Preview deployment per branch, no server administration, and an edge network that shortens the round trip from Ghana</td></tr>
+      <tr><td>Version control</td><td>Git and GitHub, trunk-based with short branches</td><td>A submittable, well-commented history is itself a deliverable</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">3 · Architecture</h2>
+  <p style="max-width:66ch">Three tiers plus an isolated integration layer. Nothing in the client talks to an external provider directly, and nothing outside the service layer writes to the database.</p>
+
+  <div style="border-top:3px solid var(--color-text);border-bottom:1px solid var(--color-text);padding:var(--space-4) 0;margin:var(--space-4) 0 var(--space-6);break-inside:avoid">
+    <div style="display:grid;grid-template-columns:130px 1fr;gap:var(--space-3) var(--space-4);font-size:13.5px;align-items:start">
+      <div style="font-weight:600;color:var(--color-accent-700)">Client layer</div>
+      <div>Responsive React interfaces for the three roles. Server components render lists and detail pages; client components own the camera, the speech APIs, messaging and forms. No secret keys, no direct database access.</div>
+      <div style="font-weight:600;color:var(--color-accent-700)">Application layer</div>
+      <div>Next.js route handlers and server actions holding all business logic: authentication guards, the booking state machine, the matching algorithm, payment orchestration and AI calls. Every entry point validates its payload and re-checks role and ownership.</div>
+      <div style="font-weight:600;color:var(--color-accent-700)">Data layer</div>
+      <div>PostgreSQL with row-level security on every table, enums for the state machines, and views for the dashboard aggregates. Private storage buckets for documents and selfies.</div>
+      <div style="font-weight:600;color:var(--color-accent-700)">Integration layer</div>
+      <div>Three adapters — <em>PaymentProvider</em>, <em>SearchParser</em>, <em>PhotoPlausibilityChecker</em> — each an interface with a real and a fake implementation, selected by environment. All secrets are server-side only.</div>
+    </div>
+  </div>
+
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">3.1 Module map</h3>
+  <table class="table" style="width:100%;font-size:13.5px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:26%">Module</th><th>Responsibility</th></tr></thead>
+    <tbody>
+      <tr><td>auth</td><td>Registration, sign-in, session handling, role guards, invitation claiming for roster records</td></tr>
+      <tr><td>profiles</td><td>Parent households, Ward Care Profiles, staff profiles, skill tags, availability windows</td></tr>
+      <tr><td>verification</td><td>Submission intake, document upload, selfie capture, plausibility check, administrator review queue, status transitions</td></tr>
+      <tr><td>search</td><td>Filter query building, the weighted scoring function, score-breakdown assembly, natural-language parsing entry point</td></tr>
+      <tr><td>bookings</td><td>The state machine, conflict detection, term locking, session start and end, emergency-contact reveal window</td></tr>
+      <tr><td>payments</td><td>Payment intent, provider adapter, reference recording, commission split, refunds</td></tr>
+      <tr><td>messaging</td><td>Booking-scoped threads, read state, retention with the booking record</td></tr>
+      <tr><td>reviews</td><td>One review per completed booking, rating aggregation, caregiver response, administrator moderation</td></tr>
+      <tr><td>reports</td><td>Report intake, administrator queue, resolution notes, the verification block on unresolved reports</td></tr>
+      <tr><td>admin</td><td>Roster management, dashboard aggregates, CSV export, configuration of weights and commission</td></tr>
+      <tr><td>accessibility</td><td>Voice input and read-aloud hooks, shared by any form field or instruction block</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">4 · The booking state machine</h2>
+  <p style="max-width:66ch">Booking status is a Postgres enum and every transition passes through one function. Illegal transitions are rejected in both the service layer and a database check, because a booking's state is what the agency will rely on in a dispute.</p>
+  <table class="table" style="width:100%;font-size:13.5px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:18%">From</th><th style="width:18%">To</th><th style="width:22%">Who</th><th>Conditions and side effects</th></tr></thead>
+    <tbody>
+      <tr><td>—</td><td>pending</td><td>Parent</td><td>Parent verified; caregiver verified and available; no overlap with the caregiver's accepted bookings. Snapshots the rate and the Ward Care Profile reference</td></tr>
+      <tr><td>pending</td><td>accepted</td><td>Staff</td><td>Re-checks overlap at the moment of acceptance; locks terms; opens the message thread</td></tr>
+      <tr><td>pending</td><td>declined / expired</td><td>Staff / system</td><td>A decline records a reason; a request untouched by its start time expires</td></tr>
+      <tr><td>accepted</td><td>paid</td><td>Parent</td><td>Successful payment reference recorded, or an administrator override recorded as such</td></tr>
+      <tr><td>paid</td><td>active</td><td>Either</td><td>Only on the booking date; opens the symmetric emergency-contact window</td></tr>
+      <tr><td>active</td><td>completed</td><td>Either</td><td>Closes the contact window; enables the parent's review; credits the commission split</td></tr>
+      <tr><td>pending / accepted / paid</td><td>cancelled</td><td>Either or admin</td><td>Records the actor and reason; a paid cancellation raises a refund record for the administrator</td></tr>
+      <tr><td>any</td><td>disputed</td><td>Either</td><td>A report is filed; the booking stays visible and is frozen for administrator resolution</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">5 · The matching algorithm</h2>
+  <p style="max-width:66ch">Matching runs in two passes. A <strong>hard filter</strong> in SQL removes anyone who cannot do the job: not verified, not serving the area, unavailable in the window, or already booked. A <strong>soft score</strong> then ranks the survivors on five weighted factors — availability fit 30, area proximity 25, skill match 20, rating and experience 15, budget fit 10 — each normalised to zero-to-one and multiplied by its weight, summing to a score out of 100.</p>
+  <p style="max-width:66ch">Two decisions matter. Weights are read from a configuration table, not hard-coded, so the agency can retune them and the evaluation can compare rankings under different weightings. And each factor's contribution is returned alongside the total, so the parent sees the same numbers that produced the order — the transparency requirement is a data-shape decision, not a copywriting one.</p>
+  <p style="max-width:66ch">New caregivers are protected from a cold-start penalty: fewer than three reviews scores at the roster median rather than zero, so a new staff member is not permanently unrankable. The scoring function is pure and unit-tested against fixture rosters, which is how ranking regressions get caught.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">6 · AI integration</h2>
+  <h3 style="font-size:19px;margin:var(--space-4) 0 var(--space-2)">6.1 Natural-language search parsing</h3>
+  <p style="max-width:66ch">The parent's sentence is sent to the model with a system prompt describing exactly the available filter fields — area, date, start and end time, maximum hourly rate, skill tags from the fixed vocabulary, minimum experience, minimum rating — and an instruction to return JSON only, omitting anything not stated. The response is parsed against the filter schema; unknown fields are dropped, out-of-range values are dropped, and a failure falls back to the manual filter panel. The parsed filters are shown to the parent as editable chips before the search runs, so the model proposes and the parent confirms.</p>
+  <h3 style="font-size:19px;margin:var(--space-6) 0 var(--space-2)">6.2 Photo plausibility check</h3>
+  <p style="max-width:66ch">A server route receives the ID photograph and the captured selfie, both already resized, and asks the vision model for one of three verdicts with a one-sentence rationale. The response is constrained to that enum; anything else is stored as <em>uncertain</em>. The verdict, the rationale and the model version are stored on the verification record so the evaluation can compare them against the administrator's independent decision. Nothing is auto-approved on this basis, and the check is optional and skippable.</p>
+  <p style="max-width:66ch"><strong>Failure and cost handling.</strong> Both integrations run server-side with a timeout, one retry, and a per-account rate limit. If the provider is unavailable, the feature is hidden with a plain message rather than surfacing an error — neither AI feature is on the critical path to a booking.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">7 · Payment integration</h2>
+  <p style="max-width:66ch">A payment is a record, not a redirect. The service creates a payment row in <em>initiated</em> against the booking, calls the provider adapter with network, phone number and amount, and updates the row on the response. The simulated provider models each real outcome, including a pending state that resolves on a delay and a timeout that leaves the row recoverable, so the interface is built against realistic behaviour. The adapter interface — initiate, poll status, refund — is deliberately the shape a live aggregator exposes.</p>
+  <p style="max-width:66ch">Amounts are stored in minor units as integers, never floats. The commission split is computed at completion from a configured rate and stored on the payment, so a later rate change does not rewrite history. Every payment record keeps the provider reference visible to both parties, which is the artefact that replaces a cash handover.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">8 · Security and privacy design</h2>
+  <table class="table" style="width:100%;font-size:13.5px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:26%">Concern</th><th>Control</th></tr></thead>
+    <tbody>
+      <tr><td>Authorisation</td><td>Row-level security on every table, keyed on the authenticated user and role claim; API routes re-check ownership; administrator access is a role, not a flag on a user record</td></tr>
+      <tr><td>Identity documents</td><td>Private buckets, path-scoped per user, retrieved only through short-lived signed URLs; deleted on a schedule after a verification decision</td></tr>
+      <tr><td>Children's data</td><td>Minimised by design and readable only by the parent who owns it, by a caregiver on an open booking for that child, and by an administrator resolving a report on that booking</td></tr>
+      <tr><td>Emergency contacts</td><td>Never on a public profile; revealed symmetrically and only while a booking is active, enforced by a policy that reads booking status rather than by hiding a field in the interface</td></tr>
+      <tr><td>Third-party AI exposure</td><td>Only the two payloads the features require; no names or ID numbers in a prompt; consent captured before the camera opens; the exposure disclosed to participants and recorded as a limitation</td></tr>
+      <tr><td>Transport and secrets</td><td>HTTPS throughout; all provider keys server-side in environment variables; no key reachable from the client bundle</td></tr>
+      <tr><td>Audit</td><td>Append-only records for verification decisions, booking transitions, payments and report resolutions, each with actor and timestamp</td></tr>
+      <tr><td>Compliance</td><td>Act 843 alignment: stated purpose per collection point, consent before capture, and correction and deletion requests handled through the administrator</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">9 · Environments, testing and deployment</h2>
+  <p style="max-width:66ch">Three environments: local development against a Supabase project seeded with mock data and both fake adapters; a preview deployment per branch on Vercel for supervisor and agency review; and production on Vercel with the same simulated payment adapter, since no live money moves in this phase.</p>
+  <p style="max-width:66ch">The test pyramid follows the risk. Unit tests cover the scoring function, the state machine, the commission split and every schema. Integration tests cover the API routes, row-level policies — including negative cases, where a request that should be refused is asserted to be refused — and the payment adapter's outcomes. End-to-end tests cover three journeys: staff onboarding through verification, parent search through payment and completion, and administrator verification and report resolution. AI features are evaluated separately against a labelled sample rather than asserted in tests.</p>
+  <p style="max-width:66ch">Performance is measured with Lighthouse on the parent search and administrator dashboard screens; images are resized on upload and served in a modern format; dashboard aggregates come from database views rather than client-side computation over full tables.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">10 · Technical risks</h2>
+  <table class="table" style="width:100%;font-size:13.5px;margin:var(--space-3) 0 0">
+    <thead><tr><th style="width:34%">Risk</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr><td>Camera capture behaves differently across Android browsers</td><td>Test early on real devices; allow a photo upload as a fallback to live capture; keep the step optional</td></tr>
+      <tr><td>Model returns malformed or unexpected output</td><td>Strict schema validation, an enum-constrained verdict, one retry, then a graceful fallback</td></tr>
+      <tr><td>Double-booking under concurrent acceptance</td><td>Overlap check inside the accepting transaction, plus a database exclusion constraint on the caregiver's accepted time ranges</td></tr>
+      <tr><td>Simulated payments hide real-world failure modes</td><td>The fake adapter implements pending, failure and timeout, not only success, and the interface is built against all of them</td></tr>
+      <tr><td>Row-level policies drift as tables are added</td><td>Every table ships with its policy and a negative integration test in the same task; no table is merged without one</td></tr>
+      <tr><td>Compressed timeline squeezes testing</td><td>Priorities are declared in the PRD; P2 features are cut before test coverage is</td></tr>
+    </tbody>
+  </table>
+</doc-page>
+
+</x-dc>
+</body>
+</html>

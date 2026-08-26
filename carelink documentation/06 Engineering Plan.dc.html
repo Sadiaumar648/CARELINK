@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/broadsheet-0f1a8441-db8d-47c6-af37-38a0fadc8268/styles.css">
+  <script src="_ds/broadsheet-0f1a8441-db8d-47c6-af37-38a0fadc8268/_ds_bundle.js"></script>
+  <script src="./doc-page.js"></script>
+  <style>
+    doc-page:not(:defined){visibility:hidden}
+    a{color:var(--color-accent-700);text-decoration:none}
+    a:hover{color:var(--color-accent-2)}
+  </style>
+</helmet>
+<doc-page size="a4" margin="0.85in">
+  <div slot="footer" style="display:flex;justify-content:space-between;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-600);padding-top:8px">
+    <span>CareLink — Engineering Plan</span>
+    <span>v1.0 · August 2026</span>
+  </div>
+
+  <div style="font-size:10.5px;letter-spacing:0.16em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:var(--space-3)">Document 6 of 6 · Engineering Plan</div>
+
+  <h1 style="font-size:40px;line-height:1.05;margin:0 0 var(--space-3);max-width:20ch">CareLink Engineering Plan</h1>
+
+  <p style="font-size:17px;line-height:1.6;font-style:italic;color:var(--color-neutral-800);max-width:60ch;margin:0 0 var(--space-8)">Forty-one tasks in build order, each small enough to finish and test in a sitting, each with its dependencies and the criteria that decide whether it is done.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:0 0 var(--space-2)">1 · How this plan works</h2>
+  <p style="max-width:66ch">Five sprints of one week, following the four phases in the proposal, with the fifth week reserved for evaluation and submission. Tasks are numbered by sprint. A task is <strong>done</strong> only when its acceptance criteria pass, its tests are written, and it is merged to the trunk — not when the code compiles.</p>
+  <p style="max-width:66ch">Three standing rules. Every table arrives with its row-level policy and a negative test in the same task, so authorisation is never a later pass. Every external provider arrives behind an interface with a fake implementation, so nothing downstream waits on a credential. And the order is chosen so that <em>something demonstrable exists at the end of every week</em> — the risk being managed here is a compressed timeline, and the mitigation is that the project is always submittable.</p>
+  <table class="table" style="width:100%;font-size:13.5px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:18%">Sprint</th><th style="width:26%">Theme</th><th>Demonstrable at the end of the week</th></tr></thead>
+    <tbody>
+      <tr><td>1 · Week 1</td><td>Foundation</td><td>Three roles sign in and land on their own shell; the administrator adds a caregiver to the roster and the caregiver claims the invitation</td></tr>
+      <tr><td>2 · Week 2</td><td>Core booking loop</td><td>A parent searches a ranked roster, sees why each caregiver ranked, and completes a request-accept cycle with a Ward Care Profile attached</td></tr>
+      <tr><td>3 · Week 3</td><td>Trust and money</td><td>Both roles verify themselves, the administrator reviews and decides, and a booking is paid, run and completed</td></tr>
+      <tr><td>4 · Week 4</td><td>Assistance and oversight</td><td>Plain-language search, the photo plausibility check, messaging, reviews, reports and the agency dashboard</td></tr>
+      <tr><td>5 · Week 5</td><td>Hardening and evaluation</td><td>Accessibility pass, end-to-end tests, AI accuracy measurement, user testing, deployment and documentation</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">2 · Sprint 1 — Foundation</h2>
+  <table class="table" style="width:100%;font-size:13px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:8%">#</th><th style="width:24%">Task</th><th style="width:12%">Depends on</th><th>Acceptance criteria</th></tr></thead>
+    <tbody>
+      <tr><td>1.1</td><td>Repository, tooling, CI</td><td>—</td><td>Next.js and TypeScript project builds with strict mode; linting and formatting run on commit; a pull request runs type-check and tests; a Vercel preview deploys from a branch</td></tr>
+      <tr><td>1.2</td><td>Supabase project and migration workflow</td><td>1.1</td><td>Migrations apply from a clean database and are reversible by re-running from empty; a documented command resets local data</td></tr>
+      <tr><td>1.3</td><td>Design tokens and base components</td><td>1.1</td><td>Palette, type scale, spacing and radius from the Design Brief exist as tokens; button, input, status pill, card and empty state render at every state; focus ring visible on all of them; contrast checked</td></tr>
+      <tr><td>1.4</td><td>Enums and core tables: users, parent_profiles, staff_profiles</td><td>1.2</td><td>Tables and enums created with constraints; policies applied; a negative test proves a user cannot read another user's row</td></tr>
+      <tr><td>1.5</td><td>Authentication and sessions</td><td>1.4</td><td>Register, sign in, sign out and password reset work; session survives reload; a signed-out request to a private route redirects and returns to the intended screen after sign-in</td></tr>
+      <tr><td>1.6</td><td>Role routing and guards</td><td>1.5</td><td>Each role lands on its own shell; a cross-role request is refused by the server, not only hidden in the interface; an integration test asserts the refusal for each pair</td></tr>
+      <tr><td>1.7</td><td>Parent onboarding — account and household</td><td>1.6</td><td>The four-step flow saves each step independently; a duplicate email returns inline without losing the form; a partially complete parent sees an accurate progress strip</td></tr>
+      <tr><td>1.8</td><td>Roster: add staff and issue an invitation</td><td>1.6</td><td>An administrator creates a record with name, phone, area and indicative rate; the record shows as <em>invited</em>; it cannot be booked or searched; an invitation code is generated and stored hashed</td></tr>
+      <tr><td>1.9</td><td>Invitation claim</td><td>1.8</td><td>A correct code plus phone sets a password and activates the same record — no duplicate is created; a wrong code returns an inline message; a claimed code cannot be reused</td></tr>
+      <tr><td>1.10</td><td>Seed script</td><td>1.4</td><td>One administrator, twelve caregivers, six parents with nine wards and forty bookings across every status load in one command; seed rows are identifiable</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">3 · Sprint 2 — The core booking loop</h2>
+  <table class="table" style="width:100%;font-size:13px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:8%">#</th><th style="width:24%">Task</th><th style="width:12%">Depends on</th><th>Acceptance criteria</th></tr></thead>
+    <tbody>
+      <tr><td>2.1</td><td>Staff profile editing</td><td>1.9, 1.3</td><td>Photograph, bio, rate, experience, languages and emergency contact save and reload; rate is stored in pesewas; validation refuses a zero or negative rate at the field</td></tr>
+      <tr><td>2.2</td><td>Skills and service areas</td><td>2.1</td><td>Skill tags come from the fixed vocabulary and are stored as rows, not free text; one primary area plus additional areas; selection is a set of large labelled cards, not checkboxes</td></tr>
+      <tr><td>2.3</td><td>Availability grid</td><td>2.1</td><td>A tapped weekly grid of days against day-parts persists; specific dates can be marked unavailable; an end time before its start is refused; the grid is operable by keyboard</td></tr>
+      <tr><td>2.4</td><td>Ward Care Profile — create and edit</td><td>1.7</td><td>All sections save and reload; the last-edited date shows; the policy test proves no other parent and no unrelated caregiver can read the row; only age is stored, never a date of birth</td></tr>
+      <tr><td>2.5</td><td>Availability resolution view</td><td>2.3</td><td>The view returns bookable time per caregiver per day, correctly subtracting exceptions and accepted bookings; unit tests cover a window overlapping midnight and an overnight booking</td></tr>
+      <tr><td>2.6</td><td>Hard filter search</td><td>2.5, 2.2</td><td>Area, date, time, budget, experience, rating and skills filter correctly; unverified, suspended and paused caregivers never appear; a zero-result search names the most restrictive filter and offers to relax it</td></tr>
+      <tr><td>2.7</td><td>Weighted scoring function</td><td>2.6</td><td>A pure function returning a score out of 100 and its five contributions; weights read from <code>match_weights</code>; contributions sum to the total; a caregiver with fewer than three reviews scores at the roster median; unit tests over fixture rosters cover each factor in isolation</td></tr>
+      <tr><td>2.8</td><td>Ranked results and score breakdown</td><td>2.7, 1.3</td><td>Results ordered by score; each card shows the score, expandable into five labelled rows whose numbers match the API response exactly; the same query gives the same order on repeat</td></tr>
+      <tr><td>2.9</td><td>Caregiver public profile</td><td>2.8</td><td>Rendered from the public view only — no private column is reachable; shows verification status and what was verified, skills, certifications, a fortnight of availability and reviews</td></tr>
+      <tr><td>2.10</td><td>Bookings table and state machine</td><td>1.4</td><td>Table, enum, exclusion constraint and term-lock trigger exist; one transition function permits only the legal transitions in the Technical Design Document; every attempt writes a <code>booking_events</code> row; illegal transitions are refused with a clear error</td></tr>
+      <tr><td>2.11</td><td>Booking request flow</td><td>2.10, 2.4, 2.9</td><td>The four-step sheet writes a pending booking with rate and total snapshotted and the ward attached; a time outside declared availability is refused at the field; an unverified parent is stopped before the sheet opens; the review step states what will be shared</td></tr>
+      <tr><td>2.12</td><td>Accept and decline</td><td>2.11</td><td>Acceptance locks terms and re-checks overlap inside the transaction; a conflicting acceptance is refused and names the conflicting booking; a decline records a reason; a request untouched by its start time expires; two concurrent acceptances cannot both succeed — proven by a concurrency test</td></tr>
+      <tr><td>2.13</td><td>Booking lists and the state-driven detail screen</td><td>2.12</td><td>Parent and caregiver lists group correctly; the detail screen shows exactly the actions legal for the current status and no others; every status has a tested appearance</td></tr>
+      <tr><td>2.14</td><td>Care profile visible to the caregiver</td><td>2.12, 2.4</td><td>The assigned caregiver sees the ward's profile from acceptance until closure and at no other time; allergies and medications appear first and emphasised; a parent's edit is reflected with a timestamp on an active booking</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">4 · Sprint 3 — Trust and money</h2>
+  <table class="table" style="width:100%;font-size:13px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:8%">#</th><th style="width:24%">Task</th><th style="width:12%">Depends on</th><th>Acceptance criteria</th></tr></thead>
+    <tbody>
+      <tr><td>3.1</td><td>Private storage and signed uploads</td><td>1.2</td><td>Documents land in a private bucket under a per-user path; a direct URL without a signature is refused; images are resized on upload; a signed link expires</td></tr>
+      <tr><td>3.2</td><td>Verification submission — both roles</td><td>3.1, 1.7, 2.1</td><td>One form serves parents and staff; ID type, number, document photo, reference and phone confirmation are captured; status becomes pending; the ID number is encrypted at rest and never returned to a third party</td></tr>
+      <tr><td>3.3</td><td>Verification gates</td><td>3.2, 2.6, 2.11</td><td>Unverified caregivers are absent from search; an unverified parent cannot request a booking; an account with an unresolved report cannot reach verified; each gate has a test</td></tr>
+      <tr><td>3.4</td><td>Administrator review queue</td><td>3.2</td><td>Pending submissions listed oldest first with role, name and waiting time; the detail screen shows the document image, the reference and the mandatory-criteria checklist; approve sets verified, reject requires a reason; the decision writes to <code>audit_log</code></td></tr>
+      <tr><td>3.5</td><td>Resubmission after rejection</td><td>3.4</td><td>The rejection reason is shown to the user with a route to resubmit only the failed item; the earlier attempt is retained, not overwritten</td></tr>
+      <tr><td>3.6</td><td>Payment provider adapter</td><td>1.1</td><td>Initiate, poll and refund defined as an interface; the simulated provider implements success, pending-then-success, failure and timeout; the implementation is selected by environment; unit tests cover all four outcomes</td></tr>
+      <tr><td>3.7</td><td>Payment flow and records</td><td>3.6, 2.13</td><td>The three-step sheet records a payment row and a reference; success moves the booking to paid; failure leaves it accepted and retryable; a timeout is recoverable and warns before a retry; at most one succeeded payment per booking, enforced by index</td></tr>
+      <tr><td>3.8</td><td>Session start, end and contact reveal</td><td>3.7</td><td>Either party starts a session only on the booking date; both emergency contacts become visible while active and are refused by the policy before and after — proven by a database-level test, not an interface check; ending a session completes the booking</td></tr>
+      <tr><td>3.9</td><td>Commission split</td><td>3.7, 3.8</td><td>On completion the configured rate produces commission and payout amounts summing exactly to the amount paid; a later rate change does not alter a historical payment; rounding is tested at odd amounts</td></tr>
+      <tr><td>3.10</td><td>Cancellation and refund records</td><td>3.7</td><td>Either party cancels before a session with the actor and reason recorded; a paid cancellation raises a refund record for administrator action; a cancelled booking cannot be paid or started</td></tr>
+      <tr><td>3.11</td><td>Caregiver earnings screen</td><td>3.9</td><td>Completed bookings with amount, date and reference; weekly and monthly totals reconcile to the payment records to the pesewa</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">5 · Sprint 4 — Assistance and oversight</h2>
+  <table class="table" style="width:100%;font-size:13px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:8%">#</th><th style="width:24%">Task</th><th style="width:12%">Depends on</th><th>Acceptance criteria</th></tr></thead>
+    <tbody>
+      <tr><td>4.1</td><td>Live selfie capture</td><td>3.2</td><td>In-browser capture with a guiding outline; consent is shown and recorded before the camera opens; the step is skippable without blocking verification; an upload fallback exists where capture is unsupported; tested on at least two real Android browsers</td></tr>
+      <tr><td>4.2</td><td>Photo plausibility check</td><td>4.1</td><td>A server route returns one of three verdicts with a rationale; any other response is stored as <em>uncertain</em>; verdict, rationale and model version persist on the submission; no submission is ever auto-approved; a provider failure hides the result rather than blocking the flow</td></tr>
+      <tr><td>4.3</td><td>Review screen with both images</td><td>4.2, 3.4</td><td>Images side by side at a size where a face is legible; the verdict is clearly attributed to the model and labelled a plausibility aid; the administrator's decision is stored independently of the verdict so the two can be compared</td></tr>
+      <tr><td>4.4</td><td>Natural-language search parsing</td><td>2.6</td><td>A sentence returns filters validated against the schema; unknown or out-of-range fields are dropped; parsed filters appear as editable chips before the search runs; a failure opens the manual panel with a plain explanation and no error state; rate-limited per account</td></tr>
+      <tr><td>4.5</td><td>Voice input and read-aloud</td><td>1.3</td><td>A shared voice field and read-aloud control usable on any input or instruction block; the transcript is confirmed before use; where speech is unsupported the controls are absent, not broken, and every flow completes by typing</td></tr>
+      <tr><td>4.6</td><td>Accessibility pass on caregiver flows</td><td>4.5, 2.1, 3.2</td><td>Every onboarding, verification and request screen reads aloud on arrival; targets are at least 52px; no step requires reading a paragraph to complete; keyboard-only completion verified</td></tr>
+      <tr><td>4.7</td><td>Booking-scoped messaging</td><td>2.12</td><td>A thread opens on acceptance and closes on completion or cancellation while remaining readable; messages are ordered and marked read; a non-party is refused by policy; index supports the thread query</td></tr>
+      <tr><td>4.8</td><td>Reviews and rating aggregation</td><td>2.13</td><td>One review per completed booking, enforced by the unique constraint; the caregiver's average and count update immediately by trigger; a caregiver may respond once; an administrator can hide a review with a reason</td></tr>
+      <tr><td>4.9</td><td>Reports and dispute resolution</td><td>2.13</td><td>Either party files a report at any point; it routes to administrators and is never visible to the subject; statuses move open to investigating to resolved with a required resolution note; an unresolved report blocks verified status</td></tr>
+      <tr><td>4.10</td><td>Dashboard views</td><td>3.9, 4.9</td><td>Revenue, utilisation, booking summary and verification-queue views return correct figures against seeded data; each is verified by a query test independent of the interface</td></tr>
+      <tr><td>4.11</td><td>Administrator overview and tables</td><td>4.10</td><td>Four headline figures with a date-range filter; every figure is clickable through to its list; no figure is hand-entered; CSV export matches the on-screen figures exactly</td></tr>
+      <tr><td>4.12</td><td>Settings: weights, commission, areas</td><td>2.7, 3.9</td><td>Editing weights changes result ordering immediately and the change is recorded; a commission change affects only future completions; an invalid weight set is refused</td></tr>
+      <tr><td>4.13</td><td>In-app notifications</td><td>2.12, 3.7</td><td>Notifications on request, acceptance, decline, payment, session start, completion and verification decision; unread count accurate; opening one lands on the relevant screen</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">6 · Sprint 5 — Hardening, evaluation, submission</h2>
+  <table class="table" style="width:100%;font-size:13px;margin:var(--space-3) 0 var(--space-6)">
+    <thead><tr><th style="width:8%">#</th><th style="width:24%">Task</th><th style="width:12%">Depends on</th><th>Acceptance criteria</th></tr></thead>
+    <tbody>
+      <tr><td>5.1</td><td>End-to-end tests</td><td>Sprint 4</td><td>Three journeys pass headlessly in CI: caregiver claim through verification; parent search through payment, session and review; administrator verification and report resolution</td></tr>
+      <tr><td>5.2</td><td>Security review</td><td>Sprint 4</td><td>Every table has a policy and a negative test; no provider key is reachable from the client bundle; no personal data appears in logs; document links expire; a written checklist is signed off</td></tr>
+      <tr><td>5.3</td><td>Performance pass</td><td>5.1</td><td>Search returns within two seconds on a mid-range Android over a throttled connection; Lighthouse above 80 on the parent search and administrator overview; images served resized</td></tr>
+      <tr><td>5.4</td><td>Retention and deletion routine</td><td>3.1, 4.2</td><td>Verification images are purged after the configured window following a decision; a deletion request removes or anonymises a user's records while preserving financial history; the routine is tested</td></tr>
+      <tr><td>5.5</td><td>AI accuracy measurement</td><td>4.2, 4.4</td><td>Thirty labelled search queries scored for correct filter extraction; the photo verdicts compared against administrator decisions from the evaluation view; both results written up with the failure modes named</td></tr>
+      <tr><td>5.6</td><td>User testing</td><td>5.1</td><td>Ten to fifteen participants across both roles; consent recorded; booking completion time compared against the manual process; satisfaction and trust questionnaires collected and analysed</td></tr>
+      <tr><td>5.7</td><td>Production deployment</td><td>5.2, 5.3</td><td>Deployed on Vercel against the production Supabase project; environment variables set; the administrator account provisioned; the real agency roster loadable; a smoke test of all three roles passes on the deployed URL</td></tr>
+      <tr><td>5.8</td><td>Documentation and handover</td><td>5.7</td><td>API documentation, a user manual per role, a schema reference, a commented repository, and a short administrator guide for the agency covering roster, verification and reports</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">7 · Critical path and what gets cut</h2>
+  <p style="max-width:66ch">The critical path runs 1.1 → 1.4 → 1.5 → 1.6 → 2.10 → 2.11 → 2.12 → 3.7 → 3.8 → 5.1. Everything on it is a P0 in the PRD, and nothing on it may be deferred. Slipping a task here slips the demonstration; slipping anything else does not.</p>
+  <p style="max-width:66ch">If the timeline compresses further, work is cut in this order — and test coverage is never the first thing cut, because a plausible-looking system that fails during evaluation is worse than a smaller one that holds: 4.13 notifications; 4.12 settings interface, with weights left in seeded configuration; 4.7 messaging, since a phone call remains available; 4.4 natural-language search, leaving manual filters, which are the tested fallback anyway; 4.2 the photo check, leaving verification document-only. Each cut removes a whole feature cleanly rather than half-finishing several, and each is recorded in the report as a scope decision with its reason.</p>
+
+  <h2 style="font-size:15px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:var(--color-accent-700);margin:var(--space-8) 0 var(--space-2)">8 · Definition of done</h2>
+  <p style="max-width:66ch">A task is done when: the acceptance criteria pass on a preview deployment, not only locally; unit tests cover its logic and integration tests cover its policies including at least one refusal case; the interface matches the Design Brief at 320px and at desktop width; keyboard operation and focus states work; errors are handled inline without losing entered data; nothing is logged that should not be; and the work is merged with a message that explains why, not only what.</p>
+  <p style="max-width:66ch">Weekly, three questions decide whether the plan is still true: is the week's demonstrable outcome demonstrable, is the critical path still on schedule, and has anything been learned that changes a later task. The answers go into the project log, which is itself a deliverable.</p>
+</doc-page>
+
+</x-dc>
+</body>
+</html>
