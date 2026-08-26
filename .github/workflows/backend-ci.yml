@@ -45,7 +45,7 @@ jobs:
       # They need the dev server up first, same as running them locally.
       - name: Start dev server
         run: |
-          npm run dev:backend &
+          npm run dev:backend > /tmp/dev-server.log 2>&1 &
           for i in $(seq 1 30); do
             curl -sf http://localhost:3000/api/health && exit 0
             sleep 1
@@ -54,3 +54,7 @@ jobs:
 
       - name: Run tests
         run: npm run test:backend
+
+      - name: Dev server log
+        if: always()
+        run: cat /tmp/dev-server.log
