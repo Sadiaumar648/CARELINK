@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+﻿import { createClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "../lib/db/supabase-server";
 
 // Integration test for tasks 4.7, 4.8, 4.9, plus the report-blocks-
@@ -142,7 +142,7 @@ describe("messaging, reviews, reports (tasks 4.7-4.9)", () => {
 
   beforeAll(async () => {
     [parent, staff] = await Promise.all([createVerifiedParentWithWard(), createVerifiedStaff()]);
-  }, 30000);
+  }, 90000);
 
   afterAll(async () => {
     await admin.auth.admin.deleteUser(parent.userId);
@@ -186,9 +186,9 @@ describe("messaging, reviews, reports (tasks 4.7-4.9)", () => {
       headers: { Authorization: `Bearer ${staff.accessToken}` },
     });
     expect((await markRead.json()).updated).toBe(1);
-  }, 30000);
+  }, 90000);
 
-  it("only the parent, only after completion, can review — once — and the caregiver's rating updates", async () => {
+  it("only the parent, only after completion, can review â€” once â€” and the caregiver's rating updates", async () => {
     const booking = await createBooking(parent, staff, today);
     await acceptBooking(booking.id, staff.accessToken);
 
@@ -245,7 +245,7 @@ describe("messaging, reviews, reports (tasks 4.7-4.9)", () => {
       .single();
     expect(Number(staffRow!.rating_avg)).toBe(5);
     expect(staffRow!.rating_count).toBeGreaterThanOrEqual(1);
-  }, 30000);
+  }, 90000);
 
   it("reports route to the admin queue, are invisible to the subject, and block verification until resolved", async () => {
     const adminEmail = `carelink-test-mrr-admin-${Date.now()}@example.com`;
@@ -353,5 +353,5 @@ describe("messaging, reviews, reports (tasks 4.7-4.9)", () => {
 
     await admin.auth.admin.deleteUser(adminUser!.user!.id);
     await admin.auth.admin.deleteUser(reportedUser!.user!.id);
-  }, 40000);
+  }, 90000);
 });

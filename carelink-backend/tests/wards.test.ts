@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+﻿import { createClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "../lib/db/supabase-server";
 
 // Integration test for tasks 1.7 (household step) and 2.4 (Ward Care
@@ -56,7 +56,7 @@ describe("household and Ward Care Profile (tasks 1.7, 2.4)", () => {
   beforeAll(async () => {
     parentA = await createParentSession("a");
     parentB = await createParentSession("b");
-  }, 30000);
+  }, 90000);
 
   afterAll(async () => {
     const admin = createServiceRoleClient();
@@ -115,7 +115,7 @@ describe("household and Ward Care Profile (tasks 1.7, 2.4)", () => {
     return created.ward.id as string;
   });
 
-  it("no other parent can read, edit or archive this ward — proven at the database level", async () => {
+  it("no other parent can read, edit or archive this ward â€” proven at the database level", async () => {
     const createRes = await fetch(`${BASE_URL}/api/wards`, {
       method: "POST",
       headers: {
@@ -174,7 +174,7 @@ describe("household and Ward Care Profile (tasks 1.7, 2.4)", () => {
     const list = await listRes.json();
     expect(list.wards.find((w: { id: string }) => w.id === wardId)).toBeUndefined();
 
-    // Still directly reachable — an archived ward is retired, not gone.
+    // Still directly reachable â€” an archived ward is retired, not gone.
     const directRes = await fetch(`${BASE_URL}/api/wards/${wardId}`, {
       headers: { Authorization: `Bearer ${parentA.accessToken}` },
     });

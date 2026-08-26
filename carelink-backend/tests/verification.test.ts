@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+﻿import { createClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "../lib/db/supabase-server";
 
 // Integration test for tasks 3.2, 3.3 (parent side), 3.4, 3.5.
@@ -78,7 +78,7 @@ describe("verification workflow (tasks 3.2, 3.4, 3.5)", () => {
         return { userId: data!.user!.id, accessToken: signIn!.session!.access_token };
       })(),
     ]);
-  }, 30000);
+  }, 90000);
 
   afterAll(async () => {
     await admin.auth.admin.deleteUser(parent.userId);

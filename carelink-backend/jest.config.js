@@ -10,6 +10,7 @@ module.exports = {
   },
   // Integration tests hit the real Supabase project over the network —
   // multi-step flows (request -> accept -> pay -> start -> end) can
-  // involve a dozen round trips.
-  testTimeout: 60000,
+  // involve a dozen round trips, and the full suite run puts sustained
+  // load on a free-tier project that a single file run doesn't.
+  testTimeout: 90000,
 };

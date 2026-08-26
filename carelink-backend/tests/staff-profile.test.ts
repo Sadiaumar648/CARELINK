@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+﻿import { createClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "../lib/db/supabase-server";
 
 // Integration test for tasks 2.1-2.3, run against the real dev server.
@@ -48,7 +48,7 @@ describe("staff profile, skills, areas, availability (tasks 2.1-2.3)", () => {
     const staff = await createStaffSession();
     staffId = staff.id;
     token = staff.accessToken;
-  }, 30000);
+  }, 90000);
 
   afterAll(async () => {
     const admin = createServiceRoleClient();

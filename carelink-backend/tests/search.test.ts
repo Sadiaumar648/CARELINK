@@ -1,7 +1,7 @@
-import { createClient } from "@supabase/supabase-js";
+﻿import { createClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "../lib/db/supabase-server";
 
-// Integration test for tasks 2.6, 2.8, 2.9 — the hard filter, ranked
+// Integration test for tasks 2.6, 2.8, 2.9 â€” the hard filter, ranked
 // results with a score breakdown, and the public caregiver profile.
 // Run against the real dev server.
 
@@ -111,7 +111,7 @@ describe("search and caregiver profile (tasks 2.6, 2.8, 2.9)", () => {
       }),
       createParentSession(),
     ]);
-  }, 40000);
+  }, 90000);
 
   afterAll(async () => {
     await Promise.all([staffA, staffB, staffC].map((s) => admin.auth.admin.deleteUser(s.userId)));

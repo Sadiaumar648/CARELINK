@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+﻿import { createClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "../lib/db/supabase-server";
 
 // Integration test for tasks 4.10-4.13.
@@ -110,7 +110,7 @@ describe("notifications, settings, admin dashboards (tasks 4.10-4.13)", () => {
       createVerifiedParentWithWard(),
       createVerifiedStaff(),
     ]);
-  }, 30000);
+  }, 90000);
 
   afterAll(async () => {
     await admin.auth.admin.deleteUser(adminSession.userId);
@@ -166,7 +166,7 @@ describe("notifications, settings, admin dashboards (tasks 4.10-4.13)", () => {
     });
     expect(markRes.status).toBe(200);
     expect((await markRes.json()).notification.read_at).toBeTruthy();
-  }, 30000);
+  }, 90000);
 
   it("refuses a weight set that doesn't sum to 1, accepts a valid one", async () => {
     const badRes = await fetch(`${BASE_URL}/api/admin/settings/weights`, {

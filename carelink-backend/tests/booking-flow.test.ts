@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+﻿import { createClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "../lib/db/supabase-server";
 
 // Integration test for tasks 2.11-2.14: the request flow, accept/decline,
@@ -87,7 +87,7 @@ async function createStaffWithAvailability() {
     .select()
     .single();
 
-  // Every weekday, 08:00-20:00 — broad enough that any Monday-Sunday
+  // Every weekday, 08:00-20:00 â€” broad enough that any Monday-Sunday
   // fixture date in these tests falls inside it.
   await admin.from("availability_windows").insert(
     Array.from({ length: 7 }, (_, weekday) => ({
@@ -140,7 +140,7 @@ describe("booking request, accept/decline, detail (tasks 2.11-2.14)", () => {
       createParentWithWard(),
       createStaffWithAvailability(),
     ]);
-  }, 60000);
+  }, 90000);
 
   afterAll(async () => {
     await Promise.all(
@@ -279,7 +279,7 @@ describe("booking request, accept/decline, detail (tasks 2.11-2.14)", () => {
     );
 
     // RLS blocks the row before the route's own ownership check ever
-    // runs — an unrelated staff member gets "not found", not "forbidden",
+    // runs â€” an unrelated staff member gets "not found", not "forbidden",
     // so the booking's existence isn't revealed to them at all.
     const res = await fetch(`${BASE_URL}/api/bookings/${created.booking.id}/accept`, {
       method: "PATCH",
@@ -312,9 +312,9 @@ describe("booking request, accept/decline, detail (tasks 2.11-2.14)", () => {
   });
 
   it("names the conflicting booking when accepting would overlap an already-accepted one", async () => {
-    // Both requested while still pending, before either is accepted —
+    // Both requested while still pending, before either is accepted â€”
     // overlapping pending requests are allowed to coexist (doc 2,
-    // Technical Design, §4); it's acceptance that must serialize them.
+    // Technical Design, Â§4); it's acceptance that must serialize them.
     const slot = { date: "2027-03-22", startTime: "09:00", endTime: "11:00" };
     const overlapping = { date: "2027-03-22", startTime: "10:00", endTime: "12:00" };
 

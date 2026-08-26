@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+﻿import { createClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "../lib/db/supabase-server";
 
 // Integration test for tasks 3.7-3.11: payment, session start/end,
@@ -132,7 +132,7 @@ describe("payments, sessions, commission, earnings, cancellation (tasks 3.7-3.11
       createVerifiedParentWithWard(),
       createVerifiedStaffWithAvailability(),
     ]);
-  }, 30000);
+  }, 90000);
 
   afterAll(async () => {
     await admin.auth.admin.deleteUser(parent.userId);
