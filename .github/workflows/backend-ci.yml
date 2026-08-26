@@ -1,6 +1,7 @@
 name: carelink-backend CI
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - "carelink-backend/**"
