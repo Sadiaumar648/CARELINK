@@ -8,5 +8,8 @@ module.exports = {
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
   },
-  testTimeout: 20000,
+  // Integration tests hit the real Supabase project over the network —
+  // multi-step flows (request -> accept -> pay -> start -> end) can
+  // involve a dozen round trips.
+  testTimeout: 60000,
 };
