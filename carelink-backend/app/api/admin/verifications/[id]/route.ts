@@ -52,6 +52,28 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/admin/veri
     const { id } = await ctx.params;
     const body = reviewVerificationSchema.parse(await request.json());
 
+    if (body.decision === "verified") {
+      const { data: submission } = await supabase
+        .from("verification_submissions")
+        .select("user_id")
+        .eq("id", id)
+        .maybeSingle();
+      if (submission) {
+        const { data: openReports } = await supabase
+          .from("reports")
+          .select("id")
+          .eq("subject_user_id", submission.user_id)
+          .in("status", ["open", "investigating"])
+          .limit(1);
+        if (openReports && openReports.length > 0) {
+          return NextResponse.json(
+            { error: "This account has an unresolved report and cannot be verified yet" },
+            { status: 400 },
+          );
+        }
+      }
+    }
+
     const { data: updated, error } = await supabase
       .from("verification_submissions")
       .update({
