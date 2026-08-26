@@ -1,36 +1,23 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# carelink-backend
 
-## Getting Started
+API-only Next.js app — every route lives under `app/api/**`. There is no user-facing UI here; see `carelink-frontend` for that.
 
-First, run the development server:
+## What's here
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- `app/api/` — route handlers. `GET /api/health` is an unauthenticated liveness check; `GET /api/me` is the first protected route, used by the frontend right after sign-in.
+- `lib/db/supabase-server.ts` — two client constructors: a request-scoped client (built from the caller's bearer token, subject to row-level security) and a service-role client (bypasses RLS, used sparingly and never to serve a request directly).
+- `lib/auth/require-user.ts` — `requireUser` / `requireRole`, the guard every protected route starts with.
+- `supabase/migrations/` — the schema, forward-only, one file per migration. Mirrors doc 5 (Backend Schema) in `../carelink documentation/`.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Local setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. `cp .env.local.example .env.local` and fill in the Supabase project URL and keys (Project Settings → API in the Supabase dashboard).
+2. From the repo root: `npm install`
+3. Link the Supabase CLI to the project and push the schema:
+   ```
+   npx supabase login
+   npx supabase link --project-ref <your-project-ref>
+   npx supabase db push
+   ```
+4. `npm run dev --workspace carelink-backend` (or `npm run dev:backend` from the repo root)
+5. `curl http://localhost:3000/api/health` should return `{"status":"ok",...}`
