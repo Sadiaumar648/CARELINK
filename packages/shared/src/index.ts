@@ -7,3 +7,4 @@ export * from "./schemas/staff-skills";
 export * from "./schemas/staff-areas";
 export * from "./schemas/staff-availability";
 export * from "./schemas/parent-household";
+export * from "./schemas/search";
