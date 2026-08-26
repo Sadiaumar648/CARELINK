@@ -101,7 +101,8 @@ export async function checkPhotoPlausibility(
       };
     }
     return { ...parsed, modelVersion: MODEL };
-  } catch {
+  } catch (error) {
+    console.error("[photo-check] DEBUG failure:", error);
     return null;
   }
 }

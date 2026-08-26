@@ -102,7 +102,8 @@ export async function parseNaturalLanguageSearch(
     const textBlock = response.content.find((b): b is Anthropic.TextBlock => b.type === "text");
     const parsed: unknown = JSON.parse(extractJsonText(textBlock?.text ?? ""));
     return sanitizeParsedFilters(parsed);
-  } catch {
+  } catch (error) {
+    console.error("[nl-search] DEBUG failure:", error);
     return null;
   }
 }
