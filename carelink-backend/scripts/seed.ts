@@ -1,13 +1,14 @@
 import { config } from "dotenv";
 import path from "node:path";
 
-config({ path: path.resolve(__dirname, "../.env.local") });
-
-// Runs after dotenv so process.env is populated before these read it.
-/* eslint-disable import/first */
 import { createServiceRoleClient } from "../lib/db/supabase-server";
-import { generateInvitationCode, hashInvitationCode, placeholderStaffEmail } from "../lib/invitations";
-/* eslint-enable import/first */
+import {
+  generateInvitationCode,
+  hashInvitationCode,
+  placeholderStaffEmail,
+} from "../lib/invitations";
+
+config({ path: path.resolve(__dirname, "../.env.local") });
 
 // Task 1.10. Scoped to what exists so far — users, parent_profiles,
 // staff_profiles. Wards and bookings join this script once their
@@ -121,7 +122,9 @@ async function main() {
       .eq("id", user.user.id);
     if (hashErr) throw hashErr;
 
-    console.log(`Invited staff ${phone} — invitation code: ${code} (POST /api/auth/claim-invitation to try it)`);
+    console.log(
+      `Invited staff ${phone} — invitation code: ${code} (POST /api/auth/claim-invitation to try it)`,
+    );
   }
 
   // ── Active staff, with a complete profile ────────────────────────────

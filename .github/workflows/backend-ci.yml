@@ -1,0 +1,54 @@
+name: carelink-backend CI
+
+on:
+  pull_request:
+    paths:
+      - "carelink-backend/**"
+      - "packages/shared/**"
+      - ".github/workflows/backend-ci.yml"
+  push:
+    branches: [master, main]
+    paths:
+      - "carelink-backend/**"
+      - "packages/shared/**"
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck:backend
+
+      - name: Lint
+        run: npm run lint:backend
+
+      - name: Build
+        run: npm run build:backend
+
+      # Integration tests hit the real (free-tier) Supabase project — there
+      # is no local Postgres stack in this setup (see the build plan §2).
+      # They need the dev server up first, same as running them locally.
+      - name: Start dev server
+        run: |
+          npm run dev:backend &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000/api/health && exit 0
+            sleep 1
+          done
+          echo "Backend did not become ready in time" && exit 1
+
+      - name: Run tests
+        run: npm run test:backend

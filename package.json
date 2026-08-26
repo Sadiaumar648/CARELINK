@@ -8,6 +8,27 @@
   ],
   "scripts": {
     "dev:backend": "npm run dev --workspace carelink-backend",
-    "build:backend": "npm run build --workspace carelink-backend"
+    "build:backend": "npm run build --workspace carelink-backend",
+    "test:backend": "npm run test --workspace carelink-backend",
+    "typecheck:backend": "npm run typecheck --workspace carelink-backend",
+    "lint:backend": "npm run lint --workspace carelink-backend",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.6",
+    "lint-staged": "^15.2.10",
+    "prettier": "^3.3.3"
+  },
+  "lint-staged": {
+    "carelink-backend/**/*.{ts,tsx}": [
+      "npm run lint --workspace carelink-backend -- --fix",
+      "prettier --write"
+    ],
+    "packages/shared/**/*.ts": [
+      "prettier --write"
+    ],
+    "*.{json,md,css}": [
+      "prettier --write"
+    ]
   }
 }
