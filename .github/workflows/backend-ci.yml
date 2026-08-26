@@ -55,6 +55,8 @@ jobs:
       - name: Run tests
         run: npm run test:backend
 
+      # Kept small and unconditional: the dev server runs detached, so
+      # its errors don't otherwise surface in this job's logs at all.
       - name: Dev server log
-        if: always()
+        if: failure()
         run: cat /tmp/dev-server.log
