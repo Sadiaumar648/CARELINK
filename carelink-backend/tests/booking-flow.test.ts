@@ -33,6 +33,7 @@ async function createParentWithWard() {
     user_metadata: { role: "parent", full_name: "Flow Test Parent", phone: randomPhone() },
   });
   if (error || !data.user) throw error ?? new Error("Failed to create parent");
+  await admin.from("users").update({ verification_status: "verified" }).eq("id", data.user.id);
 
   const { data: profile } = await admin
     .from("parent_profiles")
@@ -73,6 +74,7 @@ async function createStaffWithAvailability() {
     },
   });
   if (error || !data.user) throw error ?? new Error("Failed to create staff");
+  await admin.from("users").update({ verification_status: "verified" }).eq("id", data.user.id);
 
   const { data: profile } = await admin
     .from("staff_profiles")
@@ -144,6 +146,28 @@ describe("booking request, accept/decline, detail (tasks 2.11-2.14)", () => {
     await Promise.all(
       [parent, otherParent, staff, otherStaff].map((p) => admin.auth.admin.deleteUser(p.userId)),
     );
+  });
+
+  it("refuses a request from an unverified parent (task 3.3)", async () => {
+    const email = `carelink-test-bkflow-unverified-${Date.now()}@example.com`;
+    const { data } = await admin.auth.admin.createUser({
+      email,
+      password: TEST_PASSWORD,
+      email_confirm: true,
+      user_metadata: { role: "parent", full_name: "Unverified Parent", phone: randomPhone() },
+    });
+    await admin.from("parent_profiles").insert({
+      user_id: data!.user!.id,
+      area: "Tema",
+      emergency_contact_name: "EC",
+      emergency_contact_phone: randomPhone(),
+    });
+    const token = await signIn(email);
+
+    const { status } = await requestBooking(token, staff.staffProfileId, parent.wardId);
+    expect(status).toBe(403);
+
+    await admin.auth.admin.deleteUser(data!.user!.id);
   });
 
   it("refuses a request for a ward that belongs to another parent", async () => {

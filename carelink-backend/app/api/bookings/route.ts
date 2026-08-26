@@ -26,6 +26,19 @@ const AVAILABILITY_REASON_MESSAGES: Record<string, string> = {
 export async function POST(request: Request) {
   try {
     const { supabase, userId } = await requireRole(request, ["parent"]);
+
+    const { data: caller } = await supabase
+      .from("users")
+      .select("verification_status")
+      .eq("id", userId)
+      .single();
+    if (caller?.verification_status !== "verified") {
+      return NextResponse.json(
+        { error: "Verify your account before requesting a booking" },
+        { status: 403 },
+      );
+    }
+
     const parentProfileId = await getOwnParentProfileId(supabase, userId);
     if (!parentProfileId) {
       return NextResponse.json({ error: "Complete your household profile first" }, { status: 400 });

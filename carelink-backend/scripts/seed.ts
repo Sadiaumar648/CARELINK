@@ -84,6 +84,7 @@ async function main() {
       user_metadata: { role: "parent", full_name: `Seed Parent ${i + 1}`, phone },
     });
     if (error || !user.user) throw error ?? new Error("Failed to create seed parent");
+    await admin.from("users").update({ verification_status: "verified" }).eq("id", user.user.id);
 
     const { error: profileErr } = await admin.from("parent_profiles").insert({
       user_id: user.user.id,
@@ -158,6 +159,7 @@ async function main() {
       },
     });
     if (error || !user.user) throw error ?? new Error("Failed to create active staff");
+    await admin.from("users").update({ verification_status: "verified" }).eq("id", user.user.id);
 
     const { error: profileErr } = await admin.from("staff_profiles").insert({
       user_id: user.user.id,

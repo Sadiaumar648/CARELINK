@@ -9,3 +9,4 @@ export * from "./schemas/staff-availability";
 export * from "./schemas/parent-household";
 export * from "./schemas/search";
 export * from "./schemas/booking-request";
+export * from "./schemas/verification";

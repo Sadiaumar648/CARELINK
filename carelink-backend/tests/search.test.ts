@@ -38,6 +38,7 @@ async function createActiveStaff(config: {
     },
   });
   if (error || !data.user) throw error ?? new Error("Failed to create staff");
+  await admin.from("users").update({ verification_status: "verified" }).eq("id", data.user.id);
 
   const { data: profile, error: profileErr } = await admin
     .from("staff_profiles")
@@ -173,6 +174,33 @@ describe("search and caregiver profile (tasks 2.6, 2.8, 2.9)", () => {
     expect(body.results).toHaveLength(0);
     expect(body.emptyState.restrictiveFilter).toBe("area");
     expect(body.emptyState.message).toBeTruthy();
+  });
+
+  it("excludes an unverified caregiver entirely (task 3.3)", async () => {
+    const email = `carelink-test-search-unverified-${Date.now()}@example.com`;
+    const { data } = await admin.auth.admin.createUser({
+      email,
+      password: TEST_PASSWORD,
+      email_confirm: true,
+      user_metadata: {
+        role: "staff",
+        full_name: "Unverified Staff",
+        phone: randomPhone(),
+        account_status: "active",
+      },
+    });
+    await admin.from("staff_profiles").insert({
+      user_id: data!.user!.id,
+      hourly_rate: 2000,
+      emergency_contact_name: "EC",
+      emergency_contact_phone: randomPhone(),
+    });
+
+    const { body } = await search("");
+    const ids = body.results.map((r: { user_id: string }) => r.user_id);
+    expect(ids).not.toContain(data!.user!.id);
+
+    await admin.auth.admin.deleteUser(data!.user!.id);
   });
 
   it("excludes an inactive (unclaimed) staff record entirely", async () => {
