@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
@@ -83,7 +84,12 @@ export default function StaffRequestsPage() {
         {bookings?.map((b) => (
           <Sheet key={b.id} className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <p className="text-[17px] font-semibold">{formatRange(b.starts_at, b.ends_at)}</p>
+              <Link
+                href={`/staff/schedule/${b.id}`}
+                className="text-[17px] font-semibold hover:text-cyan"
+              >
+                {formatRange(b.starts_at, b.ends_at)}
+              </Link>
               <StatusBadge label={b.status} />
             </div>
             <p className="text-[15px] text-ink-muted">{b.address}</p>
