@@ -3,6 +3,7 @@
 import { useAuth } from "@/lib/auth/auth-context";
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
+import { VerificationForm } from "@/components/verification-form";
 
 export default function ParentAccountPage() {
   const { user, signOut } = useAuth();
@@ -13,6 +14,9 @@ export default function ParentAccountPage() {
         <p className="text-[15px]">{user?.email}</p>
         <p className="text-[13px] text-ink-muted">Parent</p>
       </Sheet>
+
+      <VerificationForm />
+
       <Button variant="secondary" onClick={() => void signOut()}>
         Sign out
       </Button>
