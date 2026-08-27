@@ -168,10 +168,15 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
       <div className="flex flex-col gap-3">
         {viewerRole === "staff" && booking.status === "pending" && (
           <div className="flex gap-3">
-            <Button disabled={busy} onClick={() => void act("/accept")}>
+            <Button size="lg" disabled={busy} onClick={() => void act("/accept")}>
               Accept
             </Button>
-            <Button variant="danger" disabled={busy} onClick={() => void act("/decline", {})}>
+            <Button
+              size="lg"
+              variant="danger"
+              disabled={busy}
+              onClick={() => void act("/decline", {})}
+            >
               Decline
             </Button>
           </div>
@@ -182,13 +187,21 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
         )}
 
         {booking.status === "paid" && (
-          <Button disabled={busy || !isToday} onClick={() => void act("/start")}>
+          <Button
+            size={viewerRole === "staff" ? "lg" : "default"}
+            disabled={busy || !isToday}
+            onClick={() => void act("/start")}
+          >
             {isToday ? "Start session" : "Starts on the booking date"}
           </Button>
         )}
 
         {booking.status === "active" && (
-          <Button disabled={busy} onClick={() => void act("/end")}>
+          <Button
+            size={viewerRole === "staff" ? "lg" : "default"}
+            disabled={busy}
+            onClick={() => void act("/end")}
+          >
             End session
           </Button>
         )}

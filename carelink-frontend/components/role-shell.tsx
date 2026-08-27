@@ -6,19 +6,26 @@ import type { Icon } from "@phosphor-icons/react";
 import { SignOut } from "@phosphor-icons/react";
 import { useAuth } from "@/lib/auth/auth-context";
 import { NotificationsBell } from "@/components/notifications-bell";
+import { ReadAloudToggle } from "@/components/read-aloud-toggle";
 
 export type NavItem = { href: string; label: string; icon: Icon };
 
 // The App Flow doc's per-role nav, responsive: a bottom tab bar on narrow
 // screens, a left rail on wide ones — never icon-only, always paired with
-// a label.
+// a label. `largeTargets` and `readAloud` are the caregiver-facing
+// accessibility pass (task 4.6) — a 52px minimum touch target on every
+// nav item, and an opt-in toggle to read each screen's heading aloud.
 export function RoleShell({
   items,
   bookingHref,
+  largeTargets = false,
+  readAloud = false,
   children,
 }: {
   items: NavItem[];
   bookingHref?: (bookingId: string) => string;
+  largeTargets?: boolean;
+  readAloud?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -34,9 +41,9 @@ export function RoleShell({
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center gap-1 px-3 py-2 text-[13px] font-semibold md:flex-row md:gap-2 md:rounded ${
-                active ? "text-cyan" : "text-ink-muted hover:text-ink"
-              }`}
+              className={`flex flex-col items-center justify-center gap-1 px-3 py-2 text-[13px] font-semibold md:flex-row md:gap-2 md:justify-start md:rounded ${
+                largeTargets ? "min-h-[52px] min-w-[52px]" : ""
+              } ${active ? "text-cyan" : "text-ink-muted hover:text-ink"}`}
             >
               <ItemIcon size={24} weight={active ? "duotone" : "regular"} />
               {item.label}
@@ -45,14 +52,17 @@ export function RoleShell({
         })}
         <button
           onClick={() => void signOut()}
-          className="hidden items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-ink-muted hover:text-magenta md:mt-auto md:flex md:rounded"
+          className={`hidden items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-ink-muted hover:text-magenta md:mt-auto md:flex md:rounded ${
+            largeTargets ? "min-h-[52px]" : ""
+          }`}
         >
           <SignOut size={24} />
           Sign out
         </button>
       </nav>
       <main className="order-1 flex-1 md:order-2">
-        <div className="flex justify-end border-b border-hairline p-2 md:p-3">
+        <div className="flex items-center justify-end gap-2 border-b border-hairline p-2 md:p-3">
+          {readAloud && <ReadAloudToggle />}
           <NotificationsBell bookingHref={bookingHref} />
         </div>
         {children}

@@ -182,7 +182,7 @@ function SkillsSection() {
               key={skill}
               type="button"
               onClick={() => toggle(skill)}
-              className={`rounded border px-3 py-2 text-[13px] font-semibold ${
+              className={`min-h-[52px] rounded border px-3 py-2 text-[13px] font-semibold ${
                 active
                   ? "border-cyan bg-cyan/10 text-cyan-pressed"
                   : "border-hairline text-ink-muted"
@@ -382,7 +382,7 @@ function AvailabilitySection() {
                         type="button"
                         onClick={() => toggle(weekday, p.part)}
                         aria-label={`${p.label} ${WEEKDAYS[weekday]}`}
-                        className={`h-8 w-8 rounded border ${
+                        className={`h-[52px] w-[52px] rounded border ${
                           on ? "border-cyan bg-cyan/20" : "border-hairline"
                         }`}
                       />

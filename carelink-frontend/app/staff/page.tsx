@@ -95,10 +95,15 @@ export default function StaffRequestsPage() {
             <p className="text-[15px] text-ink-muted">{b.address}</p>
             <p className="text-[19px] font-semibold tabular-nums">GH₵{b.total_amount}</p>
             <div className="flex gap-3">
-              <Button onClick={() => void respond(b.id, "accept")} disabled={actingOn === b.id}>
+              <Button
+                size="lg"
+                onClick={() => void respond(b.id, "accept")}
+                disabled={actingOn === b.id}
+              >
                 Accept
               </Button>
               <Button
+                size="lg"
                 variant="danger"
                 onClick={() => void respond(b.id, "decline")}
                 disabled={actingOn === b.id}

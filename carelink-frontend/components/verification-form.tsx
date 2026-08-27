@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { CameraCapture } from "@/components/camera-capture";
 
 type Submission = {
   id: string;
@@ -32,6 +33,7 @@ export function VerificationForm() {
   const [referencePhone, setReferencePhone] = useState("");
   const [idFile, setIdFile] = useState<File | null>(null);
   const [selfieFile, setSelfieFile] = useState<File | null>(null);
+  const [selfieMode, setSelfieMode] = useState<"camera" | "file">("camera");
   const [consent, setConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -160,20 +162,33 @@ export function VerificationForm() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label
-              htmlFor="selfieFile"
-              className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted"
-            >
+            <span className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
               Selfie (optional — speeds up review)
-            </label>
-            <input
-              id="selfieFile"
-              type="file"
-              accept="image/*"
-              capture="user"
-              onChange={(e) => setSelfieFile(e.target.files?.[0] ?? null)}
-              className="text-[13px]"
-            />
+            </span>
+
+            {selfieFile ? (
+              <div className="flex items-center gap-3">
+                <p className="text-[13px] text-ink-muted">Selfie captured.</p>
+                <button
+                  type="button"
+                  onClick={() => setSelfieFile(null)}
+                  className="text-[13px] font-semibold text-cyan"
+                >
+                  Retake
+                </button>
+              </div>
+            ) : selfieMode === "camera" ? (
+              <CameraCapture onCapture={setSelfieFile} onFallback={() => setSelfieMode("file")} />
+            ) : (
+              <input
+                type="file"
+                accept="image/*"
+                capture="user"
+                onChange={(e) => setSelfieFile(e.target.files?.[0] ?? null)}
+                className="text-[13px]"
+              />
+            )}
+
             {selfieFile && (
               <label className="flex items-center gap-2 text-[13px] text-ink-muted">
                 <input
