@@ -39,35 +39,40 @@ export async function GET(request: Request, ctx: RouteContext<"/api/bookings/[id
       .eq("booking_id", id)
       .order("occurred_at", { ascending: true });
 
+    // The counterparty's emergency contact (gated to exactly "active",
+    // symmetric — task 3.8) and their user id, which — unlike the
+    // emergency contact — is reasonable to know at any point once a
+    // booking exists between the two of you: it's what filing a report
+    // against them needs (task 4.9), and not a new disclosure beyond what
+    // messaging/reviews already imply.
     let emergencyContact: { name: string; phone: string } | null = null;
-    if (booking.status === "active") {
+    let counterpartyUserId: string | null = null;
+    if (role === "parent" || role === "staff") {
       const admin = createServiceRoleClient();
-      if (role === "parent") {
-        const { data } = await admin
-          .from("staff_profiles")
-          .select("emergency_contact_name, emergency_contact_phone")
-          .eq("id", booking.staff_profile_id)
-          .maybeSingle();
-        if (data)
-          emergencyContact = {
-            name: data.emergency_contact_name,
-            phone: data.emergency_contact_phone,
-          };
-      } else if (role === "staff") {
-        const { data } = await admin
-          .from("parent_profiles")
-          .select("emergency_contact_name, emergency_contact_phone")
-          .eq("id", booking.parent_profile_id)
-          .maybeSingle();
-        if (data)
-          emergencyContact = {
-            name: data.emergency_contact_name,
-            phone: data.emergency_contact_phone,
-          };
+      const counterpartyTable = role === "parent" ? "staff_profiles" : "parent_profiles";
+      const counterpartyId =
+        role === "parent" ? booking.staff_profile_id : booking.parent_profile_id;
+      const { data } = await admin
+        .from(counterpartyTable)
+        .select("user_id, emergency_contact_name, emergency_contact_phone")
+        .eq("id", counterpartyId)
+        .maybeSingle();
+      counterpartyUserId = data?.user_id ?? null;
+      if (data && booking.status === "active") {
+        emergencyContact = {
+          name: data.emergency_contact_name,
+          phone: data.emergency_contact_phone,
+        };
       }
     }
 
-    return NextResponse.json({ booking, ward, events: events ?? [], emergencyContact });
+    return NextResponse.json({
+      booking,
+      ward,
+      events: events ?? [],
+      emergencyContact,
+      counterpartyUserId,
+    });
   } catch (error) {
     return (
       authErrorResponse(error) ?? NextResponse.json({ error: "Unexpected error" }, { status: 500 })

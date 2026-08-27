@@ -225,7 +225,12 @@ describe("payments, sessions, commission, earnings, cancellation (tasks 3.7-3.11
     const beforeActive = await fetch(`${BASE_URL}/api/bookings/${booking.id}`, {
       headers: { Authorization: `Bearer ${staff.accessToken}` },
     });
-    expect((await beforeActive.json()).emergencyContact).toBeNull();
+    const beforeActiveBody = await beforeActive.json();
+    expect(beforeActiveBody.emergencyContact).toBeNull();
+    // Unlike the emergency contact, the counterparty's user id (needed to
+    // file a report against them) isn't gated to "active" — it's known
+    // as soon as a booking exists between the two of you.
+    expect(beforeActiveBody.counterpartyUserId).toBe(parent.userId);
 
     const startRes = await fetch(`${BASE_URL}/api/bookings/${booking.id}/start`, {
       method: "PATCH",
@@ -238,12 +243,14 @@ describe("payments, sessions, commission, earnings, cancellation (tasks 3.7-3.11
     });
     const parentView = await asParent.json();
     expect(parentView.emergencyContact).toEqual({ name: "Staff EC", phone: "+233550222222" });
+    expect(parentView.counterpartyUserId).toBe(staff.userId);
 
     const asStaff = await fetch(`${BASE_URL}/api/bookings/${booking.id}`, {
       headers: { Authorization: `Bearer ${staff.accessToken}` },
     });
     const staffView = await asStaff.json();
     expect(staffView.emergencyContact).toEqual({ name: "Parent EC", phone: "+233550111111" });
+    expect(staffView.counterpartyUserId).toBe(parent.userId);
 
     const staffCompletedBefore = await admin
       .from("staff_profiles")
@@ -261,7 +268,9 @@ describe("payments, sessions, commission, earnings, cancellation (tasks 3.7-3.11
     const afterCompleted = await fetch(`${BASE_URL}/api/bookings/${booking.id}`, {
       headers: { Authorization: `Bearer ${parent.accessToken}` },
     });
-    expect((await afterCompleted.json()).emergencyContact).toBeNull(); // window closed
+    const afterCompletedBody = await afterCompleted.json();
+    expect(afterCompletedBody.emergencyContact).toBeNull(); // window closed
+    expect(afterCompletedBody.counterpartyUserId).toBe(staff.userId); // still known
 
     const staffCompletedAfter = await admin
       .from("staff_profiles")

@@ -8,6 +8,7 @@ import { Field } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { MessageThread } from "@/components/message-thread";
+import { ReportForm } from "@/components/report-form";
 
 type Booking = {
   id: string;
@@ -59,17 +60,22 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
   const [booking, setBooking] = useState<Booking | null>(null);
   const [ward, setWard] = useState<Ward>(null);
   const [emergencyContact, setEmergencyContact] = useState<EmergencyContact>(null);
+  const [counterpartyUserId, setCounterpartyUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   function load() {
-    apiFetch<{ booking: Booking; ward: Ward; emergencyContact: EmergencyContact }>(
-      `/api/bookings/${id}`,
-    )
+    apiFetch<{
+      booking: Booking;
+      ward: Ward;
+      emergencyContact: EmergencyContact;
+      counterpartyUserId: string | null;
+    }>(`/api/bookings/${id}`)
       .then((res) => {
         setBooking(res.booking);
         setWard(res.ward);
         setEmergencyContact(res.emergencyContact);
+        setCounterpartyUserId(res.counterpartyUserId);
       })
       .catch((err) => setError(errorMessage(err)));
   }
@@ -190,6 +196,10 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
         {viewerRole === "parent" && booking.status === "completed" && <ReviewForm bookingId={id} />}
 
         {viewerRole === "parent" && canCancel && <CancelForm bookingId={id} onCancelled={load} />}
+
+        {!["pending", "declined"].includes(booking.status) && counterpartyUserId && (
+          <ReportForm bookingId={id} subjectUserId={counterpartyUserId} />
+        )}
       </div>
     </div>
   );
