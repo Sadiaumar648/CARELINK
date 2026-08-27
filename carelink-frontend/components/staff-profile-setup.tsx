@@ -1,0 +1,415 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { skillTagSchema, type SkillTag, type DayPart } from "@carelink/shared";
+import { apiFetch } from "@/lib/api/client";
+import { errorMessage } from "@/lib/error-message";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Sheet } from "@/components/ui/sheet";
+
+function skillLabel(skill: string): string {
+  return skill.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function Saved({ show }: { show: boolean }) {
+  if (!show) return null;
+  return <p className="text-[13px] text-cyan-pressed">Saved.</p>;
+}
+
+type Profile = {
+  bio: string | null;
+  years_experience: number;
+  hourly_rate: number;
+  languages: string[];
+  emergency_contact_name: string;
+  emergency_contact_phone: string;
+} | null;
+
+function ProfileSection() {
+  const [bio, setBio] = useState("");
+  const [yearsExperience, setYearsExperience] = useState("");
+  const [hourlyRate, setHourlyRate] = useState("");
+  const [languages, setLanguages] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    apiFetch<{ profile: Profile }>("/api/staff/profile")
+      .then((res) => {
+        if (res.profile) {
+          setBio(res.profile.bio ?? "");
+          setYearsExperience(String(res.profile.years_experience));
+          setHourlyRate(String(res.profile.hourly_rate));
+          setLanguages(res.profile.languages.join(", "));
+          setContactName(res.profile.emergency_contact_name);
+          setContactPhone(res.profile.emergency_contact_phone);
+        }
+        setLoaded(true);
+      })
+      .catch((err) => setError(errorMessage(err)));
+  }, []);
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    setSaved(false);
+    try {
+      await apiFetch("/api/staff/profile", {
+        method: "PATCH",
+        body: {
+          bio: bio || undefined,
+          yearsExperience: Number(yearsExperience),
+          hourlyRate: Number(hourlyRate),
+          languages: languages
+            .split(",")
+            .map((l) => l.trim())
+            .filter(Boolean),
+          emergencyContactName: contactName,
+          emergencyContactPhone: contactPhone,
+        },
+      });
+      setSaved(true);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!loaded) return <p className="text-[13px] text-ink-muted">Loading…</p>;
+
+  return (
+    <Sheet as="form" onSubmit={onSubmit} className="flex flex-col gap-4">
+      <h2 className="text-[19px] font-semibold">Profile</h2>
+      <Field label="Bio (optional)" value={bio} onChange={(e) => setBio(e.target.value)} />
+      <div className="grid grid-cols-2 gap-4">
+        <Field
+          label="Years of experience"
+          type="number"
+          min={0}
+          required
+          value={yearsExperience}
+          onChange={(e) => setYearsExperience(e.target.value)}
+        />
+        <Field
+          label="Hourly rate (GH₵)"
+          type="number"
+          min={1}
+          required
+          value={hourlyRate}
+          onChange={(e) => setHourlyRate(e.target.value)}
+        />
+      </div>
+      <Field
+        label="Languages (comma-separated)"
+        value={languages}
+        onChange={(e) => setLanguages(e.target.value)}
+      />
+      <Field
+        label="Emergency contact name"
+        required
+        value={contactName}
+        onChange={(e) => setContactName(e.target.value)}
+      />
+      <Field
+        label="Emergency contact phone"
+        type="tel"
+        required
+        value={contactPhone}
+        onChange={(e) => setContactPhone(e.target.value)}
+      />
+      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      <Saved show={saved} />
+      <Button type="submit" disabled={saving}>
+        {saving ? "Saving…" : "Save profile"}
+      </Button>
+    </Sheet>
+  );
+}
+
+function SkillsSection() {
+  const [skills, setSkills] = useState<SkillTag[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    apiFetch<{ skills: SkillTag[] }>("/api/staff/skills")
+      .then((res) => {
+        setSkills(res.skills);
+        setLoaded(true);
+      })
+      .catch((err) => setError(errorMessage(err)));
+  }, []);
+
+  function toggle(skill: SkillTag) {
+    setSkills((prev) =>
+      prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill],
+    );
+  }
+
+  async function save() {
+    setSaving(true);
+    setError(null);
+    setSaved(false);
+    try {
+      await apiFetch("/api/staff/skills", { method: "PUT", body: { skills } });
+      setSaved(true);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!loaded) return <p className="text-[13px] text-ink-muted">Loading…</p>;
+
+  return (
+    <Sheet className="flex flex-col gap-4">
+      <h2 className="text-[19px] font-semibold">Skills</h2>
+      <div className="flex flex-wrap gap-2">
+        {skillTagSchema.options.map((skill) => {
+          const active = skills.includes(skill);
+          return (
+            <button
+              key={skill}
+              type="button"
+              onClick={() => toggle(skill)}
+              className={`rounded border px-3 py-2 text-[13px] font-semibold ${
+                active
+                  ? "border-cyan bg-cyan/10 text-cyan-pressed"
+                  : "border-hairline text-ink-muted"
+              }`}
+            >
+              {skillLabel(skill)}
+            </button>
+          );
+        })}
+      </div>
+      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      <Saved show={saved} />
+      <Button onClick={() => void save()} disabled={saving}>
+        {saving ? "Saving…" : "Save skills"}
+      </Button>
+    </Sheet>
+  );
+}
+
+type AreaEntry = { area: string; isPrimary: boolean };
+
+function AreasSection() {
+  const [areas, setAreas] = useState<AreaEntry[]>([]);
+  const [newArea, setNewArea] = useState("");
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    apiFetch<{ areas: AreaEntry[] }>("/api/staff/areas")
+      .then((res) => {
+        setAreas(res.areas);
+        setLoaded(true);
+      })
+      .catch((err) => setError(errorMessage(err)));
+  }, []);
+
+  function addArea() {
+    if (!newArea.trim()) return;
+    setAreas((prev) => [...prev, { area: newArea.trim(), isPrimary: prev.length === 0 }]);
+    setNewArea("");
+  }
+
+  function removeArea(area: string) {
+    setAreas((prev) => prev.filter((a) => a.area !== area));
+  }
+
+  function setPrimary(area: string) {
+    setAreas((prev) => prev.map((a) => ({ ...a, isPrimary: a.area === area })));
+  }
+
+  async function save() {
+    setSaving(true);
+    setError(null);
+    setSaved(false);
+    try {
+      await apiFetch("/api/staff/areas", { method: "PUT", body: { areas } });
+      setSaved(true);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!loaded) return <p className="text-[13px] text-ink-muted">Loading…</p>;
+
+  return (
+    <Sheet className="flex flex-col gap-4">
+      <h2 className="text-[19px] font-semibold">Service areas</h2>
+      <div className="flex flex-col gap-2">
+        {areas.map((a) => (
+          <div key={a.area} className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setPrimary(a.area)}
+              className={`flex-1 rounded border px-3 py-2 text-left text-[15px] ${
+                a.isPrimary ? "border-cyan bg-cyan/10 text-cyan-pressed" : "border-hairline"
+              }`}
+            >
+              {a.area} {a.isPrimary && "(primary)"}
+            </button>
+            <button
+              type="button"
+              onClick={() => removeArea(a.area)}
+              className="text-[13px] text-magenta"
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-3">
+        <input
+          value={newArea}
+          onChange={(e) => setNewArea(e.target.value)}
+          placeholder="Add an area"
+          className="flex-1 rounded border border-hairline bg-sheet px-3 py-2 text-[15px] text-ink"
+        />
+        <Button type="button" variant="secondary" onClick={addArea}>
+          Add
+        </Button>
+      </div>
+      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      <Saved show={saved} />
+      <Button onClick={() => void save()} disabled={saving || areas.length === 0}>
+        {saving ? "Saving…" : "Save areas"}
+      </Button>
+    </Sheet>
+  );
+}
+
+const PARTS: { part: DayPart; label: string; startTime: string; endTime: string }[] = [
+  { part: "morning", label: "Morning", startTime: "06:00", endTime: "12:00" },
+  { part: "afternoon", label: "Afternoon", startTime: "12:00", endTime: "17:00" },
+  { part: "evening", label: "Evening", startTime: "17:00", endTime: "21:00" },
+  { part: "overnight", label: "Overnight", startTime: "21:00", endTime: "23:45" },
+];
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+type Window = { weekday: number; part: DayPart; startTime: string; endTime: string };
+
+function AvailabilitySection() {
+  const [windows, setWindows] = useState<Window[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    apiFetch<{ windows: Window[] }>("/api/staff/availability")
+      .then((res) => {
+        setWindows(res.windows);
+        setLoaded(true);
+      })
+      .catch((err) => setError(errorMessage(err)));
+  }, []);
+
+  function isOn(weekday: number, part: DayPart) {
+    return windows.some((w) => w.weekday === weekday && w.part === part);
+  }
+
+  function toggle(weekday: number, part: DayPart) {
+    setWindows((prev) => {
+      if (prev.some((w) => w.weekday === weekday && w.part === part)) {
+        return prev.filter((w) => !(w.weekday === weekday && w.part === part));
+      }
+      const def = PARTS.find((p) => p.part === part)!;
+      return [...prev, { weekday, part, startTime: def.startTime, endTime: def.endTime }];
+    });
+  }
+
+  async function save() {
+    setSaving(true);
+    setError(null);
+    setSaved(false);
+    try {
+      await apiFetch("/api/staff/availability", {
+        method: "PUT",
+        body: { windows, exceptions: [] },
+      });
+      setSaved(true);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!loaded) return <p className="text-[13px] text-ink-muted">Loading…</p>;
+
+  return (
+    <Sheet className="flex flex-col gap-4">
+      <h2 className="text-[19px] font-semibold">Availability</h2>
+      <div className="overflow-x-auto">
+        <table className="w-full text-[13px]">
+          <thead>
+            <tr>
+              <th className="text-left text-ink-muted"></th>
+              {WEEKDAYS.map((d) => (
+                <th key={d} className="px-2 py-1 text-center font-semibold text-ink-muted">
+                  {d}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {PARTS.map((p) => (
+              <tr key={p.part}>
+                <td className="pr-2 text-ink-muted">{p.label}</td>
+                {WEEKDAYS.map((_, weekday) => {
+                  const on = isOn(weekday, p.part);
+                  return (
+                    <td key={weekday} className="px-1 py-1 text-center">
+                      <button
+                        type="button"
+                        onClick={() => toggle(weekday, p.part)}
+                        aria-label={`${p.label} ${WEEKDAYS[weekday]}`}
+                        className={`h-8 w-8 rounded border ${
+                          on ? "border-cyan bg-cyan/20" : "border-hairline"
+                        }`}
+                      />
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      <Saved show={saved} />
+      <Button onClick={() => void save()} disabled={saving}>
+        {saving ? "Saving…" : "Save availability"}
+      </Button>
+    </Sheet>
+  );
+}
+
+export function StaffProfileSetup() {
+  return (
+    <div className="flex flex-col gap-6">
+      <ProfileSection />
+      <SkillsSection />
+      <AreasSection />
+      <AvailabilitySection />
+    </div>
+  );
+}

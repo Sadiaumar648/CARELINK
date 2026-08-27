@@ -3,6 +3,7 @@
 import { useAuth } from "@/lib/auth/auth-context";
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
+import { StaffProfileSetup } from "@/components/staff-profile-setup";
 import { VerificationForm } from "@/components/verification-form";
 
 export default function StaffProfilePage() {
@@ -15,6 +16,7 @@ export default function StaffProfilePage() {
         <p className="text-[13px] text-ink-muted">Caregiver</p>
       </Sheet>
 
+      <StaffProfileSetup />
       <VerificationForm />
 
       <Button variant="secondary" onClick={() => void signOut()}>
