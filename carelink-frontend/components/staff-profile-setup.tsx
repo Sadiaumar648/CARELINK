@@ -7,6 +7,9 @@ import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
+import { Avatar } from "@/components/ui/avatar";
+import { caregiverPhotoUrl } from "@/lib/photo-url";
+import { useAuth } from "@/lib/auth/auth-context";
 
 function skillLabel(skill: string): string {
   return skill.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -15,6 +18,66 @@ function skillLabel(skill: string): string {
 function Saved({ show }: { show: boolean }) {
   if (!show) return null;
   return <p className="text-[13px] text-cyan-pressed">Saved.</p>;
+}
+
+function PhotoSection() {
+  const { user } = useAuth();
+  const [photoPath, setPhotoPath] = useState<string | null | undefined>(undefined);
+  const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    apiFetch<{ profile: { photo_path: string | null } | null }>("/api/staff/profile")
+      .then((res) => setPhotoPath(res.profile?.photo_path ?? null))
+      .catch((err) => setError(errorMessage(err)));
+  }, []);
+
+  async function onSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.set("photo", file);
+      const res = await apiFetch<{ photoPath: string }>("/api/staff/photo", {
+        method: "POST",
+        body: form,
+      });
+      setPhotoPath(res.photoPath);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  if (photoPath === undefined) return <p className="text-[13px] text-ink-muted">Loading…</p>;
+
+  return (
+    <Sheet className="flex items-center gap-4">
+      <Avatar
+        photoUrl={caregiverPhotoUrl(photoPath)}
+        name={(user?.user_metadata?.full_name as string | undefined) ?? "Your photo"}
+        size="md"
+      />
+      <div className="flex flex-col gap-2">
+        <label className="w-fit cursor-pointer text-[13px] font-semibold text-cyan">
+          {uploading ? "Uploading…" : photoPath ? "Change photo" : "Add a photo"}
+          <input
+            type="file"
+            accept="image/*"
+            capture="user"
+            onChange={(e) => void onSelect(e)}
+            disabled={uploading}
+            className="hidden"
+          />
+        </label>
+        <p className="text-[13px] text-ink-muted">Parents see this next to your name in search.</p>
+        {error && <p className="text-[13px] text-magenta">{error}</p>}
+      </div>
+    </Sheet>
+  );
 }
 
 type Profile = {
@@ -406,6 +469,7 @@ function AvailabilitySection() {
 export function StaffProfileSetup() {
   return (
     <div className="flex flex-col gap-6">
+      <PhotoSection />
       <ProfileSection />
       <SkillsSection />
       <AreasSection />

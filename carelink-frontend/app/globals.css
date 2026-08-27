@@ -49,3 +49,27 @@ body {
   color: var(--color-ink);
   font-family: var(--font-serif);
 }
+
+/* A single, tasteful entrance for cards that appear as a list — e.g.
+   caregiver search results. Respects reduced-motion; nothing else in
+   the app animates on its own. */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.35s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up {
+    animation: none;
+  }
+}

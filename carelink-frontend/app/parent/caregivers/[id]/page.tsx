@@ -9,10 +9,13 @@ import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
+import { Avatar } from "@/components/ui/avatar";
+import { caregiverPhotoUrl } from "@/lib/photo-url";
 
 type Caregiver = {
   staff_profile_id: string;
   full_name: string;
+  photo_path: string | null;
   hourly_rate: number;
   years_experience: number | null;
   rating_avg: number | null;
@@ -169,13 +172,20 @@ export default function CaregiverProfilePage({ params }: { params: Promise<{ id:
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
-      <div>
-        <h1 className="text-[26px] font-semibold">{caregiver.full_name}</h1>
-        <p className="flex items-center gap-1 text-[15px] text-ink-muted">
-          <Star size={16} weight="fill" />
-          {caregiver.rating_avg ? caregiver.rating_avg.toFixed(1) : "New"} ({caregiver.rating_count}{" "}
-          reviews) · {caregiver.years_experience ?? 0} yrs experience
-        </p>
+      <div className="flex items-center gap-4">
+        <Avatar
+          photoUrl={caregiverPhotoUrl(caregiver.photo_path)}
+          name={caregiver.full_name}
+          size="lg"
+        />
+        <div>
+          <h1 className="text-[26px] font-semibold">{caregiver.full_name}</h1>
+          <p className="flex items-center gap-1 text-[15px] text-ink-muted">
+            <Star size={16} weight="fill" />
+            {caregiver.rating_avg ? caregiver.rating_avg.toFixed(1) : "New"} (
+            {caregiver.rating_count} reviews) · {caregiver.years_experience ?? 0} yrs experience
+          </p>
+        </div>
       </div>
 
       <Sheet className="flex flex-col gap-4">

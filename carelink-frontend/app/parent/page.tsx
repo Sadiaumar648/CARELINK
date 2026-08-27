@@ -9,6 +9,8 @@ import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
+import { Avatar } from "@/components/ui/avatar";
+import { caregiverPhotoUrl } from "@/lib/photo-url";
 
 type ParsedFilters = {
   area?: string;
@@ -23,6 +25,7 @@ type ParsedFilters = {
 type CaregiverResult = {
   staff_profile_id: string;
   full_name: string;
+  photo_path: string | null;
   hourly_rate: number;
   years_experience: number | null;
   rating_avg: number | null;
@@ -163,22 +166,29 @@ export default function ParentSearchPage() {
 
       {results && results.length > 0 && (
         <div className="flex flex-col gap-4">
-          {results.map((c) => (
-            <Sheet key={c.staff_profile_id} className="flex items-center justify-between gap-4">
-              <div className="flex flex-col gap-1">
-                <Link
-                  href={`/parent/caregivers/${c.staff_profile_id}`}
-                  className="text-[17px] font-semibold hover:text-cyan"
-                >
-                  {c.full_name}
-                </Link>
-                <p className="text-[13px] text-ink-muted">
-                  {c.years_experience ?? 0} yrs experience · {c.skills.map(skillLabel).join(", ")}
-                </p>
-                <p className="flex items-center gap-1 text-[13px] text-ink-muted">
-                  <Star size={14} weight="fill" />
-                  {c.rating_avg ? c.rating_avg.toFixed(1) : "New"} ({c.rating_count})
-                </p>
+          {results.map((c, i) => (
+            <Sheet
+              key={c.staff_profile_id}
+              className="flex animate-fade-in-up items-center justify-between gap-4 transition-transform hover:-translate-y-0.5"
+              style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
+            >
+              <div className="flex items-center gap-4">
+                <Avatar photoUrl={caregiverPhotoUrl(c.photo_path)} name={c.full_name} size="md" />
+                <div className="flex flex-col gap-1">
+                  <Link
+                    href={`/parent/caregivers/${c.staff_profile_id}`}
+                    className="text-[17px] font-semibold hover:text-cyan"
+                  >
+                    {c.full_name}
+                  </Link>
+                  <p className="text-[13px] text-ink-muted">
+                    {c.years_experience ?? 0} yrs experience · {c.skills.map(skillLabel).join(", ")}
+                  </p>
+                  <p className="flex items-center gap-1 text-[13px] text-ink-muted">
+                    <Star size={14} weight="fill" />
+                    {c.rating_avg ? c.rating_avg.toFixed(1) : "New"} ({c.rating_count})
+                  </p>
+                </div>
               </div>
               <div className="text-right">
                 <p className="text-[19px] font-semibold tabular-nums">GH₵{c.hourly_rate}/hr</p>
