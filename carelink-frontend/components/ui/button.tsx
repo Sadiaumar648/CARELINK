@@ -1,18 +1,21 @@
-import { type ButtonHTMLAttributes, forwardRef } from "react";
-import Link, { type LinkProps } from "next/link";
+import { type ButtonHTMLAttributes, type ComponentProps, forwardRef } from "react";
+import Link from "next/link";
 
 type Variant = "primary" | "secondary" | "danger";
 type Size = "default" | "lg";
 
 const base =
   "inline-flex items-center justify-center gap-2 rounded font-semibold " +
-  "transition-colors disabled:cursor-not-allowed disabled:opacity-50 " +
+  "transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:translate-y-0 " +
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-cyan text-sheet hover:bg-cyan-hover active:bg-cyan-pressed",
-  secondary: "bg-transparent text-ink border border-hairline hover:border-ink",
-  danger: "bg-transparent text-magenta border border-magenta hover:bg-magenta hover:text-sheet",
+  primary:
+    "bg-cyan text-sheet shadow-[var(--shadow-button)] hover:bg-cyan-hover hover:-translate-y-0.5 active:bg-cyan-pressed active:translate-y-0",
+  secondary:
+    "bg-sheet text-ink border-2 border-hairline hover:border-cyan hover:text-cyan hover:-translate-y-0.5",
+  danger:
+    "bg-transparent text-magenta border-2 border-magenta hover:bg-magenta hover:text-sheet hover:-translate-y-0.5",
 };
 
 // "lg" meets the App Flow doc's 52px minimum touch target for
@@ -44,11 +47,9 @@ export function LinkButton({
   size = "default",
   className = "",
   ...props
-}: LinkProps & {
+}: ComponentProps<typeof Link> & {
   variant?: Variant;
   size?: Size;
-  className?: string;
-  children: React.ReactNode;
 }) {
   return <Link className={`${base} ${variants[variant]} ${sizes[size]} ${className}`} {...props} />;
 }

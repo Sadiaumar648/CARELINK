@@ -7,7 +7,7 @@ type FormProps = { as: "form" } & ComponentPropsWithoutRef<"form">;
 // or a form living inside one). The one place shadow is used at all —
 // never for plain page sectioning.
 export function Sheet({ as, className = "", ...props }: DivProps | FormProps) {
-  const sheetClassName = `rounded bg-sheet p-6 shadow-[var(--shadow-sheet)] ${className}`;
+  const sheetClassName = `rounded border border-hairline bg-sheet p-6 shadow-[var(--shadow-sheet)] ${className}`;
   if (as === "form") {
     return <form className={sheetClassName} {...(props as ComponentPropsWithoutRef<"form">)} />;
   }

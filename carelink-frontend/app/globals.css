@@ -1,20 +1,26 @@
 @import "tailwindcss";
 
-/* Design Brief §2 — CareLink's visual language: paper-and-ink, one serif
-   typeface throughout, two reserved accents, square corners, a five-step
-   spacing scale, no dark surfaces. */
+/* CareLink's visual language, v2: warm and colorful rather than austere —
+   a vivid violet + coral-rose pair, a genuine green for "good", rounded
+   corners, real shadow depth on interactive elements. */
 
 @theme {
-  --color-paper: #f3f2f2;
-  --color-sheet: #f8f4f4;
-  --color-ink: #201e1d;
-  --color-ink-muted: #5c5957;
-  --color-hairline: #d9d6d5;
+  --color-paper: #fff8f0;
+  --color-sheet: #ffffff;
+  --color-ink: #211a2e;
+  --color-ink-muted: #6f6280;
+  --color-hairline: #ece3f5;
 
-  --color-cyan: #0088b0;
-  --color-cyan-hover: #1186ac;
-  --color-cyan-pressed: #006786;
-  --color-magenta: #d6006c;
+  --color-cyan: #7c3aed;
+  --color-cyan-hover: #8b5cf6;
+  --color-cyan-pressed: #6d28d9;
+  --color-magenta: #f43f5e;
+  --color-magenta-hover: #fb7185;
+
+  --color-success: #10b981;
+  --color-success-tint: #d1fae5;
+  --color-attention-tint: #ffe4e6;
+  --color-neutral-tint: #ede9fe;
 
   --font-serif: var(--font-source-serif), ui-serif, Georgia, "Times New Roman", serif;
 
@@ -25,17 +31,17 @@
      custom scale to remember. Steps outside {2,3,4,6,8} are off-brief. */
   --spacing: 5px;
 
-  /* Square corners everywhere, at every named radius. */
-  --radius-xs: 2px;
-  --radius-sm: 2px;
-  --radius-md: 2px;
-  --radius-lg: 2px;
-  --radius-xl: 2px;
-  --radius-2xl: 2px;
-  --radius-3xl: 2px;
+  /* Rounded, friendly corners everywhere, at every named radius. */
+  --radius-xs: 8px;
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-3xl: 28px;
 
-  /* One shadow step, reserved for sheets/modals lifted off the page. */
-  --shadow-sheet: 0 4px 20px rgb(32 30 29 / 0.12);
+  --shadow-sheet: 0 8px 30px rgb(124 58 237 / 0.12);
+  --shadow-button: 0 4px 14px rgb(124 58 237 / 0.35);
 }
 
 body {

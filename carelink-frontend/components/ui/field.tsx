@@ -22,8 +22,8 @@ export const Field = forwardRef<HTMLInputElement, FieldProps>(function Field(
         ref={ref}
         id={inputId}
         className={
-          "rounded border border-hairline bg-sheet px-3 py-2 text-[15px] text-ink " +
-          "placeholder:text-ink-muted focus:border-cyan focus:outline-none " +
+          "rounded border-2 border-hairline bg-sheet px-3 py-2 text-[15px] text-ink transition-colors " +
+          "placeholder:text-ink-muted focus:border-cyan focus:outline-none focus:ring-4 focus:ring-cyan/15 " +
           (error ? "border-magenta " : "") +
           className
         }
