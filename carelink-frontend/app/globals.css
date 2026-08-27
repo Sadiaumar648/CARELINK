@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+/* Design Brief §2 — CareLink's visual language: paper-and-ink, one serif
+   typeface throughout, two reserved accents, square corners, a five-step
+   spacing scale, no dark surfaces. */
+
+@theme {
+  --color-paper: #f3f2f2;
+  --color-sheet: #f8f4f4;
+  --color-ink: #201e1d;
+  --color-ink-muted: #5c5957;
+  --color-hairline: #d9d6d5;
+
+  --color-cyan: #0088b0;
+  --color-cyan-hover: #1186ac;
+  --color-cyan-pressed: #006786;
+  --color-magenta: #d6006c;
+
+  --font-serif: var(--font-source-serif), ui-serif, Georgia, "Times New Roman", serif;
+
+  /* The brief's spacing scale is exactly 10/15/20/30/40px. Tailwind's
+     spacing utilities are all multiples of one base unit — setting that
+     base to 5px makes p-2/p-3/p-4/p-6/p-8 land exactly on that scale, so
+     ordinary utilities (p-4, gap-3, mt-6…) stay in bounds without a
+     custom scale to remember. Steps outside {2,3,4,6,8} are off-brief. */
+  --spacing: 5px;
+
+  /* Square corners everywhere, at every named radius. */
+  --radius-xs: 2px;
+  --radius-sm: 2px;
+  --radius-md: 2px;
+  --radius-lg: 2px;
+  --radius-xl: 2px;
+  --radius-2xl: 2px;
+  --radius-3xl: 2px;
+
+  /* One shadow step, reserved for sheets/modals lifted off the page. */
+  --shadow-sheet: 0 4px 20px rgb(32 30 29 / 0.12);
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-serif);
+}

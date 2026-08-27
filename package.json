@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "workspaces": [
     "carelink-backend",
+    "carelink-frontend",
     "packages/*"
   ],
   "scripts": {
@@ -12,6 +13,10 @@
     "test:backend": "npm run test --workspace carelink-backend",
     "typecheck:backend": "npm run typecheck --workspace carelink-backend",
     "lint:backend": "npm run lint --workspace carelink-backend",
+    "dev:frontend": "npm run dev --workspace carelink-frontend",
+    "build:frontend": "npm run build --workspace carelink-frontend",
+    "typecheck:frontend": "npm run typecheck --workspace carelink-frontend",
+    "lint:frontend": "npm run lint --workspace carelink-frontend",
     "prepare": "node -e \"if(!process.env.VERCEL && !process.env.CI){try{require('child_process').execSync('husky',{stdio:'inherit'})}catch(e){}}\""
   },
   "devDependencies": {
@@ -22,6 +27,10 @@
   "lint-staged": {
     "carelink-backend/**/*.{ts,tsx}": [
       "npm run lint --workspace carelink-backend -- --fix",
+      "prettier --write"
+    ],
+    "carelink-frontend/**/*.{ts,tsx}": [
+      "npm run lint --workspace carelink-frontend -- --fix",
       "prettier --write"
     ],
     "packages/shared/**/*.ts": [
