@@ -2,11 +2,11 @@
 
 Last updated: 2026-08-27
 
-## Status: Backend complete. Frontend foundation and first screens live.
+## Status: Backend complete. Frontend covers the full core product for all three roles.
 
 ## What CareLink is
 
-A Ghana-based platform where parents book vetted caregiving staff to look after their children/wards. Monorepo with two Next.js apps: `carelink-backend` (API routes only, done) and `carelink-frontend` (UI, in progress).
+A Ghana-based platform where parents book vetted caregiving staff to look after their children/wards. Monorepo with two Next.js apps: `carelink-backend` (API routes only, done) and `carelink-frontend` (UI, functionally complete for the core flows — polish items remain).
 
 ## Backend — done
 
@@ -37,7 +37,7 @@ Built on Next.js API routes + Supabase (Postgres, Auth, Storage), with row-level
 - Every change committed and pushed to GitHub, with CI (GitHub Actions) green
 - Deployed live on Vercel, auto-deploying on every push to `main`
 
-## Frontend — foundation done, most screens still to build
+## Frontend — the core product works end to end for all three roles
 
 `carelink-frontend` signs in directly with Supabase Auth, then forwards the session token to the backend as `Authorization: Bearer <token>` on every request — the one place it talks to Supabase directly.
 
@@ -45,14 +45,18 @@ Built on Next.js API routes + Supabase (Postgres, Auth, Storage), with row-level
 
 - Design system matching the Design Brief: paper-and-ink palette, one serif typeface throughout, square corners, a five-step spacing scale, no component library (a small hand-rolled set instead: Button, Field, Sheet, StatusBadge)
 - Auth: sign-in (with return-to-intended-page), parent self-registration (handles the "check your email" step), staff invitation claim
-- Per-role navigation shells for parent, staff, and admin, each gated so a signed-out visitor is sent to sign in and a signed-in wrong-role visitor is sent to their own home instead of an error
-- Three real, working screens, each exercising the full stack end to end against the live backend: parent caregiver search (including the plain-language search parsed by Claude) with a caregiver profile page, staff's booking requests inbox (accept/decline), and admin's overview dashboard
-- Every other nav destination is a real page with a "being built next" placeholder, so nothing is a dead link while the rest gets filled in
+- Per-role navigation shells for parent, staff, and admin, each gated so a signed-out visitor is sent to sign in and a signed-in wrong-role visitor is sent to their own home instead of an error, plus a notifications bell with unread count and click-through
+- **Parent**: caregiver search (including the plain-language search parsed by Claude) with a caregiver profile page, household + ward (child) setup, the full booking request flow, a bookings list and detail page with every status-driven action (pay, cancel, review), in-booking messaging, identity verification submission, account page
+- **Staff**: profile setup (bio/rate, skills, service areas, a tapped weekly availability grid — without this a caregiver could never actually appear in search), the requests inbox (accept/decline), a schedule of upcoming bookings with the same detail/actions as the parent side (start/end a session), earnings, messaging, identity verification submission
+- **Admin**: overview dashboard, roster with an "invite a caregiver" flow that issues the claim code, a full bookings history, the verification review queue (side-by-side ID/selfie via signed URLs, the AI plausibility check shown as advisory only), reports triage (open → investigating → resolved), and settings (match-scoring weights, commission rate)
 - Deployed live on Vercel, auto-deploying on every push to `main`, CI green
 
-**Still to build:** the booking request flow (request a time, pay, message), parent's ward (child) profiles, booking lists/detail for all three roles, identity verification screens (photo capture, admin review queue), messaging, reviews, admin roster/settings/reports, and an accessibility pass on the caregiver-facing screens.
+**Verification method:** no browser tool is available in this environment, so every feature was verified by scripting the exact request/response sequence the UI code makes against the live backend and database (sign-up through booking through payment through completion through review; verification submission through admin approval; staff profile setup through actually appearing in a real search) — not a substitute for clicking through it yourself, but strong evidence the wiring is correct end to end.
+
+**Still to build:** reporting/disputing a user from inside a booking (the backend route exists but only exposes the caregiver's user id to a parent, not the parent's id to staff, so this needs a small backend addition first), a proper guided camera-capture UI for the verification selfie (currently a plain file input with a camera-preferring capture attribute — functional but not the polished version the App Flow doc describes), and an accessibility pass on the caregiver-facing screens (larger touch targets, keyboard-only navigation, read-aloud on arrival).
 
 ## A couple of open items (not blockers)
 
 - No application-level rate limiting yet on the backend (needs an external service like Upstash to do properly on Vercel — flagged, not built, low urgency pre-launch)
-- AI accuracy measurement, a performance pass, and real user testing all need more of the frontend built first, so they're on hold
+- AI accuracy measurement, a performance pass, and real user testing are all still worth doing now that there's a working frontend to test against
+- The live Supabase project has accumulated a lot of test accounts from this session's verification scripts — worth a cleanup pass before real users show up
