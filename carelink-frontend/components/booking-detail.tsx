@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { MessageThread } from "@/components/message-thread";
 
 type Booking = {
   id: string;
@@ -153,6 +154,8 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
           Reason: {booking.decline_reason ?? booking.cancel_reason}
         </p>
       )}
+
+      {!["pending", "declined"].includes(booking.status) && <MessageThread bookingId={id} />}
 
       {error && <p className="text-[13px] text-magenta">{error}</p>}
 

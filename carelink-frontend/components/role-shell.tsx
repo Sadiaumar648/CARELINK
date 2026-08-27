@@ -5,13 +5,22 @@ import { usePathname } from "next/navigation";
 import type { Icon } from "@phosphor-icons/react";
 import { SignOut } from "@phosphor-icons/react";
 import { useAuth } from "@/lib/auth/auth-context";
+import { NotificationsBell } from "@/components/notifications-bell";
 
 export type NavItem = { href: string; label: string; icon: Icon };
 
 // The App Flow doc's per-role nav, responsive: a bottom tab bar on narrow
 // screens, a left rail on wide ones — never icon-only, always paired with
 // a label.
-export function RoleShell({ items, children }: { items: NavItem[]; children: React.ReactNode }) {
+export function RoleShell({
+  items,
+  bookingHref,
+  children,
+}: {
+  items: NavItem[];
+  bookingHref?: (bookingId: string) => string;
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const { signOut } = useAuth();
 
@@ -42,7 +51,12 @@ export function RoleShell({ items, children }: { items: NavItem[]; children: Rea
           Sign out
         </button>
       </nav>
-      <main className="order-1 flex-1 md:order-2">{children}</main>
+      <main className="order-1 flex-1 md:order-2">
+        <div className="flex justify-end border-b border-hairline p-2 md:p-3">
+          <NotificationsBell bookingHref={bookingHref} />
+        </div>
+        {children}
+      </main>
     </div>
   );
 }

@@ -21,7 +21,9 @@ const items: NavItem[] = [
 export default function ParentLayout({ children }: LayoutProps<"/parent">) {
   return (
     <RequireRole role="parent">
-      <RoleShell items={items}>{children}</RoleShell>
+      <RoleShell items={items} bookingHref={(id) => `/parent/bookings/${id}`}>
+        {children}
+      </RoleShell>
     </RequireRole>
   );
 }
