@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LinkButton } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
+import { HeroIllustration } from "@/components/hero-illustration";
 
 const steps = [
   {
@@ -33,30 +34,36 @@ export default function Home() {
         </nav>
       </header>
 
-      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-16 px-6 py-16">
+      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-16 px-6 py-16">
         <div
-          className="flex flex-col gap-4 rounded-3xl p-10"
+          className="flex flex-col items-center gap-8 rounded-3xl p-10 md:flex-row md:gap-10"
           style={{
             background: "linear-gradient(135deg, var(--color-cyan) 0%, var(--color-magenta) 100%)",
           }}
         >
-          <h1 className="text-balance text-[40px] font-semibold leading-tight text-sheet">
-            Vetted caregivers for your children, when you need them.
-          </h1>
-          <p className="max-w-[66ch] text-[15px] leading-relaxed text-sheet/90">
-            CareLink connects Ghanaian parents with identity-verified caregiving staff — search,
-            book, and pay, all in one place.
-          </p>
-          <div>
-            <LinkButton
-              href="/register"
-              variant="secondary"
-              className="border-none shadow-lg"
-              style={{ backgroundColor: "var(--color-sheet)", color: "var(--color-cyan-pressed)" }}
-            >
-              Get started
-            </LinkButton>
+          <div className="flex flex-1 flex-col gap-4">
+            <h1 className="text-balance text-[40px] font-semibold leading-tight text-sheet">
+              Vetted caregivers for your children, when you need them.
+            </h1>
+            <p className="max-w-[66ch] text-[15px] leading-relaxed text-sheet/90">
+              CareLink connects Ghanaian parents with identity-verified caregiving staff — search,
+              book, and pay, all in one place.
+            </p>
+            <div>
+              <LinkButton
+                href="/register"
+                variant="secondary"
+                className="border-none shadow-lg"
+                style={{
+                  backgroundColor: "var(--color-sheet)",
+                  color: "var(--color-cyan-pressed)",
+                }}
+              >
+                Get started
+              </LinkButton>
+            </div>
           </div>
+          <HeroIllustration className="w-56 shrink-0 sm:w-64 md:w-72" />
         </div>
 
         <div className="flex flex-col gap-6">
