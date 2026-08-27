@@ -51,6 +51,14 @@ export function VerificationForm() {
       setError("Attach a photo of your ID document");
       return;
     }
+    if (!selfieFile) {
+      setError("Take a selfie");
+      return;
+    }
+    if (!consent) {
+      setError("Consent to the selfie comparison to continue");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -60,10 +68,8 @@ export function VerificationForm() {
       form.set("referenceName", referenceName);
       form.set("referencePhone", referencePhone);
       form.set("idDocumentFile", idFile);
-      if (selfieFile && consent) {
-        form.set("selfieFile", selfieFile);
-        form.set("consentPhoto", "true");
-      }
+      form.set("selfieFile", selfieFile);
+      form.set("consentPhoto", "true");
       await apiFetch("/api/verification/submissions", { method: "POST", body: form });
       setDone(true);
     } catch (err) {
@@ -163,7 +169,7 @@ export function VerificationForm() {
 
           <div className="flex flex-col gap-2">
             <span className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-              Selfie (optional — speeds up review)
+              Selfie
             </span>
 
             {selfieFile ? (
