@@ -71,7 +71,7 @@ const DEMO_CAREGIVERS = [
   },
   {
     name: "Efua Owusu",
-    photoUrl: null,
+    photoUrl: "/demo/efua-owusu.jpeg",
     yearsExperience: 3,
     area: "Osu",
     ratingAvg: 4.8,
