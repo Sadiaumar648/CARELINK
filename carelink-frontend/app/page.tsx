@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   ShieldCheck,
   IdentificationCard,
@@ -11,7 +12,6 @@ import { Sheet } from "@/components/ui/sheet";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { CaregiverCard } from "@/components/ui/caregiver-card";
 import { Accordion } from "@/components/ui/accordion";
-import { HeroIllustration } from "@/components/hero-illustration";
 import { TrustIllustration } from "@/components/trust-illustration";
 import { AiSearchSection } from "@/components/ai-search-section";
 import { PublicNav } from "@/components/public-nav";
@@ -61,6 +61,7 @@ const STEPS = [
 const DEMO_CAREGIVERS = [
   {
     name: "Ama Mensah",
+    photoUrl: "/demo/ama-mensah.jpeg",
     yearsExperience: 5,
     area: "East Legon",
     ratingAvg: 4.9,
@@ -70,6 +71,7 @@ const DEMO_CAREGIVERS = [
   },
   {
     name: "Efua Owusu",
+    photoUrl: null,
     yearsExperience: 3,
     area: "Osu",
     ratingAvg: 4.8,
@@ -79,6 +81,7 @@ const DEMO_CAREGIVERS = [
   },
   {
     name: "Kwame Boateng",
+    photoUrl: null,
     yearsExperience: 7,
     area: "Airport Residential",
     ratingAvg: 5,
@@ -197,7 +200,16 @@ export default function Home() {
             </div>
 
             <div className="relative mx-auto w-full max-w-sm">
-              <HeroIllustration className="w-full" />
+              <div className="relative aspect-square w-full overflow-hidden rounded-[24px]">
+                <Image
+                  src="/demo/hero-reading.jpeg"
+                  alt="A caregiver reading picture books with a toddler on a bed"
+                  fill
+                  sizes="(min-width: 1024px) 384px, 90vw"
+                  className="object-cover"
+                  priority
+                />
+              </div>
               <Sheet className="absolute -bottom-4 -left-4 flex w-56 items-center gap-3 p-4 sm:-bottom-6 sm:-left-6">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-success-tint text-[var(--color-success)]">
                   ✓
@@ -263,7 +275,7 @@ export default function Home() {
               <CaregiverCard
                 key={c.name}
                 href="/register"
-                photoUrl={null}
+                photoUrl={c.photoUrl}
                 name={c.name}
                 verified
                 yearsExperience={c.yearsExperience}
@@ -332,7 +344,16 @@ export default function Home() {
               title="Tell us once. CareLink remembers."
               description="Create a care profile for each child so you don't have to repeat their routine every time you book. Relevant care information is automatically available to the caregiver once a booking is made — never shared publicly."
             />
-            <Sheet className="flex flex-col gap-4">
+            <Sheet className="flex flex-col gap-4 overflow-hidden">
+              <div className="relative -mx-6 -mt-6 aspect-[16/9]">
+                <Image
+                  src="/demo/ward-activity.jpeg"
+                  alt="A child painting wooden shapes during a caregiving session"
+                  fill
+                  sizes="(min-width: 1024px) 480px, 90vw"
+                  className="object-cover"
+                />
+              </div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
                 Example care profile
               </p>
@@ -350,7 +371,7 @@ export default function Home() {
                 </div>
                 <div>
                   <dt className="text-ink-muted">Play</dt>
-                  <dd>Loves building blocks and story time.</dd>
+                  <dd>Loves painting and building blocks.</dd>
                 </div>
                 <div>
                   <dt className="text-ink-muted">Care notes</dt>
