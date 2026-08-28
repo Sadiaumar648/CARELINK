@@ -80,7 +80,7 @@ const DEMO_CAREGIVERS = [
     hourlyRate: 20,
   },
   {
-    name: "Kwame Boateng",
+    name: "Maame Ama",
     photoUrl: null,
     yearsExperience: 7,
     area: "Airport Residential",
