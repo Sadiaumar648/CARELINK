@@ -59,19 +59,19 @@ function SignInForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        {error && <p className="text-[13px] text-magenta">{error}</p>}
+        {error && <p className="text-[13px] text-error">{error}</p>}
         <Button type="submit" disabled={loading}>
           {loading ? "Signing in…" : "Sign in"}
         </Button>
       </Sheet>
       <p className="text-center text-[13px] text-ink-muted">
         New parent?{" "}
-        <Link href="/register" className="font-semibold text-cyan">
+        <Link href="/register" className="font-semibold text-sage">
           Register
         </Link>
         {" · "}
         Invited caregiver?{" "}
-        <Link href="/claim-invitation" className="font-semibold text-cyan">
+        <Link href="/claim-invitation" className="font-semibold text-sage">
           Claim your account
         </Link>
       </p>

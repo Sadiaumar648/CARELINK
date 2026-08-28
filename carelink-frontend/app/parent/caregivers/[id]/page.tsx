@@ -77,14 +77,14 @@ function BookingRequestForm({ staffProfileId }: { staffProfileId: string }) {
     }
   }
 
-  if (wardsError) return <p className="text-[13px] text-magenta">{wardsError}</p>;
+  if (wardsError) return <p className="text-[13px] text-error">{wardsError}</p>;
   if (wards === null) return <p className="text-[13px] text-ink-muted">Loading…</p>;
 
   if (wards.length === 0) {
     return (
       <Sheet className="flex flex-col gap-2">
         <p className="text-[15px]">Add a child before requesting a booking.</p>
-        <Link href="/parent/children" className="font-semibold text-cyan">
+        <Link href="/parent/children" className="font-semibold text-sage">
           Add a child
         </Link>
       </Sheet>
@@ -148,7 +148,7 @@ function BookingRequestForm({ staffProfileId }: { staffProfileId: string }) {
         onChange={(e) => setAddress(e.target.value)}
       />
       <Field label="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
       <Button type="submit" disabled={submitting}>
         {submitting ? "Requesting…" : "Request booking"}
       </Button>
@@ -167,7 +167,7 @@ export default function CaregiverProfilePage({ params }: { params: Promise<{ id:
       .catch((err) => setError(errorMessage(err)));
   }, [id]);
 
-  if (error) return <p className="p-6 text-[13px] text-magenta">{error}</p>;
+  if (error) return <p className="p-6 text-[13px] text-error">{error}</p>;
   if (!caregiver) return <p className="p-6 text-[13px] text-ink-muted">Loading…</p>;
 
   return (

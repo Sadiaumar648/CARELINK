@@ -1,9 +1,9 @@
 type Tone = "neutral" | "positive" | "attention";
 
 const tones: Record<Tone, string> = {
-  neutral: "bg-[var(--color-neutral-tint)] text-cyan-pressed",
-  positive: "bg-[var(--color-success-tint)] text-[var(--color-success)]",
-  attention: "bg-[var(--color-attention-tint)] text-magenta",
+  neutral: "bg-sage-tint text-sage-pressed",
+  positive: "bg-success-tint text-[var(--color-success)]",
+  attention: "bg-error-tint text-error",
 };
 
 // Status is always a word plus a tint, never color alone.

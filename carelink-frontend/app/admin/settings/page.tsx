@@ -74,8 +74,8 @@ function WeightsSection() {
           onChange={(e) => setWeights((w) => (w ? { ...w, [factor]: Number(e.target.value) } : w))}
         />
       ))}
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
-      {saved && <p className="text-[13px] text-cyan-pressed">Saved.</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
+      {saved && <p className="text-[13px] text-sage-pressed">Saved.</p>}
       <Button type="submit" disabled={saving || Math.abs(sum - 1) > 0.005}>
         {saving ? "Saving…" : "Save weights"}
       </Button>
@@ -131,8 +131,8 @@ function CommissionSection() {
         value={rate}
         onChange={(e) => setRate(Number(e.target.value))}
       />
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
-      {saved && <p className="text-[13px] text-cyan-pressed">Saved.</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
+      {saved && <p className="text-[13px] text-sage-pressed">Saved.</p>}
       <Button type="submit" disabled={saving}>
         {saving ? "Saving…" : "Save rate"}
       </Button>

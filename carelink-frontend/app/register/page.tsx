@@ -50,7 +50,7 @@ export default function RegisterPage() {
         <p className="text-[15px] text-ink-muted">
           We sent a confirmation link to {email}. Follow it, then come back and sign in.
         </p>
-        <Link href="/sign-in" className="font-semibold text-cyan">
+        <Link href="/sign-in" className="font-semibold text-sage">
           Sign in
         </Link>
       </div>
@@ -92,14 +92,14 @@ export default function RegisterPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        {error && <p className="text-[13px] text-magenta">{error}</p>}
+        {error && <p className="text-[13px] text-error">{error}</p>}
         <Button type="submit" disabled={loading}>
           {loading ? "Creating account…" : "Create account"}
         </Button>
       </Sheet>
       <p className="text-center text-[13px] text-ink-muted">
         Already have an account?{" "}
-        <Link href="/sign-in" className="font-semibold text-cyan">
+        <Link href="/sign-in" className="font-semibold text-sage">
           Sign in
         </Link>
       </p>

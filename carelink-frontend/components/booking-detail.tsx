@@ -95,7 +95,7 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
     }
   }
 
-  if (error && !booking) return <p className="p-6 text-[13px] text-magenta">{error}</p>;
+  if (error && !booking) return <p className="p-6 text-[13px] text-error">{error}</p>;
   if (!booking) return <p className="p-6 text-[13px] text-ink-muted">Loading…</p>;
 
   const canCancel = ["pending", "accepted", "paid"].includes(booking.status);
@@ -163,7 +163,7 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
 
       {!["pending", "declined"].includes(booking.status) && <MessageThread bookingId={id} />}
 
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
 
       <div className="flex flex-col gap-3">
         {viewerRole === "staff" && booking.status === "pending" && (
@@ -278,7 +278,7 @@ function PaymentForm({ bookingId, onPaid }: { bookingId: string; onPaid: () => v
           Waiting on confirmation — reload to check again.
         </p>
       )}
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
       <Button type="submit" disabled={submitting}>
         {submitting ? "Paying…" : "Pay now"}
       </Button>
@@ -322,7 +322,7 @@ function CancelForm({ bookingId, onCancelled }: { bookingId: string; onCancelled
         value={reason}
         onChange={(e) => setReason(e.target.value)}
       />
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
       <div className="flex gap-3">
         <Button type="submit" variant="danger" disabled={submitting}>
           {submitting ? "Cancelling…" : "Confirm cancellation"}
@@ -372,7 +372,7 @@ function ReviewForm({ bookingId }: { bookingId: string }) {
             onClick={() => setRating(n)}
             className={`rounded border px-3 py-2 text-[15px] font-semibold ${
               rating === n
-                ? "border-cyan bg-cyan/10 text-cyan-pressed"
+                ? "border-sage bg-sage/10 text-sage-pressed"
                 : "border-hairline text-ink-muted"
             }`}
           >
@@ -385,7 +385,7 @@ function ReviewForm({ bookingId }: { bookingId: string }) {
         value={comment}
         onChange={(e) => setComment(e.target.value)}
       />
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
       <Button type="submit" disabled={submitting}>
         {submitting ? "Submitting…" : "Submit review"}
       </Button>

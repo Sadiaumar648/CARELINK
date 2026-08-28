@@ -22,9 +22,9 @@ export const Field = forwardRef<HTMLInputElement, FieldProps>(function Field(
         ref={ref}
         id={inputId}
         className={
-          "rounded border-2 border-hairline bg-sheet px-3 py-2 text-[15px] text-ink transition-colors " +
-          "placeholder:text-ink-muted focus:border-cyan focus:outline-none focus:ring-4 focus:ring-cyan/15 " +
-          (error ? "border-magenta " : "") +
+          "rounded-[10px] border border-hairline bg-sheet px-3 py-2 text-[15px] text-ink transition-colors " +
+          "placeholder:text-ink-muted focus:border-sage focus:outline-none focus:ring-4 focus:ring-sage/15 " +
+          (error ? "border-error " : "") +
           className
         }
         aria-invalid={Boolean(error)}
@@ -32,7 +32,7 @@ export const Field = forwardRef<HTMLInputElement, FieldProps>(function Field(
         {...props}
       />
       {error && (
-        <p id={`${inputId}-error`} className="text-[13px] text-magenta">
+        <p id={`${inputId}-error`} className="text-[13px] text-error">
           {error}
         </p>
       )}

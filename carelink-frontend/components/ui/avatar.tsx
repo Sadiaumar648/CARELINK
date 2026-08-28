@@ -26,7 +26,7 @@ export function Avatar({
   }
   return (
     <div
-      className={`${sizeClass} flex shrink-0 items-center justify-center rounded-full bg-[var(--color-neutral-tint)] text-cyan-pressed ${className}`}
+      className={`${sizeClass} flex shrink-0 items-center justify-center rounded-full bg-sage-tint text-sage-pressed ${className}`}
       aria-hidden
     >
       <User size={size === "lg" ? 56 : size === "md" ? 36 : 22} weight="duotone" />

@@ -70,7 +70,7 @@ export function NotificationsBell({
       >
         <Bell size={22} weight={unreadCount > 0 ? "duotone" : "regular"} />
         {unreadCount > 0 && (
-          <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-magenta px-1 text-[10px] font-semibold text-sheet">
+          <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-error px-1 text-[10px] font-semibold text-sheet">
             {unreadCount}
           </span>
         )}

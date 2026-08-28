@@ -85,7 +85,7 @@ export default function AdminBookingsPage() {
           ))}
         </select>
       </div>
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
       {bookings === null && <p className="text-[13px] text-ink-muted">Loading…</p>}
       {bookings?.length === 0 && <p className="text-[15px] text-ink-muted">No bookings found.</p>}
 

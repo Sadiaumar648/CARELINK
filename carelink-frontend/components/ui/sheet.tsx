@@ -3,11 +3,10 @@ import type { ComponentPropsWithoutRef } from "react";
 type DivProps = { as?: "div" } & ComponentPropsWithoutRef<"div">;
 type FormProps = { as: "form" } & ComponentPropsWithoutRef<"form">;
 
-// A "sheet" per the Design Brief: a lifted surface (card, modal, panel,
-// or a form living inside one). The one place shadow is used at all —
-// never for plain page sectioning.
+// A "sheet"/card: a lifted surface (card, modal, panel, or a form
+// living inside one). Subtle border, light shadow — never heavy.
 export function Sheet({ as, className = "", ...props }: DivProps | FormProps) {
-  const sheetClassName = `rounded border border-hairline bg-sheet p-6 shadow-[var(--shadow-sheet)] ${className}`;
+  const sheetClassName = `rounded-[18px] border border-hairline bg-sheet p-6 shadow-[var(--shadow-card)] ${className}`;
   if (as === "form") {
     return <form className={sheetClassName} {...(props as ComponentPropsWithoutRef<"form">)} />;
   }

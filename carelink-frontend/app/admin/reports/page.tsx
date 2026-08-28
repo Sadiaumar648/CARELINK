@@ -60,7 +60,7 @@ function ReportCard({ report, onChanged }: { report: Report; onChanged: () => vo
         <StatusBadge label={report.status} tone={TONE[report.status] ?? "neutral"} />
       </div>
       <p className="text-[15px] leading-relaxed">{report.description}</p>
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
 
       {report.status !== "resolved" && (
         <div className="flex flex-col gap-3">
@@ -139,7 +139,7 @@ export default function AdminReportsPage() {
           <option value="resolved">Resolved</option>
         </select>
       </div>
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
       {reports === null && <p className="text-[13px] text-ink-muted">Loading…</p>}
       {reports?.length === 0 && <p className="text-[15px] text-ink-muted">Nothing here.</p>}
 

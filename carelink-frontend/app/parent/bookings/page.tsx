@@ -51,12 +51,12 @@ export default function ParentBookingsPage() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
       <h1 className="text-[26px] font-semibold">Bookings</h1>
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
       {bookings === null && <p className="text-[13px] text-ink-muted">Loading…</p>}
       {bookings?.length === 0 && (
         <p className="text-[15px] text-ink-muted">
           No bookings yet —{" "}
-          <Link href="/parent" className="font-semibold text-cyan">
+          <Link href="/parent" className="font-semibold text-sage">
             find a caregiver
           </Link>{" "}
           to get started.
@@ -65,7 +65,7 @@ export default function ParentBookingsPage() {
       <div className="flex flex-col gap-4">
         {bookings?.map((b) => (
           <Link key={b.id} href={`/parent/bookings/${b.id}`}>
-            <Sheet className="flex items-center justify-between gap-4 hover:outline hover:outline-2 hover:outline-cyan">
+            <Sheet className="flex items-center justify-between gap-4 hover:outline hover:outline-2 hover:outline-sage">
               <div>
                 <p className="text-[17px] font-semibold">{formatRange(b.starts_at, b.ends_at)}</p>
                 <p className="text-[13px] text-ink-muted">{b.reference}</p>

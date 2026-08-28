@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { MagnifyingGlass, Star } from "@phosphor-icons/react";
 import { skillTagSchema } from "@carelink/shared";
@@ -38,21 +39,22 @@ function skillLabel(skill: string): string {
   return skill.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export default function ParentSearchPage() {
-  const [nlQuery, setNlQuery] = useState("");
+function ParentSearchPage() {
+  const searchParams = useSearchParams();
+  const [nlQuery, setNlQuery] = useState(() => searchParams.get("q") ?? "");
   const [filters, setFilters] = useState<ParsedFilters>({});
   const [results, setResults] = useState<CaregiverResult[] | null>(null);
   const [emptyState, setEmptyState] = useState<{ message: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function parseQuery() {
-    if (!nlQuery.trim()) return;
+  async function parseQuery(query: string) {
+    if (!query.trim()) return;
     setError(null);
     try {
       const res = await apiFetch<{ filters: ParsedFilters | null }>("/api/search/parse", {
         method: "POST",
-        body: { query: nlQuery },
+        body: { query },
       });
       if (res.filters) setFilters((prev) => ({ ...prev, ...res.filters }));
       else setError("Couldn't understand that — try the filters below instead.");
@@ -60,6 +62,59 @@ export default function ParentSearchPage() {
       setError(errorMessage(err));
     }
   }
+
+  // A query typed into the homepage's plain-language search box before
+  // signing in arrives here as ?q= — pick it up once and run it exactly
+  // as if it had been typed on this page. Inlined rather than calling
+  // parseQuery/search directly: the linter (correctly) flags a
+  // same-component function known to setState being called from an
+  // effect body, sync or not — search also needs the just-parsed
+  // filters directly, since `filters` state won't have updated yet at
+  // the point this chain would otherwise call it.
+  useEffect(() => {
+    const initial = searchParams.get("q");
+    if (!initial) return;
+    let cancelled = false;
+
+    apiFetch<{ filters: ParsedFilters | null }>("/api/search/parse", {
+      method: "POST",
+      body: { query: initial },
+    })
+      .then((res) => {
+        if (cancelled) return undefined;
+        const parsed = res.filters ?? {};
+        setFilters(parsed);
+
+        const params = new URLSearchParams();
+        if (parsed.area) params.set("area", parsed.area);
+        if (parsed.budgetCeiling) params.set("budgetCeiling", String(parsed.budgetCeiling));
+        if (parsed.minExperience) params.set("minExperience", String(parsed.minExperience));
+        if (parsed.skills?.length) params.set("skills", parsed.skills.join(","));
+
+        setLoading(true);
+        return apiFetch<{
+          results: CaregiverResult[];
+          emptyState: { restrictiveFilter: string | null; message: string } | null;
+        }>(`/api/search/caregivers?${params.toString()}`).then((searchRes) => {
+          if (cancelled) return;
+          setResults(searchRes.results);
+          if (searchRes.results.length === 0 && searchRes.emptyState) {
+            setEmptyState(searchRes.emptyState);
+          }
+        });
+      })
+      .catch((err) => {
+        if (!cancelled) setError(errorMessage(err));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once, on the initial ?q= only
+  }, []);
 
   function toggleSkill(skill: string) {
     setFilters((prev) => {
@@ -106,9 +161,9 @@ export default function ParentSearchPage() {
           placeholder="Toddler care in East Legon, under GH₵25/hr"
           value={nlQuery}
           onChange={(e) => setNlQuery(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && void parseQuery()}
+          onKeyDown={(e) => e.key === "Enter" && void parseQuery(nlQuery)}
         />
-        <Button type="button" variant="secondary" onClick={() => void parseQuery()}>
+        <Button type="button" variant="secondary" onClick={() => void parseQuery(nlQuery)}>
           <MagnifyingGlass size={18} /> Fill filters from this
         </Button>
 
@@ -145,7 +200,7 @@ export default function ParentSearchPage() {
                   onClick={() => toggleSkill(skill)}
                   className={`rounded border px-3 py-2 text-[13px] font-semibold ${
                     active
-                      ? "border-cyan bg-cyan/10 text-cyan-pressed"
+                      ? "border-sage bg-sage/10 text-sage-pressed"
                       : "border-hairline text-ink-muted"
                   }`}
                 >
@@ -159,7 +214,7 @@ export default function ParentSearchPage() {
         <Button type="button" onClick={() => void search()} disabled={loading}>
           {loading ? "Searching…" : "Search"}
         </Button>
-        {error && <p className="text-[13px] text-magenta">{error}</p>}
+        {error && <p className="text-[13px] text-error">{error}</p>}
       </Sheet>
 
       {emptyState && <p className="text-[15px] text-ink-muted">{emptyState.message}</p>}
@@ -177,7 +232,7 @@ export default function ParentSearchPage() {
                 <div className="flex flex-col gap-1">
                   <Link
                     href={`/parent/caregivers/${c.staff_profile_id}`}
-                    className="text-[17px] font-semibold hover:text-cyan"
+                    className="text-[17px] font-semibold hover:text-sage"
                   >
                     {c.full_name}
                   </Link>
@@ -199,5 +254,13 @@ export default function ParentSearchPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ParentSearchPageWrapper() {
+  return (
+    <Suspense>
+      <ParentSearchPage />
+    </Suspense>
   );
 }

@@ -97,7 +97,7 @@ export function ReportForm({
           className="rounded border border-hairline bg-sheet px-3 py-2 text-[15px] text-ink"
         />
       </div>
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
       <div className="flex gap-3">
         <Button type="submit" variant="danger" disabled={submitting || !description.trim()}>
           {submitting ? "Submitting…" : "Submit report"}

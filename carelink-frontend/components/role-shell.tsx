@@ -43,7 +43,7 @@ export function RoleShell({
               href={item.href}
               className={`flex flex-col items-center justify-center gap-1 px-3 py-2 text-[13px] font-semibold md:flex-row md:gap-2 md:justify-start md:rounded ${
                 largeTargets ? "min-h-[52px] min-w-[52px]" : ""
-              } ${active ? "text-cyan" : "text-ink-muted hover:text-ink"}`}
+              } ${active ? "text-sage" : "text-ink-muted hover:text-ink"}`}
             >
               <ItemIcon size={24} weight={active ? "duotone" : "regular"} />
               {item.label}
@@ -52,7 +52,7 @@ export function RoleShell({
         })}
         <button
           onClick={() => void signOut()}
-          className={`hidden items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-ink-muted hover:text-magenta md:mt-auto md:flex md:rounded ${
+          className={`hidden items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-ink-muted hover:text-error md:mt-auto md:flex md:rounded ${
             largeTargets ? "min-h-[52px]" : ""
           }`}
         >

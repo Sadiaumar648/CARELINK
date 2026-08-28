@@ -94,7 +94,7 @@ function InviteForm({ onInvited }: { onInvited: () => void }) {
         value={phone}
         onChange={(e) => setPhone(e.target.value)}
       />
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
       <div className="flex gap-3">
         <Button type="submit" disabled={submitting}>
           {submitting ? "Adding…" : "Add to roster"}
@@ -122,7 +122,7 @@ export default function AdminRosterPage() {
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
       <h1 className="text-[26px] font-semibold">Roster</h1>
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
 
       <InviteForm onInvited={load} />
 

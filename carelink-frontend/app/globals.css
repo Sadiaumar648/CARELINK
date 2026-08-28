@@ -1,58 +1,77 @@
 @import "tailwindcss";
 
-/* CareLink's visual language, v2: warm and colorful rather than austere —
-   a vivid violet + coral-rose pair, a genuine green for "good", rounded
-   corners, real shadow depth on interactive elements. */
+/* CareLink design system v3 — warm ivory + sage, a real professional
+   childcare-service palette rather than a generic SaaS or daycare
+   look. Peach and gold are sparing accents, not primary colors. */
 
 @theme {
-  --color-paper: #fff8f0;
+  --color-paper: #faf8f3;
   --color-sheet: #ffffff;
-  --color-ink: #211a2e;
-  --color-ink-muted: #6f6280;
-  --color-hairline: #ece3f5;
+  --color-ink: #252a27;
+  --color-ink-muted: #68716c;
+  --color-hairline: #e5e5df;
 
-  --color-cyan: #7c3aed;
-  --color-cyan-hover: #8b5cf6;
-  --color-cyan-pressed: #6d28d9;
-  --color-magenta: #f43f5e;
-  --color-magenta-hover: #fb7185;
+  /* Primary — sage, used for CTAs, links, active states. */
+  --color-sage: #315c4c;
+  --color-sage-hover: #284d40;
+  --color-sage-pressed: #1e3a30;
+  --color-sage-tint: #e7efeb;
 
-  --color-success: #10b981;
-  --color-success-tint: #d1fae5;
-  --color-attention-tint: #ffe4e6;
-  --color-neutral-tint: #ede9fe;
+  /* Sparing accents — never the dominant color of a section. */
+  --color-peach: #e8b69b;
+  --color-peach-tint: #faeee7;
+  --color-gold: #d5a84a;
+  --color-gold-tint: #f8efdc;
 
-  --font-serif: var(--font-source-serif), ui-serif, Georgia, "Times New Roman", serif;
+  /* Status. */
+  --color-success: #3d7a5a;
+  --color-success-tint: #e3f0e8;
+  --color-warning: #b8862b;
+  --color-warning-tint: #faf0dd;
+  --color-error: #b94a48;
+  --color-error-tint: #f8e6e5;
 
-  /* The brief's spacing scale is exactly 10/15/20/30/40px. Tailwind's
-     spacing utilities are all multiples of one base unit — setting that
-     base to 5px makes p-2/p-3/p-4/p-6/p-8 land exactly on that scale, so
-     ordinary utilities (p-4, gap-3, mt-6…) stay in bounds without a
-     custom scale to remember. Steps outside {2,3,4,6,8} are off-brief. */
+  --font-heading: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* Ten/fifteen/twenty/thirty/forty px, mapped onto Tailwind's own
+     spacing scale (base x 2/3/4/6/8) so ordinary utilities land on it. */
   --spacing: 5px;
 
-  /* Rounded, friendly corners everywhere, at every named radius. */
-  --radius-xs: 8px;
-  --radius-sm: 10px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
-  --radius-2xl: 24px;
-  --radius-3xl: 28px;
+  /* Modest by default; cards use an explicit larger radius (~18px)
+     where the brief calls for it, so buttons and inputs don't turn
+     into "rounded bubbles". */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 14px;
+  --radius-3xl: 16px;
 
-  --shadow-sheet: 0 8px 30px rgb(124 58 237 / 0.12);
-  --shadow-button: 0 4px 14px rgb(124 58 237 / 0.35);
+  /* Light, not heavy — a hairline plus a soft diffuse shadow. */
+  --shadow-card: 0 1px 2px rgb(37 42 39 / 0.04), 0 4px 16px rgb(37 42 39 / 0.06);
+  --shadow-card-hover: 0 2px 4px rgb(37 42 39 / 0.05), 0 8px 24px rgb(37 42 39 / 0.09);
 }
 
 body {
   background: var(--color-paper);
   color: var(--color-ink);
-  font-family: var(--font-serif);
+  font-family: var(--font-body);
 }
 
-/* A single, tasteful entrance for cards that appear as a list — e.g.
-   caregiver search results. Respects reduced-motion; nothing else in
-   the app animates on its own. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+}
+
+/* A single, tasteful entrance for cards that appear as a list, plus
+   the accordion open/close used by the FAQ. Respects reduced-motion;
+   nothing else in the app animates on its own. */
 @keyframes fade-in-up {
   from {
     opacity: 0;
@@ -65,7 +84,7 @@ body {
 }
 
 .animate-fade-in-up {
-  animation: fade-in-up 0.35s ease-out both;
+  animation: fade-in-up 0.4s ease-out both;
 }
 
 @media (prefers-reduced-motion: reduce) {

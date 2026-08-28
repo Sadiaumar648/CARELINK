@@ -70,14 +70,14 @@ export default function ClaimInvitationPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        {error && <p className="text-[13px] text-magenta">{error}</p>}
+        {error && <p className="text-[13px] text-error">{error}</p>}
         <Button type="submit" disabled={loading}>
           {loading ? "Setting up…" : "Claim account"}
         </Button>
       </Sheet>
       <p className="text-center text-[13px] text-ink-muted">
         Already claimed?{" "}
-        <Link href="/sign-in" className="font-semibold text-cyan">
+        <Link href="/sign-in" className="font-semibold text-sage">
           Sign in
         </Link>
       </p>

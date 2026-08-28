@@ -73,7 +73,7 @@ export default function StaffRequestsPage() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
       <h1 className="text-[26px] font-semibold">Requests</h1>
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
 
       {bookings === null && <p className="text-[13px] text-ink-muted">Loading…</p>}
       {bookings?.length === 0 && (
@@ -86,7 +86,7 @@ export default function StaffRequestsPage() {
             <div className="flex items-center justify-between">
               <Link
                 href={`/staff/schedule/${b.id}`}
-                className="text-[17px] font-semibold hover:text-cyan"
+                className="text-[17px] font-semibold hover:text-sage"
               >
                 {formatRange(b.starts_at, b.ends_at)}
               </Link>

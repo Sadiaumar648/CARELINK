@@ -59,7 +59,7 @@ function ReviewPanel({ id, onDecided }: { id: string; onDecided: () => void }) {
     }
   }
 
-  if (error) return <p className="text-[13px] text-magenta">{error}</p>;
+  if (error) return <p className="text-[13px] text-error">{error}</p>;
   if (!detail) return <p className="text-[13px] text-ink-muted">Loading…</p>;
 
   return (
@@ -145,7 +145,7 @@ export default function AdminVerificationsPage() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
       <h1 className="text-[26px] font-semibold">Verifications</h1>
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
       {submissions === null && <p className="text-[13px] text-ink-muted">Loading…</p>}
       {submissions?.length === 0 && <p className="text-[15px] text-ink-muted">Queue is empty.</p>}
 

@@ -17,7 +17,7 @@ function skillLabel(skill: string): string {
 
 function Saved({ show }: { show: boolean }) {
   if (!show) return null;
-  return <p className="text-[13px] text-cyan-pressed">Saved.</p>;
+  return <p className="text-[13px] text-sage-pressed">Saved.</p>;
 }
 
 function PhotoSection() {
@@ -62,7 +62,7 @@ function PhotoSection() {
         size="md"
       />
       <div className="flex flex-col gap-2">
-        <label className="w-fit cursor-pointer text-[13px] font-semibold text-cyan">
+        <label className="w-fit cursor-pointer text-[13px] font-semibold text-sage">
           {uploading ? "Uploading…" : photoPath ? "Change photo" : "Add a photo"}
           <input
             type="file"
@@ -74,7 +74,7 @@ function PhotoSection() {
           />
         </label>
         <p className="text-[13px] text-ink-muted">Parents see this next to your name in search.</p>
-        {error && <p className="text-[13px] text-magenta">{error}</p>}
+        {error && <p className="text-[13px] text-error">{error}</p>}
       </div>
     </Sheet>
   );
@@ -187,7 +187,7 @@ function ProfileSection() {
         value={contactPhone}
         onChange={(e) => setContactPhone(e.target.value)}
       />
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
       <Saved show={saved} />
       <Button type="submit" disabled={saving}>
         {saving ? "Saving…" : "Save profile"}
@@ -247,7 +247,7 @@ function SkillsSection() {
               onClick={() => toggle(skill)}
               className={`min-h-[52px] rounded border px-3 py-2 text-[13px] font-semibold ${
                 active
-                  ? "border-cyan bg-cyan/10 text-cyan-pressed"
+                  ? "border-sage bg-sage/10 text-sage-pressed"
                   : "border-hairline text-ink-muted"
               }`}
             >
@@ -256,7 +256,7 @@ function SkillsSection() {
           );
         })}
       </div>
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
       <Saved show={saved} />
       <Button onClick={() => void save()} disabled={saving}>
         {saving ? "Saving…" : "Save skills"}
@@ -324,7 +324,7 @@ function AreasSection() {
               type="button"
               onClick={() => setPrimary(a.area)}
               className={`flex-1 rounded border px-3 py-2 text-left text-[15px] ${
-                a.isPrimary ? "border-cyan bg-cyan/10 text-cyan-pressed" : "border-hairline"
+                a.isPrimary ? "border-sage bg-sage/10 text-sage-pressed" : "border-hairline"
               }`}
             >
               {a.area} {a.isPrimary && "(primary)"}
@@ -332,7 +332,7 @@ function AreasSection() {
             <button
               type="button"
               onClick={() => removeArea(a.area)}
-              className="text-[13px] text-magenta"
+              className="text-[13px] text-error"
             >
               Remove
             </button>
@@ -350,7 +350,7 @@ function AreasSection() {
           Add
         </Button>
       </div>
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
       <Saved show={saved} />
       <Button onClick={() => void save()} disabled={saving || areas.length === 0}>
         {saving ? "Saving…" : "Save areas"}
@@ -446,7 +446,7 @@ function AvailabilitySection() {
                         onClick={() => toggle(weekday, p.part)}
                         aria-label={`${p.label} ${WEEKDAYS[weekday]}`}
                         className={`h-[52px] w-[52px] rounded border ${
-                          on ? "border-cyan bg-cyan/20" : "border-hairline"
+                          on ? "border-sage bg-sage/20" : "border-hairline"
                         }`}
                       />
                     </td>
@@ -457,7 +457,7 @@ function AvailabilitySection() {
           </tbody>
         </table>
       </div>
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
       <Saved show={saved} />
       <Button onClick={() => void save()} disabled={saving}>
         {saving ? "Saving…" : "Save availability"}

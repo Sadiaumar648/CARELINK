@@ -27,7 +27,7 @@ function Kpi({
 }) {
   return (
     <Link href={href}>
-      <Sheet className="flex h-full flex-col gap-2 hover:outline hover:outline-2 hover:outline-cyan">
+      <Sheet className="flex h-full flex-col gap-2 hover:outline hover:outline-2 hover:outline-sage">
         <span className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
           {label}
         </span>
@@ -52,7 +52,7 @@ export default function AdminOverviewPage() {
     <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
       <h1 className="text-[26px] font-semibold">Overview</h1>
       <p className="text-[13px] text-ink-muted">Last 30 days.</p>
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
 
       {overview && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -67,7 +67,7 @@ export function MessageThread({ bookingId }: { bookingId: string }) {
             <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
               <div
                 className={`max-w-[80%] rounded px-3 py-2 text-[15px] ${
-                  mine ? "bg-cyan text-sheet" : "bg-paper text-ink"
+                  mine ? "bg-sage text-sheet" : "bg-paper text-ink"
                 }`}
               >
                 {m.body}
@@ -78,7 +78,7 @@ export function MessageThread({ bookingId }: { bookingId: string }) {
         <div ref={bottomRef} />
       </div>
 
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
 
       <form onSubmit={send} className="flex gap-3">
         <input

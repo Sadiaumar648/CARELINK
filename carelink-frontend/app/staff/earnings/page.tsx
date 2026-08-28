@@ -32,7 +32,7 @@ export default function StaffEarningsPage() {
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
       <h1 className="text-[26px] font-semibold">Earnings</h1>
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
 
       {totals && (
         <div className="grid grid-cols-2 gap-4">

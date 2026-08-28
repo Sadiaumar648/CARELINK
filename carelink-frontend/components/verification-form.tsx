@@ -178,7 +178,7 @@ export function VerificationForm() {
                 <button
                   type="button"
                   onClick={() => setSelfieFile(null)}
-                  className="text-[13px] font-semibold text-cyan"
+                  className="text-[13px] font-semibold text-sage"
                 >
                   Retake
                 </button>
@@ -207,7 +207,7 @@ export function VerificationForm() {
             )}
           </div>
 
-          {error && <p className="text-[13px] text-magenta">{error}</p>}
+          {error && <p className="text-[13px] text-error">{error}</p>}
           <Button type="submit" disabled={submitting}>
             {submitting ? "Submitting…" : "Submit for review"}
           </Button>

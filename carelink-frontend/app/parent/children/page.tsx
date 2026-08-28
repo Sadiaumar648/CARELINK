@@ -79,7 +79,7 @@ function HouseholdForm({ onSaved }: { onSaved: (h: Household) => void }) {
         value={contactPhone}
         onChange={(e) => setContactPhone(e.target.value)}
       />
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
       <Button type="submit" disabled={saving}>
         {saving ? "Saving…" : "Save household"}
       </Button>
@@ -166,7 +166,7 @@ function AddWardForm({ onAdded }: { onAdded: (w: Ward) => void }) {
         value={specialNeeds}
         onChange={(e) => setSpecialNeeds(e.target.value)}
       />
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
       <div className="flex gap-3">
         <Button type="submit" disabled={saving}>
           {saving ? "Saving…" : "Add child"}
@@ -200,7 +200,7 @@ export default function ParentChildrenPage() {
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
       <h1 className="text-[26px] font-semibold">Children</h1>
-      {error && <p className="text-[13px] text-magenta">{error}</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
 
       {household === undefined && <p className="text-[13px] text-ink-muted">Loading…</p>}
 
