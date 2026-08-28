@@ -12,7 +12,6 @@ import { Sheet } from "@/components/ui/sheet";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { CaregiverCard } from "@/components/ui/caregiver-card";
 import { Accordion } from "@/components/ui/accordion";
-import { TrustIllustration } from "@/components/trust-illustration";
 import { AiSearchSection } from "@/components/ai-search-section";
 import { PublicNav } from "@/components/public-nav";
 import { PublicFooter } from "@/components/public-footer";
@@ -344,7 +343,15 @@ export default function Home() {
                 </Link>
               </div>
             </div>
-            <TrustIllustration className="mx-auto w-full max-w-xs" />
+            <div className="relative aspect-[4/5] w-full overflow-hidden rounded-[24px]">
+              <Image
+                src="/demo/safety-outdoor.jpeg"
+                alt="A caregiver laughing with a child outdoors"
+                fill
+                sizes="(min-width: 1024px) 480px, 90vw"
+                className="object-cover"
+              />
+            </div>
           </div>
         </section>
 
