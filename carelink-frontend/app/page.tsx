@@ -81,7 +81,7 @@ const DEMO_CAREGIVERS = [
   },
   {
     name: "Maame Ama",
-    photoUrl: null,
+    photoUrl: "/demo/maame-ama.jpeg",
     yearsExperience: 7,
     area: "Airport Residential",
     ratingAvg: 5,
