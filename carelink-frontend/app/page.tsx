@@ -243,16 +243,27 @@ export default function Home() {
         {/* HOW IT WORKS */}
         <section id="how-it-works" className="mx-auto w-full max-w-6xl scroll-mt-20 px-6">
           <SectionHeading title="Finding care shouldn't be complicated." align="center" />
-          <div className="mx-auto mt-10 grid max-w-5xl grid-cols-1 gap-6 sm:grid-cols-3">
-            {STEPS.map((step) => (
-              <div key={step.number} className="flex flex-col gap-2">
-                <span className="text-[28px] font-semibold font-heading text-sage/40">
-                  {step.number}
-                </span>
-                <h3 className="text-[17px] font-semibold font-heading">{step.title}</h3>
-                <p className="text-[14px] leading-relaxed text-ink-muted">{step.body}</p>
-              </div>
-            ))}
+          <div className="mt-10 grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
+            <div className="relative aspect-[4/5] w-full overflow-hidden rounded-[24px] lg:order-2">
+              <Image
+                src="/demo/how-it-works-reading.jpeg"
+                alt="A caregiver reading to a child on a bed"
+                fill
+                sizes="(min-width: 1024px) 480px, 90vw"
+                className="object-cover"
+              />
+            </div>
+            <div className="flex flex-col gap-6 lg:order-1">
+              {STEPS.map((step) => (
+                <div key={step.number} className="flex flex-col gap-2">
+                  <span className="text-[28px] font-semibold font-heading text-sage/40">
+                    {step.number}
+                  </span>
+                  <h3 className="text-[17px] font-semibold font-heading">{step.title}</h3>
+                  <p className="text-[14px] leading-relaxed text-ink-muted">{step.body}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
