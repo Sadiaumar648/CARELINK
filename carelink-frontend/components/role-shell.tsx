@@ -42,7 +42,7 @@ export function RoleShell({
 
   return (
     <div className="flex min-h-full flex-1 flex-col md:flex-row">
-      <nav className="order-2 flex justify-around border-t border-hairline bg-sheet md:order-1 md:w-56 md:flex-col md:justify-start md:gap-1 md:border-t-0 md:border-r md:p-4">
+      <nav className="fixed inset-x-0 bottom-0 z-20 flex justify-around border-t border-hairline bg-sheet [padding-bottom:env(safe-area-inset-bottom)] md:static md:z-auto md:w-56 md:flex-col md:justify-start md:gap-1 md:border-t-0 md:border-r md:p-4 md:[padding-bottom:1rem]">
         {items.map((item) => {
           const active = item.href === activeHref;
           const ItemIcon = item.icon;
@@ -69,7 +69,7 @@ export function RoleShell({
           Sign out
         </button>
       </nav>
-      <main className="order-1 flex-1 md:order-2">
+      <main className="flex-1 pb-20 md:pb-0">
         <div className="flex items-center justify-end gap-2 border-b border-hairline p-2 md:p-3">
           {readAloud && <ReadAloudToggle />}
           <NotificationsBell bookingHref={bookingHref} />

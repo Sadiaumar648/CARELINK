@@ -2,7 +2,14 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Funnel, MagnifyingGlass, ShieldCheck, X } from "@phosphor-icons/react";
+import {
+  CaretLeft,
+  CaretRight,
+  Funnel,
+  MagnifyingGlass,
+  ShieldCheck,
+  X,
+} from "@phosphor-icons/react";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
@@ -21,6 +28,8 @@ import {
 } from "@/components/find-care/types";
 
 type SortKey = "recommended" | "rating" | "experience" | "rate";
+
+const PAGE_SIZE = 9;
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "recommended", label: "Recommended" },
@@ -74,6 +83,12 @@ function FindCarePage() {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>("recommended");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [page, setPage] = useState(1);
+
+  function selectSort(key: SortKey) {
+    setSortBy(key);
+    setPage(1);
+  }
 
   useEffect(() => {
     apiFetch<{ wards: Ward[] }>("/api/wards")
@@ -104,6 +119,7 @@ function FindCarePage() {
     setEmptyMessage(null);
     setHasSearched(true);
     setMobileFiltersOpen(false);
+    setPage(1);
     try {
       const params = new URLSearchParams();
       if (activeFilters.area) params.set("area", activeFilters.area);
@@ -228,6 +244,13 @@ function FindCarePage() {
   const selectedWard = wards?.find((w) => w.id === selectedWardId) ?? null;
   const sortedResults = results ? sortResults(results, sortBy) : null;
   const filterCount = activeFilterCount(filters);
+  const pageCount = sortedResults ? Math.max(1, Math.ceil(sortedResults.length / PAGE_SIZE)) : 1;
+  const pagedResults = sortedResults?.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) ?? null;
+
+  function goToPage(next: number) {
+    setPage(next);
+    document.getElementById("search-results-top")?.scrollIntoView({ block: "start" });
+  }
 
   const chips: { keys: (keyof SearchFilters)[]; label: string }[] = [];
   if (filters.area) chips.push({ keys: ["area"], label: filters.area });
@@ -300,7 +323,7 @@ function FindCarePage() {
           <select
             aria-label="Sort caregivers"
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortKey)}
+            onChange={(e) => selectSort(e.target.value as SortKey)}
             className="rounded-[10px] border border-hairline bg-sheet px-3 py-2 text-[13px] font-semibold text-ink"
           >
             {SORT_OPTIONS.map((o) => (
@@ -338,7 +361,7 @@ function FindCarePage() {
           </Sheet>
         </aside>
 
-        <div className="flex flex-col gap-6">
+        <div id="search-results-top" className="flex flex-col gap-6 scroll-mt-6">
           {chips.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
               {chips.map((chip) => (
@@ -395,7 +418,7 @@ function FindCarePage() {
               <select
                 aria-label="Sort caregivers"
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortKey)}
+                onChange={(e) => selectSort(e.target.value as SortKey)}
                 className="rounded-[10px] border border-hairline bg-sheet px-3 py-2 text-[13px] font-semibold text-ink"
               >
                 {SORT_OPTIONS.map((o) => (
@@ -432,16 +455,44 @@ function FindCarePage() {
             />
           )}
 
-          {!loading && !error && sortedResults && sortedResults.length > 0 && (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {sortedResults.map((c) => (
-                <CaregiverResultCard
-                  key={c.staff_profile_id}
-                  caregiver={c}
-                  appliedFilters={appliedFilters}
-                />
-              ))}
-            </div>
+          {!loading && !error && sortedResults && sortedResults.length > 0 && pagedResults && (
+            <>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {pagedResults.map((c) => (
+                  <CaregiverResultCard
+                    key={c.staff_profile_id}
+                    caregiver={c}
+                    appliedFilters={appliedFilters}
+                  />
+                ))}
+              </div>
+
+              {pageCount > 1 && (
+                <div className="flex items-center justify-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => goToPage(page - 1)}
+                    disabled={page === 1}
+                    aria-label="Previous page"
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-ink hover:border-sage hover:text-sage disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <CaretLeft size={16} />
+                  </button>
+                  <p className="text-[13px] font-semibold text-ink-muted">
+                    Page {page} of {pageCount}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => goToPage(page + 1)}
+                    disabled={page === pageCount}
+                    aria-label="Next page"
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-ink hover:border-sage hover:text-sage disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <CaretRight size={16} />
+                  </button>
+                </div>
+              )}
+            </>
           )}
 
           {!loading && !error && !hasSearched && (

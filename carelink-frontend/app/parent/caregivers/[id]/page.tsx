@@ -45,13 +45,6 @@ function skillLabel(skill: string): string {
   return skill.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-const TRUST_ITEMS = [
-  "Identity verification before a caregiver can accept bookings",
-  "A structured booking and Mobile Money payment process",
-  "Ratings and reviews collected after every completed booking",
-  "Reporting tools if something doesn't feel right",
-];
-
 function durationHours(date: string, startTime: string, endTime: string): number | null {
   if (!date || !startTime || !endTime) return null;
   const starts = new Date(`${date}T${startTime}:00`);
@@ -489,8 +482,8 @@ export default function CaregiverProfilePage({ params }: { params: Promise<{ id:
           </a>
         </div>
 
-        {/* RIGHT: about, experience, skills, languages, availability, reviews, trust, safety */}
-        <div className="flex flex-col gap-6">
+        {/* RIGHT: about, experience, skills, languages, availability, trust, safety */}
+        <div className="flex flex-col gap-5">
           {caregiver.bio && (
             <section className="flex flex-col gap-2">
               <h2 className="text-[15px] font-semibold font-heading">
@@ -535,33 +528,11 @@ export default function CaregiverProfilePage({ params }: { params: Promise<{ id:
             </p>
           </section>
 
-          <section className="flex flex-col gap-2">
-            <h2 className="text-[15px] font-semibold font-heading">Reviews</h2>
-            {caregiver.rating_count > 0 ? (
-              <p className="flex items-center gap-2 text-[14px] text-ink">
-                <Star size={16} weight="fill" className="text-gold" />
-                <span className="font-semibold">{caregiver.rating_avg?.toFixed(1)}</span>
-                <span className="text-ink-muted">
-                  average from {caregiver.rating_count} completed{" "}
-                  {caregiver.rating_count === 1 ? "booking" : "bookings"}
-                </span>
-              </p>
-            ) : (
-              <p className="text-[14px] text-ink-muted">New to CareLink — no reviews yet.</p>
-            )}
-          </section>
-
-          <Sheet className="flex flex-col gap-3">
-            <h2 className="flex items-center gap-2 text-[15px] font-semibold font-heading">
-              <ShieldCheck size={18} className="text-sage" />
-              Why parents choose verified CareLink caregivers
-            </h2>
-            <ul className="flex flex-col gap-1.5 text-[13px] text-ink-muted">
-              {TRUST_ITEMS.map((item) => (
-                <li key={item}>✓ {item}</li>
-              ))}
-            </ul>
-          </Sheet>
+          <p className="flex items-center gap-2 text-[12.5px] text-ink-muted">
+            <ShieldCheck size={15} className="shrink-0 text-sage" />
+            Verified identity, structured Mobile Money payments, and post-booking ratings keep every
+            CareLink booking accountable.
+          </p>
 
           <section className="flex flex-col gap-3">
             <h2 className="flex items-center gap-2 text-[15px] font-semibold font-heading">

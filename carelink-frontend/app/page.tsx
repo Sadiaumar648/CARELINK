@@ -468,7 +468,7 @@ export default function Home() {
               <LinkButton
                 href="/claim-invitation"
                 variant="secondary"
-                className="border-sheet/40 text-sheet hover:border-sheet hover:text-sheet"
+                className="border-sheet/40 text-black hover:border-sheet hover:text-black"
               >
                 Are you a caregiver? Join CareLink →
               </LinkButton>
