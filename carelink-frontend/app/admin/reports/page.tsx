@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Flag } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { EmptyState, ErrorState } from "@/components/ui/empty-state";
+import { BookingCardSkeleton } from "@/components/ui/skeleton";
 
 type Report = {
   id: string;
@@ -99,6 +102,7 @@ export default function AdminReportsPage() {
   const [status, setStatus] = useState("open");
   const [reports, setReports] = useState<Report[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   function load() {
     setReports(null);
@@ -114,7 +118,9 @@ export default function AdminReportsPage() {
     let cancelled = false;
     apiFetch<{ reports: Report[] }>(`/api/admin/reports?status=${status}`)
       .then((res) => {
-        if (!cancelled) setReports(res.reports);
+        if (cancelled) return;
+        setError(null);
+        setReports(res.reports);
       })
       .catch((err) => {
         if (!cancelled) setError(errorMessage(err));
@@ -123,25 +129,35 @@ export default function AdminReportsPage() {
       cancelled = true;
       setReports(null);
     };
-  }, [status]);
+  }, [status, retryKey]);
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-[26px] font-semibold">Reports</h1>
+        <h1 className="text-[26px] font-semibold font-heading">Reports</h1>
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          className="rounded border border-hairline bg-sheet px-3 py-2 text-[13px] text-ink"
+          className="rounded-[10px] border border-hairline bg-sheet px-3 py-2 text-[13px] text-ink"
         >
           <option value="open">Open</option>
           <option value="investigating">Investigating</option>
           <option value="resolved">Resolved</option>
         </select>
       </div>
-      {error && <p className="text-[13px] text-error">{error}</p>}
-      {reports === null && <p className="text-[13px] text-ink-muted">Loading…</p>}
-      {reports?.length === 0 && <p className="text-[15px] text-ink-muted">Nothing here.</p>}
+
+      {error && <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />}
+
+      {!error && reports === null && (
+        <div className="flex flex-col gap-4">
+          <BookingCardSkeleton />
+          <BookingCardSkeleton />
+        </div>
+      )}
+
+      {!error && reports?.length === 0 && (
+        <EmptyState icon={Flag} title="No reported issues" description="Nothing here right now." />
+      )}
 
       <div className="flex flex-col gap-4">
         {reports?.map((r) => (

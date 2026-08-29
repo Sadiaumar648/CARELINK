@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { MagnifyingGlass, UsersThree } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { EmptyState, ErrorState } from "@/components/ui/empty-state";
+import { BookingCardSkeleton } from "@/components/ui/skeleton";
 
 type RosterEntry = {
   id: string;
@@ -110,26 +113,80 @@ function InviteForm({ onInvited }: { onInvited: () => void }) {
 export default function AdminRosterPage() {
   const [roster, setRoster] = useState<RosterEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
   function load() {
     apiFetch<{ roster: RosterEntry[] }>("/api/admin/roster")
-      .then((res) => setRoster(res.roster))
+      .then((res) => {
+        setError(null);
+        setRoster(res.roster);
+      })
       .catch((err) => setError(errorMessage(err)));
   }
 
   useEffect(load, []);
 
+  const filtered = useMemo(() => {
+    if (!roster) return null;
+    const q = query.trim().toLowerCase();
+    if (!q) return roster;
+    return roster.filter(
+      (r) => r.fullName.toLowerCase().includes(q) || r.phone.toLowerCase().includes(q),
+    );
+  }, [roster, query]);
+
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
-      <h1 className="text-[26px] font-semibold">Roster</h1>
-      {error && <p className="text-[13px] text-error">{error}</p>}
+      <div className="flex flex-col gap-1">
+        <h1 className="text-[26px] font-semibold font-heading">Roster</h1>
+        <p className="text-[14px] text-ink-muted">Every caregiver on the platform.</p>
+      </div>
+
+      {error && <ErrorState onRetry={load} />}
 
       <InviteForm onInvited={load} />
 
-      {roster === null && <p className="text-[13px] text-ink-muted">Loading…</p>}
+      {!error && roster && roster.length > 0 && (
+        <div className="relative">
+          <MagnifyingGlass
+            size={16}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted"
+          />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by name or phone"
+            aria-label="Search caregivers"
+            className="w-full rounded-[10px] border border-hairline bg-sheet py-2 pl-9 pr-3 text-[13px] text-ink placeholder:text-ink-muted focus:border-sage focus:outline-none focus:ring-4 focus:ring-sage/15"
+          />
+        </div>
+      )}
+
+      {!error && roster === null && (
+        <div className="flex flex-col gap-4">
+          <BookingCardSkeleton />
+          <BookingCardSkeleton />
+        </div>
+      )}
+
+      {!error && roster?.length === 0 && (
+        <EmptyState
+          icon={UsersThree}
+          title="No caregivers yet"
+          description="Invite one to get started."
+        />
+      )}
+
+      {!error && filtered && filtered.length === 0 && roster && roster.length > 0 && (
+        <EmptyState
+          icon={MagnifyingGlass}
+          title="No caregivers found"
+          description="Try a different search."
+        />
+      )}
 
       <div className="flex flex-col gap-4">
-        {roster?.map((r) => (
+        {filtered?.map((r) => (
           <Sheet key={r.id} className="flex items-center justify-between gap-4">
             <div>
               <p className="text-[17px] font-semibold">{r.fullName}</p>

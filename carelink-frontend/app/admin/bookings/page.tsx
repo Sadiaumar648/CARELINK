@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { CalendarCheck } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Sheet } from "@/components/ui/sheet";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { EmptyState, ErrorState } from "@/components/ui/empty-state";
+import { BookingCardSkeleton } from "@/components/ui/skeleton";
 
 type Booking = {
   id: string;
@@ -48,35 +52,53 @@ function formatRange(startsAt: string, endsAt: string): string {
   return `${date}, ${time(start)}–${time(end)}`;
 }
 
-export default function AdminBookingsPage() {
-  const [status, setStatus] = useState("");
+function AdminBookingsPage() {
+  const searchParams = useSearchParams();
+  const [status, setStatus] = useState(() => searchParams.get("status") ?? "");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const [bookings, setBookings] = useState<Booking[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    const query = status ? `?status=${status}` : "";
-    apiFetch<{ bookings: Booking[] }>(`/api/admin/bookings${query}`)
+    const params = new URLSearchParams();
+    if (status) params.set("status", status);
+    if (from) params.set("from", new Date(from).toISOString());
+    if (to) params.set("to", new Date(to).toISOString());
+    apiFetch<{ bookings: Booking[] }>(`/api/admin/bookings?${params.toString()}`)
       .then((res) => {
-        if (!cancelled) setBookings(res.bookings);
+        if (cancelled) return;
+        setError(null);
+        setBookings(res.bookings);
       })
       .catch((err) => {
         if (!cancelled) setError(errorMessage(err));
       });
     return () => {
       cancelled = true;
-      setBookings(null);
     };
-  }, [status]);
+  }, [status, from, to, retryKey]);
+
+  function updateFilter(setter: (v: string) => void, value: string) {
+    setter(value);
+    setBookings(null);
+    setError(null);
+  }
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-[26px] font-semibold">Bookings</h1>
+      <div className="flex flex-col gap-1">
+        <h1 className="text-[26px] font-semibold font-heading">Bookings</h1>
+        <p className="text-[14px] text-ink-muted">Every booking on the platform.</p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
         <select
           value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="rounded border border-hairline bg-sheet px-3 py-2 text-[13px] text-ink"
+          onChange={(e) => updateFilter(setStatus, e.target.value)}
+          className="rounded-[10px] border border-hairline bg-sheet px-3 py-2 text-[13px] text-ink"
         >
           {STATUSES.map((s) => (
             <option key={s} value={s}>
@@ -84,10 +106,64 @@ export default function AdminBookingsPage() {
             </option>
           ))}
         </select>
+        <label className="flex items-center gap-1.5 text-[13px] text-ink-muted">
+          From
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => updateFilter(setFrom, e.target.value)}
+            className="rounded-[10px] border border-hairline bg-sheet px-2 py-1.5 text-[13px] text-ink"
+          />
+        </label>
+        <label className="flex items-center gap-1.5 text-[13px] text-ink-muted">
+          To
+          <input
+            type="date"
+            value={to}
+            onChange={(e) => updateFilter(setTo, e.target.value)}
+            className="rounded-[10px] border border-hairline bg-sheet px-2 py-1.5 text-[13px] text-ink"
+          />
+        </label>
+        {(status || from || to) && (
+          <button
+            type="button"
+            onClick={() => {
+              setStatus("");
+              setFrom("");
+              setTo("");
+              setBookings(null);
+              setError(null);
+            }}
+            className="text-[12.5px] font-semibold text-ink-muted hover:text-ink"
+          >
+            Clear filters
+          </button>
+        )}
       </div>
-      {error && <p className="text-[13px] text-error">{error}</p>}
-      {bookings === null && <p className="text-[13px] text-ink-muted">Loading…</p>}
-      {bookings?.length === 0 && <p className="text-[15px] text-ink-muted">No bookings found.</p>}
+
+      {error && (
+        <ErrorState
+          onRetry={() => {
+            setError(null);
+            setRetryKey((k) => k + 1);
+          }}
+        />
+      )}
+
+      {!error && bookings === null && (
+        <div className="flex flex-col gap-4">
+          <BookingCardSkeleton />
+          <BookingCardSkeleton />
+        </div>
+      )}
+
+      {!error && bookings?.length === 0 && (
+        <EmptyState
+          icon={CalendarCheck}
+          title="No bookings found"
+          description="Try a different filter."
+        />
+      )}
 
       <div className="flex flex-col gap-4">
         {bookings?.map((b) => (
@@ -104,5 +180,13 @@ export default function AdminBookingsPage() {
         ))}
       </div>
     </div>
+  );
+}
+
+export default function AdminBookingsPageWrapper() {
+  return (
+    <Suspense>
+      <AdminBookingsPage />
+    </Suspense>
   );
 }

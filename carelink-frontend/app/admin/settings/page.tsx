@@ -6,6 +6,7 @@ import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Weight = { factor: string; weight: number };
 
@@ -56,11 +57,11 @@ function WeightsSection() {
     }
   }
 
-  if (!weights) return <p className="text-[13px] text-ink-muted">Loading…</p>;
+  if (!weights) return <Skeleton className="h-64" />;
 
   return (
     <Sheet as="form" onSubmit={onSubmit} className="flex flex-col gap-4">
-      <h2 className="text-[19px] font-semibold">Match-scoring weights</h2>
+      <h2 className="text-[19px] font-semibold font-heading">Match-scoring weights</h2>
       <p className="text-[13px] text-ink-muted">Must sum to 1. Currently {sum.toFixed(2)}.</p>
       {Object.entries(weights).map(([factor, value]) => (
         <Field
@@ -114,11 +115,11 @@ function CommissionSection() {
     }
   }
 
-  if (rate === null) return <p className="text-[13px] text-ink-muted">Loading…</p>;
+  if (rate === null) return <Skeleton className="h-40" />;
 
   return (
     <Sheet as="form" onSubmit={onSubmit} className="flex flex-col gap-4">
-      <h2 className="text-[19px] font-semibold">Commission rate</h2>
+      <h2 className="text-[19px] font-semibold font-heading">Commission rate</h2>
       <p className="text-[13px] text-ink-muted">
         Applies to bookings completed after this changes — already-settled payments are untouched.
       </p>
@@ -143,7 +144,7 @@ function CommissionSection() {
 export default function AdminSettingsPage() {
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
-      <h1 className="text-[26px] font-semibold">Settings</h1>
+      <h1 className="text-[26px] font-semibold font-heading">Settings</h1>
       <WeightsSection />
       <CommissionSection />
     </div>
