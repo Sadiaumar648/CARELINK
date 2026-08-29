@@ -10,17 +10,21 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
 import { Avatar } from "@/components/ui/avatar";
+import { VerificationBadge } from "@/components/ui/badge";
 import { caregiverPhotoUrl } from "@/lib/photo-url";
 
 type Caregiver = {
   staff_profile_id: string;
   full_name: string;
+  verification_status: string;
   photo_path: string | null;
   hourly_rate: number;
   years_experience: number | null;
   rating_avg: number | null;
   rating_count: number;
   skills: string[];
+  languages: string[] | null;
+  areas: { area: string; isPrimary: boolean }[];
   bio: string | null;
 };
 
@@ -178,12 +182,18 @@ export default function CaregiverProfilePage({ params }: { params: Promise<{ id:
           name={caregiver.full_name}
           size="lg"
         />
-        <div>
-          <h1 className="text-[26px] font-semibold">{caregiver.full_name}</h1>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <h1 className="text-[26px] font-semibold font-heading">{caregiver.full_name}</h1>
+            {caregiver.verification_status === "verified" && <VerificationBadge />}
+          </div>
           <p className="flex items-center gap-1 text-[15px] text-ink-muted">
             <Star size={16} weight="fill" />
             {caregiver.rating_avg ? caregiver.rating_avg.toFixed(1) : "New"} (
             {caregiver.rating_count} reviews) · {caregiver.years_experience ?? 0} yrs experience
+            {caregiver.areas?.[0]
+              ? ` · ${caregiver.areas.find((a) => a.isPrimary)?.area ?? caregiver.areas[0].area}`
+              : ""}
           </p>
         </div>
       </div>
@@ -198,9 +208,14 @@ export default function CaregiverProfilePage({ params }: { params: Promise<{ id:
           ))}
         </div>
         {caregiver.bio && <p className="text-[15px] leading-relaxed">{caregiver.bio}</p>}
+        {caregiver.languages && caregiver.languages.length > 0 && (
+          <p className="text-[13px] text-ink-muted">Speaks: {caregiver.languages.join(", ")}</p>
+        )}
       </Sheet>
 
-      <BookingRequestForm staffProfileId={caregiver.staff_profile_id} />
+      <div id="request-booking" className="scroll-mt-6">
+        <BookingRequestForm staffProfileId={caregiver.staff_profile_id} />
+      </div>
     </div>
   );
 }

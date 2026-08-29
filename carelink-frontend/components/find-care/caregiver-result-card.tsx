@@ -79,6 +79,10 @@ export function CaregiverResultCard({
 
       <RatingStars rating={caregiver.rating_avg} reviewCount={caregiver.rating_count} />
 
+      {caregiver.bio && (
+        <p className="line-clamp-2 text-[13px] leading-relaxed text-ink-muted">{caregiver.bio}</p>
+      )}
+
       {caregiver.skills.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {caregiver.skills.slice(0, 4).map((s) => (
@@ -99,12 +103,20 @@ export function CaregiverResultCard({
             {Math.round(caregiver.matchScore)}% Match
           </p>
         </div>
-        <Link
-          href={`/parent/caregivers/${caregiver.staff_profile_id}`}
-          className="rounded-[10px] bg-sage px-4 py-2 text-[13px] font-semibold text-sheet hover:bg-sage-hover"
-        >
-          View Profile
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/parent/caregivers/${caregiver.staff_profile_id}`}
+            className="rounded-[10px] border border-hairline px-3 py-2 text-[13px] font-semibold text-ink hover:border-sage hover:text-sage"
+          >
+            View Profile
+          </Link>
+          <Link
+            href={`/parent/caregivers/${caregiver.staff_profile_id}#request-booking`}
+            className="rounded-[10px] bg-sage px-4 py-2 text-[13px] font-semibold text-sheet hover:bg-sage-hover"
+          >
+            Request Booking
+          </Link>
+        </div>
       </div>
 
       {reasons.length > 0 && (

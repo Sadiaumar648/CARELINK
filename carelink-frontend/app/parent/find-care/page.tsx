@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Funnel, MagnifyingGlass, X } from "@phosphor-icons/react";
+import { Funnel, MagnifyingGlass, ShieldCheck, X } from "@phosphor-icons/react";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
@@ -265,6 +265,10 @@ function FindCarePage() {
         </h1>
         <p className="text-[15px] text-ink-muted">
           Tell us what you need and we&apos;ll help you explore available caregivers.
+        </p>
+        <p className="flex items-center gap-1.5 text-[13px] font-medium text-sage">
+          <ShieldCheck size={16} weight="fill" /> Every caregiver shown here has passed
+          CareLink&apos;s identity verification.
         </p>
       </div>
 

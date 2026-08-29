@@ -14,6 +14,8 @@ export type CaregiverResult = {
   rating_avg: number | null;
   rating_count: number;
   skills: string[];
+  languages: string[] | null;
+  bio: string | null;
   areas: { area: string; isPrimary: boolean }[];
   matchScore: number;
 };
