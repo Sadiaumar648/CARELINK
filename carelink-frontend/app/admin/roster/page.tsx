@@ -194,6 +194,10 @@ export default function AdminRosterPage() {
                 {r.phone} · {r.bookingsCompleted} bookings
                 {r.ratingAvg ? ` · ${r.ratingAvg.toFixed(1)}★` : ""}
               </p>
+              <p className="text-[12px] text-ink-muted">
+                {r.profileComplete ? "Profile complete" : "Profile incomplete"} ·{" "}
+                {r.acceptingBookings ? "Accepting bookings" : "Not accepting bookings"}
+              </p>
             </div>
             <div className="flex items-center gap-2">
               <StatusBadge label={r.accountStatus} />

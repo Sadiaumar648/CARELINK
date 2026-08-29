@@ -13,7 +13,7 @@ import { RoleShell, type NavItem } from "@/components/role-shell";
 
 const items: NavItem[] = [
   { href: "/admin", label: "Overview", icon: SquaresFour },
-  { href: "/admin/roster", label: "Roster", icon: UsersThree },
+  { href: "/admin/roster", label: "Caregivers", icon: UsersThree },
   { href: "/admin/verifications", label: "Verifications", icon: ShieldCheck },
   { href: "/admin/bookings", label: "Bookings", icon: CalendarCheck },
   { href: "/admin/reports", label: "Reports", icon: Flag },
