@@ -14,8 +14,8 @@ const EXAMPLE =
 // call it directly from an anonymous homepage visit without either
 // exposing the endpoint publicly (a real cost/abuse risk) or faking
 // the result. Instead the typed query travels to sign-in as ?next=,
-// and app/parent/page.tsx picks up the same ?q= and runs the real
-// parse + search the moment the visitor is authenticated.
+// and app/parent/find-care/page.tsx picks up the same ?q= and runs the
+// real parse + search the moment the visitor is authenticated.
 export function AiSearchSection() {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -23,7 +23,7 @@ export function AiSearchSection() {
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!query.trim()) return;
-    const next = `/parent?q=${encodeURIComponent(query.trim())}`;
+    const next = `/parent/find-care?q=${encodeURIComponent(query.trim())}`;
     router.push(`/sign-in?next=${encodeURIComponent(next)}`);
   }
 

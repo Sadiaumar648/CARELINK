@@ -31,11 +31,20 @@ export function RoleShell({
   const pathname = usePathname();
   const { signOut } = useAuth();
 
+  // Nav hrefs are nested ("/parent" is a prefix of "/parent/bookings"), so
+  // more than one item can match a startsWith check at once — pick the
+  // single longest (most specific) match rather than lighting up every
+  // ancestor route's nav item together.
+  const activeHref = items
+    .map((item) => item.href)
+    .filter((href) => pathname === href || pathname.startsWith(`${href}/`))
+    .sort((a, b) => b.length - a.length)[0];
+
   return (
     <div className="flex min-h-full flex-1 flex-col md:flex-row">
       <nav className="order-2 flex justify-around border-t border-hairline bg-sheet md:order-1 md:w-56 md:flex-col md:justify-start md:gap-1 md:border-t-0 md:border-r md:p-4">
         {items.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const active = item.href === activeHref;
           const ItemIcon = item.icon;
           return (
             <Link

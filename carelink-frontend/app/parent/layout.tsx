@@ -1,9 +1,9 @@
 "use client";
 
 import {
+  House,
   MagnifyingGlass,
   CalendarCheck,
-  Baby,
   ChatCircle,
   UserCircle,
 } from "@phosphor-icons/react";
@@ -11,11 +11,11 @@ import { RequireRole } from "@/components/require-role";
 import { RoleShell, type NavItem } from "@/components/role-shell";
 
 const items: NavItem[] = [
-  { href: "/parent", label: "Search", icon: MagnifyingGlass },
+  { href: "/parent", label: "Home", icon: House },
+  { href: "/parent/find-care", label: "Find Care", icon: MagnifyingGlass },
   { href: "/parent/bookings", label: "Bookings", icon: CalendarCheck },
-  { href: "/parent/children", label: "Children", icon: Baby },
   { href: "/parent/messages", label: "Messages", icon: ChatCircle },
-  { href: "/parent/account", label: "Account", icon: UserCircle },
+  { href: "/parent/account", label: "Profile", icon: UserCircle },
 ];
 
 export default function ParentLayout({ children }: LayoutProps<"/parent">) {

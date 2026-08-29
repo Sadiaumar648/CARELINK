@@ -56,7 +56,7 @@ export default function ParentBookingsPage() {
       {bookings?.length === 0 && (
         <p className="text-[15px] text-ink-muted">
           No bookings yet —{" "}
-          <Link href="/parent" className="font-semibold text-sage">
+          <Link href="/parent/find-care" className="font-semibold text-sage">
             find a caregiver
           </Link>{" "}
           to get started.
