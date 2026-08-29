@@ -38,7 +38,7 @@ export function PublicNav() {
           <LinkButton href="/claim-invitation" variant="secondary" size="default">
             Become a Caregiver
           </LinkButton>
-          <LinkButton href="/register" size="default">
+          <LinkButton href="/get-started" size="default">
             Get Started
           </LinkButton>
         </div>
@@ -76,7 +76,7 @@ export function PublicNav() {
                 Become a Caregiver
               </Button>
             </Link>
-            <Link href="/register" onClick={() => setOpen(false)}>
+            <Link href="/get-started" onClick={() => setOpen(false)}>
               <Button className="w-full">Get Started</Button>
             </Link>
           </div>
