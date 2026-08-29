@@ -1,7 +1,6 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Star,
@@ -9,6 +8,8 @@ import {
   ShieldCheck,
   ClockCounterClockwise,
   ChatCircleText,
+  CheckCircle,
+  ArrowLeft,
 } from "@phosphor-icons/react";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
@@ -51,8 +52,24 @@ const TRUST_ITEMS = [
   "Reporting tools if something doesn't feel right",
 ];
 
-function BookingRequestForm({ staffProfileId }: { staffProfileId: string }) {
-  const router = useRouter();
+function durationHours(date: string, startTime: string, endTime: string): number | null {
+  if (!date || !startTime || !endTime) return null;
+  const starts = new Date(`${date}T${startTime}:00`);
+  const ends = new Date(`${date}T${endTime}:00`);
+  const hours = (ends.getTime() - starts.getTime()) / 3_600_000;
+  return hours > 0 ? hours : null;
+}
+
+function formatDateLong(iso: string): string {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+function BookingRequestForm({ caregiver }: { caregiver: Caregiver }) {
+  const [step, setStep] = useState<"form" | "review" | "success">("form");
   const [wards, setWards] = useState<Ward[] | null>(null);
   const [wardsError, setWardsError] = useState<string | null>(null);
   const [wardId, setWardId] = useState("");
@@ -61,8 +78,12 @@ function BookingRequestForm({ staffProfileId }: { staffProfileId: string }) {
   const [endTime, setEndTime] = useState("");
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [agreed, setAgreed] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [availabilityIssue, setAvailabilityIssue] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [createdBooking, setCreatedBooking] = useState<Booking | null>(null);
 
   useEffect(() => {
     apiFetch<{ wards: Ward[] }>("/api/wards")
@@ -73,15 +94,33 @@ function BookingRequestForm({ staffProfileId }: { staffProfileId: string }) {
       });
   }, []);
 
-  async function onSubmit(e: React.FormEvent) {
+  const selectedWard = wards?.find((w) => w.id === wardId) ?? null;
+  const hours = durationHours(date, startTime, endTime);
+  const estimatedTotal = hours ? Math.round(caregiver.hourly_rate * hours) : null;
+
+  function goReview(e: React.FormEvent) {
     e.preventDefault();
+    if (!wardId || !date || !startTime || !endTime || !address.trim()) {
+      setFormError("Fill in every field before continuing.");
+      return;
+    }
+    if (!hours) {
+      setFormError("The end time must be after the start time.");
+      return;
+    }
+    setFormError(null);
+    setStep("review");
+  }
+
+  async function onSend() {
     setSubmitting(true);
-    setError(null);
+    setSubmitError(null);
+    setAvailabilityIssue(false);
     try {
       const res = await apiFetch<{ booking: Booking }>("/api/bookings", {
         method: "POST",
         body: {
-          staffProfileId,
+          staffProfileId: caregiver.staff_profile_id,
           wardId,
           date,
           startTime,
@@ -90,9 +129,12 @@ function BookingRequestForm({ staffProfileId }: { staffProfileId: string }) {
           oneOffNotes: notes || undefined,
         },
       });
-      router.push(`/parent/bookings/${res.booking.id}`);
+      setCreatedBooking(res.booking);
+      setStep("success");
     } catch (err) {
-      setError(errorMessage(err));
+      if (err instanceof ApiError && err.status === 400) setAvailabilityIssue(true);
+      setSubmitError(errorMessage(err));
+    } finally {
       setSubmitting(false);
     }
   }
@@ -111,15 +153,164 @@ function BookingRequestForm({ staffProfileId }: { staffProfileId: string }) {
     );
   }
 
+  if (step === "success" && createdBooking) {
+    return (
+      <Sheet className="flex flex-col items-center gap-4 text-center">
+        <CheckCircle size={44} weight="fill" className="text-[var(--color-success)]" />
+        <h2 className="text-[22px] font-semibold font-heading">Request sent</h2>
+        <p className="max-w-sm text-[14px] text-ink-muted">
+          Your booking request has been sent to {caregiver.full_name}. We&apos;ll let you know when
+          they respond.
+        </p>
+        <div className="flex w-full max-w-xs flex-col gap-1.5 rounded-[14px] border border-hairline p-4 text-left text-[13px]">
+          <p>
+            <span className="text-ink-muted">Caregiver:</span> {caregiver.full_name}
+          </p>
+          {selectedWard && (
+            <p>
+              <span className="text-ink-muted">Ward:</span> {selectedWard.display_name}
+            </p>
+          )}
+          <p>
+            <span className="text-ink-muted">Date:</span> {formatDateLong(date)}
+          </p>
+          <p>
+            <span className="text-ink-muted">Time:</span> {startTime} – {endTime}
+          </p>
+          <p>
+            <span className="text-ink-muted">Status:</span> Awaiting caregiver response
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <Link href={`/parent/bookings/${createdBooking.id}`}>
+            <Button>View Booking</Button>
+          </Link>
+          <Link href="/parent/find-care">
+            <Button variant="secondary">Back to Find Care</Button>
+          </Link>
+        </div>
+      </Sheet>
+    );
+  }
+
+  if (step === "review") {
+    return (
+      <Sheet className="flex flex-col gap-5">
+        <button
+          type="button"
+          onClick={() => setStep("form")}
+          className="flex items-center gap-1.5 self-start text-[13px] font-semibold text-ink-muted hover:text-ink"
+        >
+          <ArrowLeft size={14} /> Edit
+        </button>
+        <h2 className="text-[19px] font-semibold font-heading">Review your booking</h2>
+
+        <div className="flex flex-col gap-2 text-[14px]">
+          <div className="flex justify-between border-b border-hairline pb-2">
+            <span className="text-ink-muted">Caregiver</span>
+            <span className="font-semibold">{caregiver.full_name}</span>
+          </div>
+          {selectedWard && (
+            <div className="flex justify-between border-b border-hairline pb-2">
+              <span className="text-ink-muted">Ward</span>
+              <span className="font-semibold">
+                {selectedWard.display_name}, {selectedWard.age_years}
+              </span>
+            </div>
+          )}
+          <div className="flex justify-between border-b border-hairline pb-2">
+            <span className="text-ink-muted">Date</span>
+            <span className="font-semibold">{formatDateLong(date)}</span>
+          </div>
+          <div className="flex justify-between border-b border-hairline pb-2">
+            <span className="text-ink-muted">Time</span>
+            <span className="font-semibold">
+              {startTime} – {endTime}
+            </span>
+          </div>
+          {hours && (
+            <div className="flex justify-between border-b border-hairline pb-2">
+              <span className="text-ink-muted">Duration</span>
+              <span className="font-semibold">
+                {hours} {hours === 1 ? "hour" : "hours"}
+              </span>
+            </div>
+          )}
+          <div className="flex justify-between border-b border-hairline pb-2">
+            <span className="text-ink-muted">Rate</span>
+            <span className="font-semibold tabular-nums">GH₵{caregiver.hourly_rate}/hr</span>
+          </div>
+          {estimatedTotal !== null && (
+            <div className="flex justify-between border-b border-hairline pb-2">
+              <span className="text-ink-muted">Estimated total</span>
+              <span className="font-semibold tabular-nums">GH₵{estimatedTotal}</span>
+            </div>
+          )}
+          {notes && (
+            <div className="flex flex-col gap-1 pb-2">
+              <span className="text-ink-muted">Additional instructions</span>
+              <span>{notes}</span>
+            </div>
+          )}
+        </div>
+
+        <Sheet className="flex flex-col gap-2 bg-paper">
+          <p className="text-[13px] font-semibold text-ink">Before you request</p>
+          <p className="text-[13px] text-ink-muted">
+            This is a booking request. Your booking is not confirmed until the caregiver accepts it.
+          </p>
+          <label className="flex items-start gap-2 text-[13px] text-ink-muted">
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+              className="mt-0.5"
+            />
+            I understand that this is a booking request and is not confirmed until the caregiver
+            accepts it.
+          </label>
+        </Sheet>
+
+        {submitError && (
+          <div className="flex flex-col gap-2">
+            <p className="text-[13px] text-error">{submitError}</p>
+            {availabilityIssue && (
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="secondary" onClick={() => setStep("form")}>
+                  Choose another time
+                </Button>
+                <Link href="/parent/find-care">
+                  <Button type="button" variant="secondary">
+                    Find another caregiver
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+
+        <Button onClick={() => void onSend()} disabled={!agreed || submitting}>
+          {submitting ? "Sending booking request…" : "Send Booking Request →"}
+        </Button>
+      </Sheet>
+    );
+  }
+
   return (
-    <Sheet as="form" onSubmit={onSubmit} className="flex flex-col gap-4">
-      <h2 className="text-[19px] font-semibold font-heading">Request a booking</h2>
+    <Sheet as="form" onSubmit={goReview} className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-[19px] font-semibold font-heading">Request a booking</h2>
+        <p className="text-[13px] text-ink-muted">
+          Tell us when you need care and we&apos;ll send your request to {caregiver.full_name}.
+        </p>
+      </div>
+
       <div className="flex flex-col gap-2">
         <label
           htmlFor="ward"
           className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted"
         >
-          Care needed for
+          Who needs care?
         </label>
         <select
           id="ward"
@@ -139,7 +330,7 @@ function BookingRequestForm({ staffProfileId }: { staffProfileId: string }) {
         </select>
       </div>
       <Field
-        label="Date"
+        label="When do you need care?"
         type="date"
         required
         value={date}
@@ -161,17 +352,35 @@ function BookingRequestForm({ staffProfileId }: { staffProfileId: string }) {
           onChange={(e) => setEndTime(e.target.value)}
         />
       </div>
+      {hours && (
+        <p className="text-[12.5px] text-ink-muted">
+          {startTime} — {endTime} · {hours} {hours === 1 ? "hour" : "hours"}
+        </p>
+      )}
       <Field
         label="Address"
         required
         value={address}
         onChange={(e) => setAddress(e.target.value)}
       />
-      <Field label="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
-      {error && <p className="text-[13px] text-error">{error}</p>}
-      <Button type="submit" disabled={submitting}>
-        {submitting ? "Requesting…" : "Request Booking →"}
-      </Button>
+      <div className="flex flex-col gap-2">
+        <label
+          htmlFor="notes"
+          className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted"
+        >
+          Anything the caregiver should know?
+        </label>
+        <textarea
+          id="notes"
+          rows={3}
+          placeholder="Share helpful information about the care needed…"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="rounded-[10px] border border-hairline bg-sheet px-3 py-2 text-[15px] text-ink placeholder:text-ink-muted focus:border-sage focus:outline-none focus:ring-4 focus:ring-sage/15"
+        />
+      </div>
+      {formError && <p className="text-[13px] text-error">{formError}</p>}
+      <Button type="submit">Review Request →</Button>
     </Sheet>
   );
 }
@@ -361,7 +570,7 @@ export default function CaregiverProfilePage({ params }: { params: Promise<{ id:
           </section>
 
           <div id="request-booking" className="scroll-mt-6">
-            <BookingRequestForm staffProfileId={caregiver.staff_profile_id} />
+            <BookingRequestForm caregiver={caregiver} />
           </div>
         </div>
       </div>

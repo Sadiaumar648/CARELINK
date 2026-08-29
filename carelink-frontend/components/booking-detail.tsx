@@ -1,26 +1,36 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { CheckCircle, Prohibit, ShieldCheck, Star } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { Avatar } from "@/components/ui/avatar";
+import { VerificationBadge } from "@/components/ui/badge";
+import { ErrorState } from "@/components/ui/empty-state";
 import { MessageThread } from "@/components/message-thread";
 import { ReportForm } from "@/components/report-form";
+import { caregiverPhotoUrl } from "@/lib/photo-url";
 
 type Booking = {
   id: string;
   reference: string;
+  staff_profile_id: string;
   starts_at: string;
   ends_at: string;
+  duration_hours: number;
   address: string;
   one_off_notes: string | null;
+  hourly_rate: number;
   total_amount: number;
   status: string;
   decline_reason: string | null;
   cancel_reason: string | null;
+  created_at: string;
 };
 
 type Ward = {
@@ -34,6 +44,22 @@ type Ward = {
 
 type EmergencyContact = { name: string; phone: string } | null;
 
+type CaregiverBrief = {
+  full_name: string;
+  photo_path: string | null;
+  verification_status: string;
+  rating_avg: number | null;
+  rating_count: number;
+  areas: { area: string; isPrimary: boolean }[];
+};
+
+type BookingEvent = {
+  from_status: string | null;
+  to_status: string;
+  note: string | null;
+  occurred_at: string;
+};
+
 const TONE: Record<string, "neutral" | "positive" | "attention"> = {
   pending: "neutral",
   accepted: "neutral",
@@ -42,6 +68,22 @@ const TONE: Record<string, "neutral" | "positive" | "attention"> = {
   completed: "positive",
   declined: "attention",
   cancelled: "attention",
+  expired: "attention",
+  disputed: "attention",
+};
+
+// The backend's real booking_status enum (bookings.sql). UI copy only —
+// the value stored and sent to the API is always the real one.
+const STATUS_LABEL: Record<string, string> = {
+  pending: "Awaiting caregiver response",
+  accepted: "Booking accepted",
+  declined: "Booking unavailable",
+  expired: "Request expired",
+  paid: "Paid — awaiting session",
+  active: "Session in progress",
+  completed: "Completed",
+  cancelled: "Booking cancelled",
+  disputed: "Under review",
 };
 
 function formatRange(startsAt: string, endsAt: string): string {
@@ -56,11 +98,22 @@ function formatRange(startsAt: string, endsAt: string): string {
   return `${date}, ${time(start)}–${time(end)}`;
 }
 
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "parent" | "staff" }) {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [ward, setWard] = useState<Ward>(null);
   const [emergencyContact, setEmergencyContact] = useState<EmergencyContact>(null);
   const [counterpartyUserId, setCounterpartyUserId] = useState<string | null>(null);
+  const [events, setEvents] = useState<BookingEvent[]>([]);
+  const [caregiver, setCaregiver] = useState<CaregiverBrief | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -68,12 +121,15 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
     apiFetch<{
       booking: Booking;
       ward: Ward;
+      events: BookingEvent[];
       emergencyContact: EmergencyContact;
       counterpartyUserId: string | null;
     }>(`/api/bookings/${id}`)
       .then((res) => {
+        setError(null);
         setBooking(res.booking);
         setWard(res.ward);
+        setEvents(res.events);
         setEmergencyContact(res.emergencyContact);
         setCounterpartyUserId(res.counterpartyUserId);
       })
@@ -81,6 +137,14 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
   }
 
   useEffect(load, [id]);
+
+  const staffProfileId = booking?.staff_profile_id;
+  useEffect(() => {
+    if (viewerRole !== "parent" || !staffProfileId) return;
+    apiFetch<{ caregiver: CaregiverBrief }>(`/api/caregivers/${staffProfileId}`)
+      .then((res) => setCaregiver(res.caregiver))
+      .catch(() => undefined);
+  }, [viewerRole, staffProfileId]);
 
   async function act(path: string, body?: unknown) {
     setBusy(true);
@@ -95,30 +159,96 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
     }
   }
 
-  if (error && !booking) return <p className="p-6 text-[13px] text-error">{error}</p>;
+  if (error && !booking) return <ErrorState onRetry={load} />;
   if (!booking) return <p className="p-6 text-[13px] text-ink-muted">Loading…</p>;
 
   const canCancel = ["pending", "accepted", "paid"].includes(booking.status);
   const isToday = new Date().toISOString().slice(0, 10) === booking.starts_at.slice(0, 10);
+  const primaryArea =
+    caregiver?.areas?.find((a) => a.isPrimary)?.area ?? caregiver?.areas?.[0]?.area;
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-[26px] font-semibold">
+          <h1 className="text-[24px] font-semibold font-heading">
             {formatRange(booking.starts_at, booking.ends_at)}
           </h1>
-          <p className="text-[13px] text-ink-muted">{booking.reference}</p>
+          <p className="text-[13px] text-ink-muted">
+            {booking.reference} · Requested {formatDateTime(booking.created_at)}
+          </p>
         </div>
-        <StatusBadge label={booking.status} tone={TONE[booking.status] ?? "neutral"} />
+        <StatusBadge
+          label={STATUS_LABEL[booking.status] ?? booking.status}
+          tone={TONE[booking.status] ?? "neutral"}
+        />
       </div>
+
+      {viewerRole === "parent" && caregiver && (
+        <Sheet className="flex items-center gap-4">
+          <Avatar
+            photoUrl={caregiverPhotoUrl(caregiver.photo_path)}
+            name={caregiver.full_name}
+            size="md"
+          />
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <p className="text-[16px] font-semibold">{caregiver.full_name}</p>
+              {caregiver.verification_status === "verified" && <VerificationBadge />}
+            </div>
+            <p className="flex items-center gap-1 text-[13px] text-ink-muted">
+              <Star size={14} weight="fill" className="text-gold" />
+              {caregiver.rating_avg ? caregiver.rating_avg.toFixed(1) : "New"}
+              {caregiver.rating_count > 0 && ` · ${caregiver.rating_count} reviews`}
+              {primaryArea ? ` · ${primaryArea}` : ""}
+            </p>
+          </div>
+        </Sheet>
+      )}
+
+      {booking.status === "accepted" && viewerRole === "parent" && (
+        <Sheet className="flex flex-col items-center gap-2 bg-sage-tint text-center">
+          <CheckCircle size={28} weight="fill" className="text-sage-pressed" />
+          <p className="text-[16px] font-semibold text-sage-pressed">Booking accepted</p>
+          <p className="text-[13px] text-sage-pressed">
+            {caregiver?.full_name ?? "The caregiver"} has accepted your booking request.
+          </p>
+        </Sheet>
+      )}
+
+      {booking.status === "pending" && (
+        <p className="text-[13px] text-ink-muted">
+          The caregiver has received your request. Your booking is not confirmed yet.
+        </p>
+      )}
+
+      {booking.status === "declined" && (
+        <Sheet className="flex flex-col items-center gap-3 text-center">
+          <Prohibit size={28} className="text-error" />
+          <p className="text-[16px] font-semibold">Booking unavailable</p>
+          <p className="text-[13px] text-ink-muted">
+            {caregiver?.full_name ?? "This caregiver"} isn&apos;t available for this request.
+          </p>
+          {viewerRole === "parent" && (
+            <Link href="/parent/find-care">
+              <Button>Find Another Caregiver →</Button>
+            </Link>
+          )}
+        </Sheet>
+      )}
 
       <Sheet className="flex flex-col gap-3">
         <p className="text-[15px]">{booking.address}</p>
         {booking.one_off_notes && (
           <p className="text-[13px] text-ink-muted">{booking.one_off_notes}</p>
         )}
-        <p className="text-[19px] font-semibold tabular-nums">GH₵{booking.total_amount}</p>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-1 border-t border-hairline pt-3 text-[13px] text-ink-muted">
+          <span>Duration: {booking.duration_hours} hrs</span>
+          <span>Rate: GH₵{booking.hourly_rate}/hr</span>
+          <span className="text-[19px] font-semibold tabular-nums text-ink">
+            GH₵{booking.total_amount}
+          </span>
+        </div>
       </Sheet>
 
       {ward && (
@@ -159,6 +289,22 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
         <p className="text-[13px] text-ink-muted">
           Reason: {booking.decline_reason ?? booking.cancel_reason}
         </p>
+      )}
+
+      {events.length > 0 && (
+        <Sheet className="flex flex-col gap-2">
+          <h2 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+            Booking history
+          </h2>
+          <ul className="flex flex-col gap-1.5 text-[13px] text-ink-muted">
+            {events.map((e, i) => (
+              <li key={i} className="flex items-center justify-between gap-3">
+                <span className="text-ink">{STATUS_LABEL[e.to_status] ?? e.to_status}</span>
+                <span>{formatDateTime(e.occurred_at)}</span>
+              </li>
+            ))}
+          </ul>
+        </Sheet>
       )}
 
       {!["pending", "declined"].includes(booking.status) && <MessageThread bookingId={id} />}
@@ -209,11 +355,20 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
         {viewerRole === "parent" && booking.status === "completed" && <ReviewForm bookingId={id} />}
 
         {viewerRole === "parent" && canCancel && <CancelForm bookingId={id} onCancelled={load} />}
-
-        {!["pending", "declined"].includes(booking.status) && counterpartyUserId && (
-          <ReportForm bookingId={id} subjectUserId={counterpartyUserId} />
-        )}
       </div>
+
+      {!["pending", "declined"].includes(booking.status) && counterpartyUserId && (
+        <Sheet className="flex flex-col gap-3">
+          <h2 className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+            <ShieldCheck size={16} className="text-sage" />
+            CareLink Safety
+          </h2>
+          <p className="text-[13px] text-ink-muted">
+            Keep communication and booking information within CareLink whenever possible.
+          </p>
+          <ReportForm bookingId={id} subjectUserId={counterpartyUserId} />
+        </Sheet>
+      )}
     </div>
   );
 }
@@ -247,7 +402,7 @@ function PaymentForm({ bookingId, onPaid }: { bookingId: string; onPaid: () => v
 
   return (
     <Sheet as="form" onSubmit={onSubmit} className="flex flex-col gap-4">
-      <h2 className="text-[17px] font-semibold">Pay for this booking</h2>
+      <h2 className="text-[17px] font-semibold font-heading">Continue to Payment</h2>
       <div className="flex flex-col gap-2">
         <label
           htmlFor="network"
@@ -309,13 +464,15 @@ function CancelForm({ bookingId, onCancelled }: { bookingId: string; onCancelled
   if (!open) {
     return (
       <Button variant="danger" onClick={() => setOpen(true)}>
-        Cancel booking
+        Cancel Booking
       </Button>
     );
   }
 
   return (
     <Sheet as="form" onSubmit={onSubmit} className="flex flex-col gap-4">
+      <h2 className="text-[15px] font-semibold">Cancel this booking?</h2>
+      <p className="text-[13px] text-ink-muted">Are you sure you want to cancel this booking?</p>
       <Field
         label="Reason for cancelling"
         required
@@ -324,11 +481,11 @@ function CancelForm({ bookingId, onCancelled }: { bookingId: string; onCancelled
       />
       {error && <p className="text-[13px] text-error">{error}</p>}
       <div className="flex gap-3">
-        <Button type="submit" variant="danger" disabled={submitting}>
-          {submitting ? "Cancelling…" : "Confirm cancellation"}
-        </Button>
         <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
-          Never mind
+          Keep Booking
+        </Button>
+        <Button type="submit" variant="danger" disabled={submitting}>
+          {submitting ? "Cancelling…" : "Cancel Booking"}
         </Button>
       </div>
     </Sheet>
