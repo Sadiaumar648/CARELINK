@@ -148,6 +148,8 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
   const [caregiver, setCaregiver] = useState<CaregiverBrief | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState<"accept" | "decline" | null>(null);
+  const [declineReason, setDeclineReason] = useState("");
 
   function load() {
     apiFetch<{
@@ -372,20 +374,74 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
       {error && <p className="text-[13px] text-error">{error}</p>}
 
       <div className="flex flex-col gap-3">
-        {viewerRole === "staff" && booking.status === "pending" && (
+        {viewerRole === "staff" && booking.status === "pending" && confirming === null && (
           <div className="flex gap-3">
-            <Button size="lg" disabled={busy} onClick={() => void act("/accept")}>
+            <Button size="lg" onClick={() => setConfirming("accept")}>
               Accept
             </Button>
-            <Button
-              size="lg"
-              variant="danger"
-              disabled={busy}
-              onClick={() => void act("/decline", {})}
-            >
+            <Button size="lg" variant="danger" onClick={() => setConfirming("decline")}>
               Decline
             </Button>
           </div>
+        )}
+
+        {viewerRole === "staff" && booking.status === "pending" && confirming === "accept" && (
+          <Sheet className="flex flex-col gap-3">
+            <p className="text-[14px] font-semibold text-ink">Accept this care request?</p>
+            <p className="text-[13px] text-ink-muted">
+              You&apos;re agreeing to provide care at the date and time shown above.
+            </p>
+            <div className="flex gap-3">
+              <Button size="lg" disabled={busy} onClick={() => void act("/accept")}>
+                Accept Request
+              </Button>
+              <Button
+                size="lg"
+                variant="secondary"
+                disabled={busy}
+                onClick={() => setConfirming(null)}
+              >
+                Never mind
+              </Button>
+            </div>
+          </Sheet>
+        )}
+
+        {viewerRole === "staff" && booking.status === "pending" && confirming === "decline" && (
+          <Sheet className="flex flex-col gap-3">
+            <p className="text-[14px] font-semibold text-ink">Decline this request?</p>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
+                Let the family know why (optional)
+              </span>
+              <textarea
+                rows={2}
+                value={declineReason}
+                onChange={(e) => setDeclineReason(e.target.value)}
+                className="rounded-[10px] border border-hairline bg-sheet px-3 py-2 text-[14px] text-ink placeholder:text-ink-muted focus:border-sage focus:outline-none focus:ring-4 focus:ring-sage/15"
+              />
+            </label>
+            <div className="flex gap-3">
+              <Button
+                size="lg"
+                variant="danger"
+                disabled={busy}
+                onClick={() =>
+                  void act("/decline", declineReason.trim() ? { reason: declineReason.trim() } : {})
+                }
+              >
+                Decline Request
+              </Button>
+              <Button
+                size="lg"
+                variant="secondary"
+                disabled={busy}
+                onClick={() => setConfirming(null)}
+              >
+                Never mind
+              </Button>
+            </div>
+          </Sheet>
         )}
 
         {viewerRole === "parent" && booking.status === "accepted" && (

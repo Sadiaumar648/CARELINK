@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Tray } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { EmptyState, ErrorState } from "@/components/ui/empty-state";
+import { BookingCardSkeleton } from "@/components/ui/skeleton";
 
 type Booking = {
   id: string;
@@ -15,6 +17,7 @@ type Booking = {
   ends_at: string;
   total_amount: number;
   address: string;
+  one_off_notes: string | null;
   status: string;
 };
 
@@ -22,98 +25,183 @@ function formatRange(startsAt: string, endsAt: string): string {
   const start = new Date(startsAt);
   const end = new Date(endsAt);
   const date = start.toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
+    weekday: "long",
+    month: "long",
     day: "numeric",
   });
   const time = (d: Date) => d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
   return `${date}, ${time(start)}–${time(end)}`;
 }
 
-export default function StaffRequestsPage() {
-  const [bookings, setBookings] = useState<Booking[] | null>(null);
+function RequestCard({ booking, onRespond }: { booking: Booking; onRespond: () => void }) {
+  const [confirming, setConfirming] = useState<"accept" | "decline" | null>(null);
+  const [declineReason, setDeclineReason] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [actingOn, setActingOn] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  async function load() {
+  async function accept() {
+    setSubmitting(true);
     setError(null);
     try {
-      const res = await apiFetch<{ bookings: Booking[] }>("/api/bookings?status=pending");
-      setBookings(res.bookings);
+      await apiFetch(`/api/bookings/${booking.id}/accept`, { method: "PATCH" });
+      onRespond();
     } catch (err) {
       setError(errorMessage(err));
+      setSubmitting(false);
     }
   }
 
-  // Not `void load()`: the linter (correctly) flags a same-component
-  // function known to setState being invoked directly from an effect
-  // body, since that shape is easy to accidentally re-trigger. Calling
-  // the fetch inline keeps the initial load and the post-action reload
-  // (`respond`, a user-triggered handler, not an effect) doing the same
-  // thing without tripping that rule.
-  useEffect(() => {
-    apiFetch<{ bookings: Booking[] }>("/api/bookings?status=pending")
-      .then((res) => setBookings(res.bookings))
-      .catch((err) => setError(errorMessage(err)));
-  }, []);
-
-  async function respond(id: string, action: "accept" | "decline") {
-    setActingOn(id);
+  async function decline() {
+    setSubmitting(true);
     setError(null);
     try {
-      await apiFetch(`/api/bookings/${id}/${action}`, { method: "PATCH" });
-      await load();
+      await apiFetch(`/api/bookings/${booking.id}/decline`, {
+        method: "PATCH",
+        body: declineReason.trim() ? { reason: declineReason.trim() } : {},
+      });
+      onRespond();
     } catch (err) {
       setError(errorMessage(err));
-    } finally {
-      setActingOn(null);
+      setSubmitting(false);
     }
   }
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
-      <h1 className="text-[26px] font-semibold">Requests</h1>
-      {error && <p className="text-[13px] text-error">{error}</p>}
-
-      {bookings === null && <p className="text-[13px] text-ink-muted">Loading…</p>}
-      {bookings?.length === 0 && (
-        <p className="text-[15px] text-ink-muted">No pending requests right now.</p>
+    <Sheet className="flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <Link
+            href={`/staff/schedule/${booking.id}`}
+            className="text-[17px] font-semibold font-heading hover:text-sage"
+          >
+            {formatRange(booking.starts_at, booking.ends_at)}
+          </Link>
+          <p className="text-[14px] text-ink-muted">{booking.address}</p>
+        </div>
+        <p className="text-[19px] font-semibold tabular-nums">GH₵{booking.total_amount}</p>
+      </div>
+      {booking.one_off_notes && (
+        <p className="text-[13px] text-ink-muted">{booking.one_off_notes}</p>
       )}
 
-      <div className="flex flex-col gap-4">
-        {bookings?.map((b) => (
-          <Sheet key={b.id} className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <Link
-                href={`/staff/schedule/${b.id}`}
-                className="text-[17px] font-semibold hover:text-sage"
-              >
-                {formatRange(b.starts_at, b.ends_at)}
-              </Link>
-              <StatusBadge label={b.status} />
-            </div>
-            <p className="text-[15px] text-ink-muted">{b.address}</p>
-            <p className="text-[19px] font-semibold tabular-nums">GH₵{b.total_amount}</p>
-            <div className="flex gap-3">
-              <Button
-                size="lg"
-                onClick={() => void respond(b.id, "accept")}
-                disabled={actingOn === b.id}
-              >
-                Accept
-              </Button>
-              <Button
-                size="lg"
-                variant="danger"
-                onClick={() => void respond(b.id, "decline")}
-                disabled={actingOn === b.id}
-              >
-                Decline
-              </Button>
-            </div>
-          </Sheet>
-        ))}
+      {confirming === null && (
+        <div className="flex gap-3">
+          <Button size="lg" onClick={() => setConfirming("accept")}>
+            Accept
+          </Button>
+          <Button size="lg" variant="danger" onClick={() => setConfirming("decline")}>
+            Decline
+          </Button>
+          <Link href={`/staff/schedule/${booking.id}`} className="ml-auto self-center">
+            <span className="text-[13px] font-semibold text-sage hover:text-sage-hover">
+              View Request
+            </span>
+          </Link>
+        </div>
+      )}
+
+      {confirming === "accept" && (
+        <div className="flex flex-col gap-3 rounded-[14px] border border-hairline bg-paper p-4">
+          <p className="text-[14px] font-semibold text-ink">Accept this care request?</p>
+          <p className="text-[13px] text-ink-muted">
+            You&apos;re agreeing to provide care at the date and time shown above.
+          </p>
+          {error && <p className="text-[13px] text-error">{error}</p>}
+          <div className="flex gap-3">
+            <Button size="lg" disabled={submitting} onClick={() => void accept()}>
+              {submitting ? "Accepting…" : "Accept Request"}
+            </Button>
+            <Button
+              size="lg"
+              variant="secondary"
+              disabled={submitting}
+              onClick={() => setConfirming(null)}
+            >
+              Never mind
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {confirming === "decline" && (
+        <div className="flex flex-col gap-3 rounded-[14px] border border-hairline bg-paper p-4">
+          <p className="text-[14px] font-semibold text-ink">Decline this request?</p>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
+              Let the family know why (optional)
+            </span>
+            <textarea
+              rows={2}
+              value={declineReason}
+              onChange={(e) => setDeclineReason(e.target.value)}
+              className="rounded-[10px] border border-hairline bg-sheet px-3 py-2 text-[14px] text-ink placeholder:text-ink-muted focus:border-sage focus:outline-none focus:ring-4 focus:ring-sage/15"
+              placeholder="e.g. Not available that day"
+            />
+          </label>
+          {error && <p className="text-[13px] text-error">{error}</p>}
+          <div className="flex gap-3">
+            <Button size="lg" variant="danger" disabled={submitting} onClick={() => void decline()}>
+              {submitting ? "Declining…" : "Decline Request"}
+            </Button>
+            <Button
+              size="lg"
+              variant="secondary"
+              disabled={submitting}
+              onClick={() => setConfirming(null)}
+            >
+              Never mind
+            </Button>
+          </div>
+        </div>
+      )}
+    </Sheet>
+  );
+}
+
+export default function StaffRequestsPage() {
+  const [bookings, setBookings] = useState<Booking[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
+
+  useEffect(() => {
+    apiFetch<{ bookings: Booking[] }>("/api/bookings?status=pending")
+      .then((res) => setBookings(res.bookings))
+      .catch((err) => setError(errorMessage(err)));
+  }, [retryKey]);
+
+  return (
+    <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-[26px] font-semibold font-heading">Care Requests</h1>
+        <p className="text-[14px] text-ink-muted">
+          Families who&apos;d like to book you are shown here.
+        </p>
       </div>
+
+      {error && <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />}
+
+      {!error && bookings === null && (
+        <div className="flex flex-col gap-4">
+          <BookingCardSkeleton />
+          <BookingCardSkeleton />
+        </div>
+      )}
+
+      {!error && bookings?.length === 0 && (
+        <EmptyState
+          icon={Tray}
+          title="No new care requests"
+          description="When families request your services, they'll appear here."
+        />
+      )}
+
+      {!error && bookings && bookings.length > 0 && (
+        <div className="flex flex-col gap-4">
+          {bookings.map((b) => (
+            <RequestCard key={b.id} booking={b} onRespond={() => setRetryKey((k) => k + 1)} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
