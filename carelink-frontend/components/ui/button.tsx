@@ -11,7 +11,7 @@ const base =
 
 const variants: Record<Variant, string> = {
   primary: "bg-sage text-sheet hover:bg-sage-hover active:bg-sage-pressed",
-  secondary: "bg-sheet text-ink border border-hairline hover:border-sage hover:text-sage",
+  secondary: "bg-pistachio-tint text-ink border border-pistachio hover:border-sage hover:text-sage",
   danger: "bg-transparent text-error border border-error hover:bg-error hover:text-sheet",
 };
 
