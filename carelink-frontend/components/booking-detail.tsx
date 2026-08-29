@@ -107,6 +107,38 @@ function formatDateTime(iso: string): string {
   });
 }
 
+type Stage = { label: string; done: boolean; at: string | null };
+
+// Derived only from real booking_events rows (never assumed) — a stage is
+// only ever marked done when an actual logged transition (or the
+// booking's own current status, for the still-in-flight case) supports
+// it. "Payment & confirmation" is one stage, not two, because this
+// system has no distinct "confirmed" transition separate from the
+// booking reaching 'paid'.
+function bookingStages(booking: Booking, events: BookingEvent[]): Stage[] {
+  const eventFor = (status: string) =>
+    events.find((e) => e.to_status === status)?.occurred_at ?? null;
+  const created = eventFor("pending") ?? booking.created_at;
+  const responded = eventFor("accepted") ?? eventFor("declined");
+  const paid = eventFor("paid");
+  const completed = eventFor("completed");
+
+  return [
+    { label: "Booking requested", done: true, at: created },
+    {
+      label: "Caregiver response",
+      done: Boolean(responded) || !["pending"].includes(booking.status),
+      at: responded,
+    },
+    {
+      label: "Payment & confirmation",
+      done: Boolean(paid) || ["paid", "active", "completed"].includes(booking.status),
+      at: paid,
+    },
+    { label: "Care completed", done: booking.status === "completed", at: completed },
+  ];
+}
+
 export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "parent" | "staff" }) {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [ward, setWard] = useState<Ward>(null);
@@ -258,6 +290,8 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
         <div className="flex flex-wrap items-center gap-x-6 gap-y-1 border-t border-hairline pt-3 text-[13px] text-ink-muted">
           <span>Duration: {booking.duration_hours} hrs</span>
           <span>Rate: GH₵{booking.hourly_rate}/hr</span>
+          {booking.status === "accepted" && <span>Payment: Pending</span>}
+          {["paid", "active", "completed"].includes(booking.status) && <span>Payment: Paid</span>}
           <span className="text-[19px] font-semibold tabular-nums text-ink">
             GH₵{booking.total_amount}
           </span>
@@ -305,15 +339,28 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
       )}
 
       {events.length > 0 && (
-        <Sheet className="flex flex-col gap-2">
+        <Sheet className="flex flex-col gap-3">
           <h2 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-            Booking history
+            Booking timeline
           </h2>
-          <ul className="flex flex-col gap-1.5 text-[13px] text-ink-muted">
-            {events.map((e, i) => (
-              <li key={i} className="flex items-center justify-between gap-3">
-                <span className="text-ink">{STATUS_LABEL[e.to_status] ?? e.to_status}</span>
-                <span>{formatDateTime(e.occurred_at)}</span>
+          <ul className="flex flex-col gap-2">
+            {bookingStages(booking, events).map((stage) => (
+              <li key={stage.label} className="flex items-center gap-2.5 text-[13px]">
+                {stage.done ? (
+                  <CheckCircle
+                    size={16}
+                    weight="fill"
+                    className="shrink-0 text-[var(--color-success)]"
+                  />
+                ) : (
+                  <span className="h-4 w-4 shrink-0 rounded-full border-2 border-hairline" />
+                )}
+                <span className={stage.done ? "text-ink" : "text-ink-muted"}>{stage.label}</span>
+                {stage.at && (
+                  <span className="ml-auto text-[12px] text-ink-muted">
+                    {formatDateTime(stage.at)}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
