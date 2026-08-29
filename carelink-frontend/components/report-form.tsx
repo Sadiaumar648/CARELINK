@@ -15,7 +15,7 @@ export function ReportForm({
   bookingId,
   subjectUserId,
 }: {
-  bookingId: string;
+  bookingId?: string;
   subjectUserId: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -53,14 +53,16 @@ export function ReportForm({
   if (!open) {
     return (
       <Button variant="danger" onClick={() => setOpen(true)}>
-        Report an issue
+        {bookingId ? "Report an issue" : "Report a concern"}
       </Button>
     );
   }
 
   return (
     <Sheet as="form" onSubmit={onSubmit} className="flex flex-col gap-4">
-      <h2 className="text-[17px] font-semibold">Report an issue with this booking</h2>
+      <h2 className="text-[17px] font-semibold">
+        {bookingId ? "Report an issue with this booking" : "Report a concern"}
+      </h2>
       <div className="flex flex-col gap-2">
         <label
           htmlFor="reportCategory"
