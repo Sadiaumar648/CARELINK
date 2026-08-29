@@ -149,7 +149,7 @@ function ProfileSection() {
 
   return (
     <Sheet as="form" onSubmit={onSubmit} className="flex flex-col gap-4">
-      <h2 className="text-[19px] font-semibold">Profile</h2>
+      <h2 className="text-[19px] font-semibold font-heading">Profile</h2>
       <Field label="Bio (optional)" value={bio} onChange={(e) => setBio(e.target.value)} />
       <div className="grid grid-cols-2 gap-4">
         <Field
@@ -236,7 +236,7 @@ function SkillsSection() {
 
   return (
     <Sheet className="flex flex-col gap-4">
-      <h2 className="text-[19px] font-semibold">Skills</h2>
+      <h2 className="text-[19px] font-semibold font-heading">Skills</h2>
       <div className="flex flex-wrap gap-2">
         {skillTagSchema.options.map((skill) => {
           const active = skills.includes(skill);
@@ -316,7 +316,7 @@ function AreasSection() {
 
   return (
     <Sheet className="flex flex-col gap-4">
-      <h2 className="text-[19px] font-semibold">Service areas</h2>
+      <h2 className="text-[19px] font-semibold font-heading">Service areas</h2>
       <div className="flex flex-col gap-2">
         {areas.map((a) => (
           <div key={a.area} className="flex items-center justify-between gap-3">
@@ -420,7 +420,7 @@ function AvailabilitySection() {
 
   return (
     <Sheet className="flex flex-col gap-4">
-      <h2 className="text-[19px] font-semibold">Availability</h2>
+      <h2 className="text-[19px] font-semibold font-heading">Availability</h2>
       <div className="overflow-x-auto">
         <table className="w-full text-[13px]">
           <thead>

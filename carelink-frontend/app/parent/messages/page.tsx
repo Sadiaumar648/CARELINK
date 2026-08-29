@@ -8,6 +8,7 @@ import { errorMessage } from "@/lib/error-message";
 import { useAuth } from "@/lib/auth/auth-context";
 import { Avatar } from "@/components/ui/avatar";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
+import { ConversationCardSkeleton } from "@/components/ui/skeleton";
 import { caregiverPhotoUrl } from "@/lib/photo-url";
 import { formatMessageTime } from "@/lib/message-time";
 
@@ -36,18 +37,6 @@ type Conversation = {
 };
 
 const MESSAGEABLE = ["accepted", "paid", "active", "completed"];
-
-function ConversationSkeleton() {
-  return (
-    <div className="flex items-center gap-3 rounded-[18px] border border-hairline bg-sheet p-4">
-      <div className="h-12 w-12 animate-pulse rounded-full bg-hairline/60" />
-      <div className="flex flex-1 flex-col gap-2">
-        <div className="h-4 w-28 animate-pulse rounded bg-hairline/60" />
-        <div className="h-3 w-44 animate-pulse rounded bg-hairline/60" />
-      </div>
-    </div>
-  );
-}
 
 export default function ParentMessagesPage() {
   const { user } = useAuth();
@@ -102,8 +91,8 @@ export default function ParentMessagesPage() {
 
       {!error && conversations === null && (
         <div className="flex flex-col gap-3">
-          <ConversationSkeleton />
-          <ConversationSkeleton />
+          <ConversationCardSkeleton />
+          <ConversationCardSkeleton />
         </div>
       )}
 

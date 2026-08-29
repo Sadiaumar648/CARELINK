@@ -110,7 +110,7 @@ export function VerificationForm() {
 
       {submissions && !done && canResubmit && (
         <Sheet as="form" onSubmit={onSubmit} className="flex flex-col gap-4">
-          <h2 className="text-[19px] font-semibold">Verify your identity</h2>
+          <h2 className="text-[19px] font-semibold font-heading">Verify your identity</h2>
           <div className="flex flex-col gap-2">
             <label
               htmlFor="idDocumentType"

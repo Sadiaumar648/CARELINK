@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CheckCircle, Prohibit, ShieldCheck, Star } from "@phosphor-icons/react";
+import {
+  ArrowLeft,
+  CheckCircle,
+  ChatCircleText,
+  Prohibit,
+  ShieldCheck,
+  Star,
+} from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
@@ -12,7 +19,6 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Avatar } from "@/components/ui/avatar";
 import { VerificationBadge } from "@/components/ui/badge";
 import { ErrorState } from "@/components/ui/empty-state";
-import { MessageThread } from "@/components/message-thread";
 import { ReportForm } from "@/components/report-form";
 import { caregiverPhotoUrl } from "@/lib/photo-url";
 
@@ -203,6 +209,12 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
+      <Link
+        href={viewerRole === "parent" ? "/parent/bookings" : "/staff/schedule"}
+        className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-muted hover:text-ink"
+      >
+        <ArrowLeft size={16} /> {viewerRole === "parent" ? "My Bookings" : "Schedule"}
+      </Link>
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-[24px] font-semibold font-heading">
@@ -369,7 +381,17 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
         </Sheet>
       )}
 
-      {!["pending", "declined"].includes(booking.status) && <MessageThread bookingId={id} />}
+      {!["pending", "declined"].includes(booking.status) && (
+        <Link href={`/${viewerRole}/messages/${id}`}>
+          <Sheet className="flex items-center justify-between gap-3 hover:border-sage/50">
+            <span className="flex items-center gap-2 text-[14px] font-semibold text-ink">
+              <ChatCircleText size={18} className="text-sage" />
+              Messages
+            </span>
+            <span className="text-[13px] font-semibold text-sage">Open conversation →</span>
+          </Sheet>
+        </Link>
+      )}
 
       {error && <p className="text-[13px] text-error">{error}</p>}
 
@@ -689,7 +711,7 @@ function CancelForm({ bookingId, onCancelled }: { bookingId: string; onCancelled
 
   return (
     <Sheet as="form" onSubmit={onSubmit} className="flex flex-col gap-4">
-      <h2 className="text-[15px] font-semibold">Cancel this booking?</h2>
+      <h2 className="text-[15px] font-semibold font-heading">Cancel this booking?</h2>
       <p className="text-[13px] text-ink-muted">Are you sure you want to cancel this booking?</p>
       <Field
         label="Reason for cancelling"
@@ -738,7 +760,7 @@ function ReviewForm({ bookingId }: { bookingId: string }) {
 
   return (
     <Sheet as="form" onSubmit={onSubmit} className="flex flex-col gap-4">
-      <h2 className="text-[17px] font-semibold">Leave a review</h2>
+      <h2 className="text-[17px] font-semibold font-heading">Leave a review</h2>
       <div className="flex gap-2">
         {[1, 2, 3, 4, 5].map((n) => (
           <button

@@ -427,6 +427,12 @@ export default function CaregiverProfilePage({ params }: { params: Promise<{ id:
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
+      <Link
+        href="/parent/find-care"
+        className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-muted hover:text-ink"
+      >
+        <ArrowLeft size={16} /> Find Care
+      </Link>
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[300px_1fr]">
         {/* LEFT: photo + core facts + primary CTA */}
         <div className="flex flex-col gap-4 lg:sticky lg:top-6 lg:self-start">

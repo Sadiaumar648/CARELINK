@@ -138,7 +138,7 @@ export default function AdminRosterPage() {
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-[26px] font-semibold font-heading">Roster</h1>
+        <h1 className="text-[26px] font-semibold font-heading">Caregivers</h1>
         <p className="text-[14px] text-ink-muted">Every caregiver on the platform.</p>
       </div>
 

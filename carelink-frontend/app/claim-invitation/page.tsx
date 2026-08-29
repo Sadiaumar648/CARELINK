@@ -41,7 +41,7 @@ export default function ClaimInvitationPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 p-6">
-      <h1 className="text-[26px] font-semibold">Claim your invitation</h1>
+      <h1 className="text-[26px] font-semibold font-heading">Claim your invitation</h1>
       <p className="text-[13px] text-ink-muted">
         An administrator added you as a caregiver. Enter the code they gave you and the phone number
         on file to set up your own password.

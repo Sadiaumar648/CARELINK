@@ -42,3 +42,15 @@ export function BookingCardSkeleton() {
     </div>
   );
 }
+
+export function ConversationCardSkeleton() {
+  return (
+    <div className="flex items-center gap-3 rounded-[18px] border border-hairline bg-sheet p-4">
+      <Skeleton className="h-11 w-11 rounded-full" />
+      <div className="flex flex-1 flex-col gap-2">
+        <Skeleton className="h-4 w-28" />
+        <Skeleton className="h-3 w-44" />
+      </div>
+    </div>
+  );
+}
