@@ -30,8 +30,8 @@ const STATUSES = [
   "cancelled",
 ];
 
-const TONE: Record<string, "neutral" | "positive" | "attention"> = {
-  pending: "neutral",
+const TONE: Record<string, "neutral" | "positive" | "attention" | "info"> = {
+  pending: "info",
   accepted: "neutral",
   paid: "positive",
   active: "positive",

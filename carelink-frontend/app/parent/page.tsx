@@ -59,8 +59,8 @@ type CaregiverResult = CaregiverBrief & {
 
 type Notification = { id: string; body: string; read_at: string | null; created_at: string };
 
-const BOOKING_TONE: Record<string, "neutral" | "positive" | "attention"> = {
-  pending: "neutral",
+const BOOKING_TONE: Record<string, "neutral" | "positive" | "attention" | "info"> = {
+  pending: "info",
   accepted: "neutral",
   paid: "positive",
   active: "positive",

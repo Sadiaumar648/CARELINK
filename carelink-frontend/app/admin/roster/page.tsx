@@ -23,9 +23,9 @@ type RosterEntry = {
   acceptingBookings: boolean;
 };
 
-const VERIFICATION_TONE: Record<string, "neutral" | "positive" | "attention"> = {
+const VERIFICATION_TONE: Record<string, "neutral" | "positive" | "attention" | "info"> = {
   unverified: "neutral",
-  pending: "neutral",
+  pending: "info",
   verified: "positive",
   rejected: "attention",
 };

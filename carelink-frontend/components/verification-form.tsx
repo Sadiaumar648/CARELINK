@@ -17,8 +17,8 @@ type Submission = {
   created_at: string;
 };
 
-const TONE: Record<string, "neutral" | "positive" | "attention"> = {
-  pending: "neutral",
+const TONE: Record<string, "neutral" | "positive" | "attention" | "info"> = {
+  pending: "info",
   verified: "positive",
   rejected: "attention",
 };

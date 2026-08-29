@@ -5,12 +5,13 @@ export function Badge({
   tone = "neutral",
 }: {
   children: React.ReactNode;
-  tone?: "neutral" | "peach" | "gold";
+  tone?: "neutral" | "peach" | "gold" | "bluebell";
 }) {
   const tones: Record<string, string> = {
     neutral: "bg-sage-tint text-sage-pressed",
-    peach: "bg-peach-tint text-[#8a4a30]",
-    gold: "bg-gold-tint text-[#7a5a1e]",
+    peach: "bg-peach-tint text-[var(--color-error)]",
+    gold: "bg-gold-tint text-[var(--color-gold)]",
+    bluebell: "bg-bluebell-tint text-[var(--color-bluebell-pressed)]",
   };
   return (
     <span

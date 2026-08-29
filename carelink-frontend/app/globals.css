@@ -1,35 +1,53 @@
 @import "tailwindcss";
 
-/* CareLink design system v3 — warm ivory + sage, a real professional
-   childcare-service palette rather than a generic SaaS or daycare
-   look. Peach and gold are sparing accents, not primary colors. */
+/* CareLink design system v4 — the approved seven-colour brand palette
+   (Fern / Pistachio / Fennel / Cherry Blossom / Peony / Bluebell /
+   Honey), applied with real hierarchy rather than equal weight: Fern
+   carries the brand, Fennel is the warm page ground, Pistachio is the
+   secondary/supporting tone, and the other four are sparing accents.
+   Token *names* are kept from the previous palette (sage/peach/gold)
+   so every component that already reads them updates automatically —
+   only the values change. Where a literal palette colour is too light
+   to carry text at AA contrast, the token holds a deepened tone from
+   the same colour family instead (the brief's own allowance: "use the
+   darker Fern colour... when necessary"), with the literal, lighter
+   colour reserved for tints/backgrounds. */
 
 @theme {
-  --color-paper: #faf8f3;
+  /* Fennel — warm page background. White sheets sit on top of it. */
+  --color-paper: #ebdec0;
   --color-sheet: #ffffff;
   --color-ink: #252a27;
-  --color-ink-muted: #68716c;
-  --color-hairline: #e5e5df;
+  --color-ink-muted: #5c5947;
+  --color-hairline: #d9c9a4;
 
-  /* Primary — sage, used for CTAs, links, active states. */
-  --color-sage: #315c4c;
-  --color-sage-hover: #284d40;
-  --color-sage-pressed: #1e3a30;
-  --color-sage-tint: #e7efeb;
+  /* Primary — Fern, deepened for reliable white-on-colour contrast. */
+  --color-sage: #5a7360;
+  --color-sage-hover: #4c6152;
+  --color-sage-pressed: #3d4e42;
+  --color-sage-tint: #e5eae4;
 
-  /* Sparing accents — never the dominant color of a section. */
-  --color-peach: #e8b69b;
-  --color-peach-tint: #faeee7;
-  --color-gold: #d5a84a;
-  --color-gold-tint: #f8efdc;
+  /* Secondary — Pistachio. Tags, secondary surfaces, subtle borders. */
+  --color-pistachio: #ccc09c;
+  --color-pistachio-tint: #f3f0e6;
+  --color-pistachio-pressed: #a79972;
+
+  /* Accents — used sparingly, never as a section's dominant colour. */
+  --color-peach: #fecdbe; /* Cherry Blossom */
+  --color-peach-tint: #fff1ec;
+  --color-gold: #b4762a; /* deepened Honey, for readable warning text */
+  --color-gold-tint: #fdf1e1;
+  --color-bluebell: #b7cbdb;
+  --color-bluebell-tint: #eef3f7;
+  --color-bluebell-pressed: #4c6c82;
 
   /* Status. */
-  --color-success: #3d7a5a;
-  --color-success-tint: #e3f0e8;
-  --color-warning: #b8862b;
-  --color-warning-tint: #faf0dd;
-  --color-error: #b94a48;
-  --color-error-tint: #f8e6e5;
+  --color-success: #4e6b54; /* Fern family */
+  --color-success-tint: #e6ebe4;
+  --color-warning: #b4762a; /* Honey, deepened */
+  --color-warning-tint: #fdf1e1;
+  --color-error: #a34e47; /* Peony, deepened */
+  --color-error-tint: #fcebe9;
 
   --font-heading: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
   --font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
