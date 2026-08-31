@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { CaretRight, ShieldWarning } from "@phosphor-icons/react";
 import { useAuth } from "@/lib/auth/auth-context";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
@@ -101,6 +103,16 @@ export default function StaffProfilePage() {
       </Sheet>
 
       <ProfileCompletion />
+
+      <Link href="/staff/safety">
+        <Sheet className="flex items-center justify-between gap-3 hover:border-sage/50">
+          <span className="flex items-center gap-2 text-[14px] font-semibold text-ink">
+            <ShieldWarning size={18} className="text-error" />
+            Safety & Support
+          </span>
+          <CaretRight size={16} className="text-ink-muted" />
+        </Sheet>
+      </Link>
 
       <StaffProfileSetup />
       <VerificationForm />

@@ -8,6 +8,7 @@ import {
   ChatCircleText,
   Prohibit,
   ShieldCheck,
+  ShieldWarning,
   Star,
 } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
@@ -20,6 +21,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { VerificationBadge } from "@/components/ui/badge";
 import { ErrorState } from "@/components/ui/empty-state";
 import { ReportForm } from "@/components/report-form";
+import { SosScreen } from "@/components/sos-screen";
 import { caregiverPhotoUrl } from "@/lib/photo-url";
 
 type Booking = {
@@ -29,7 +31,7 @@ type Booking = {
   starts_at: string;
   ends_at: string;
   duration_hours: number;
-  address: string;
+  address: string | null;
   one_off_notes: string | null;
   hourly_rate: number;
   total_amount: number;
@@ -150,28 +152,37 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
   const [ward, setWard] = useState<Ward>(null);
   const [emergencyContact, setEmergencyContact] = useState<EmergencyContact>(null);
   const [counterpartyUserId, setCounterpartyUserId] = useState<string | null>(null);
+  const [counterpartyVerificationStatus, setCounterpartyVerificationStatus] = useState<
+    string | null
+  >(null);
+  const [careLocationGeneral, setCareLocationGeneral] = useState<string | null>(null);
   const [events, setEvents] = useState<BookingEvent[]>([]);
   const [caregiver, setCaregiver] = useState<CaregiverBrief | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState<"accept" | "decline" | null>(null);
   const [declineReason, setDeclineReason] = useState("");
+  const [sosOpen, setSosOpen] = useState(false);
 
   function load() {
     apiFetch<{
       booking: Booking;
+      careLocationGeneral: string | null;
       ward: Ward;
       events: BookingEvent[];
       emergencyContact: EmergencyContact;
       counterpartyUserId: string | null;
+      counterpartyVerificationStatus: string | null;
     }>(`/api/bookings/${id}`)
       .then((res) => {
         setError(null);
         setBooking(res.booking);
+        setCareLocationGeneral(res.careLocationGeneral);
         setWard(res.ward);
         setEvents(res.events);
         setEmergencyContact(res.emergencyContact);
         setCounterpartyUserId(res.counterpartyUserId);
+        setCounterpartyVerificationStatus(res.counterpartyVerificationStatus);
       })
       .catch((err) => setError(errorMessage(err)));
   }
@@ -297,7 +308,34 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
       )}
 
       <Sheet className="flex flex-col gap-3">
-        <p className="text-[15px]">{booking.address}</p>
+        <div className="flex flex-col gap-1">
+          <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+            Care location
+          </h2>
+          {booking.address ? (
+            <>
+              <p className="text-[15px]">{booking.address}</p>
+              {viewerRole === "staff" && (
+                <p className="text-[12px] text-ink-muted">
+                  Your exact address is shared only with the assigned caregiver for a confirmed
+                  booking.
+                </p>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="text-[15px]">{careLocationGeneral ?? "General area not available"}</p>
+              <p className="text-[12px] text-ink-muted">
+                The exact address is shared once you accept this request.
+              </p>
+            </>
+          )}
+        </div>
+        {viewerRole === "staff" && counterpartyVerificationStatus === "verified" && (
+          <p className="flex items-center gap-1.5 text-[13px] font-semibold text-sage">
+            <ShieldCheck size={16} weight="fill" /> Verified Parent
+          </p>
+        )}
         {booking.one_off_notes && (
           <p className="text-[13px] text-ink-muted">{booking.one_off_notes}</p>
         )}
@@ -499,13 +537,36 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
         <Sheet className="flex flex-col gap-3">
           <h2 className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
             <ShieldCheck size={16} className="text-sage" />
-            CareLink Safety
+            {viewerRole === "staff" ? "Safety & Support" : "CareLink Safety"}
           </h2>
           <p className="text-[13px] text-ink-muted">
             Keep communication and booking information within CareLink whenever possible.
           </p>
+          {viewerRole === "staff" && ["accepted", "paid", "active"].includes(booking.status) && (
+            <button
+              type="button"
+              onClick={() => setSosOpen(true)}
+              className="flex min-h-[52px] items-center gap-3 rounded-[12px] border border-error/40 bg-error-tint px-4 py-3 text-left hover:border-error"
+            >
+              <ShieldWarning size={22} weight="fill" className="shrink-0 text-error" />
+              <span className="flex flex-col">
+                <span className="text-[14px] font-semibold text-ink">SOS / Emergency</span>
+                <span className="text-[12px] text-ink-muted">
+                  Police, fire, medical, or alert CareLink Safety Team
+                </span>
+              </span>
+            </button>
+          )}
           <ReportForm bookingId={id} subjectUserId={counterpartyUserId} />
         </Sheet>
+      )}
+
+      {sosOpen && counterpartyUserId && (
+        <SosScreen
+          bookingId={id}
+          bookingSubjectUserId={counterpartyUserId}
+          onClose={() => setSosOpen(false)}
+        />
       )}
     </div>
   );

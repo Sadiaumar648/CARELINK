@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Flag } from "@phosphor-icons/react";
+import { Flag, ShieldWarning } from "@phosphor-icons/react";
+import { SOS_REPORT_MARKER } from "@carelink/shared";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ function ReportCard({ report, onChanged }: { report: Report; onChanged: () => vo
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const isSos = report.category === "safety" && report.description.startsWith(SOS_REPORT_MARKER);
 
   async function setStatus(status: "investigating" | "resolved") {
     setBusy(true);
@@ -49,15 +51,17 @@ function ReportCard({ report, onChanged }: { report: Report; onChanged: () => vo
   }
 
   return (
-    <Sheet className="flex flex-col gap-3">
+    <Sheet className={`flex flex-col gap-3 ${isSos ? "border-error/50 bg-error-tint" : ""}`}>
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-[17px] font-semibold">
+          <p className="flex items-center gap-1.5 text-[17px] font-semibold">
+            {isSos && <ShieldWarning size={18} weight="fill" className="shrink-0 text-error" />}
             {report.subject?.full_name}{" "}
             <span className="text-ink-muted">({report.subject?.role})</span>
           </p>
           <p className="text-[13px] text-ink-muted">
-            {report.category.replace(/_/g, " ")} · reported by {report.reporter?.full_name}
+            {isSos ? "SOS emergency alert" : report.category.replace(/_/g, " ")} · reported by{" "}
+            {report.reporter?.full_name}
           </p>
         </div>
         <StatusBadge label={report.status} tone={TONE[report.status] ?? "neutral"} />

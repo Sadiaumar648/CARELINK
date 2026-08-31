@@ -151,9 +151,23 @@ export async function POST(request: Request) {
 
 // Task 2.13. RLS alone decides what comes back — a parent sees their own
 // requests, a caregiver sees requests made to them, nothing more.
+//
+// A caregiver is a party to a booking (so passes RLS) from the moment it's
+// requested, before they've accepted it — so, same as the detail route,
+// the exact address for a request they haven't accepted (or that never
+// reached acceptance: pending/declined/expired) is redacted here, in what
+// the route returns, and replaced with the parent's general area. This
+// list route doesn't have per-row event history to hand, so unlike the
+// detail route it uses status alone — a booking currently
+// cancelled/disputed that HAD been accepted will still show as redacted
+// in this list (though the detail page for that same booking will show
+// the real address, since it checks the event log). Caregiver safety
+// spec §1-3.
+const STAFF_HIDDEN_ADDRESS_STATUSES = new Set(["pending", "declined", "expired"]);
+
 export async function GET(request: Request) {
   try {
-    const { supabase } = await requireRole(request, ["parent", "staff", "admin"]);
+    const { supabase, role } = await requireRole(request, ["parent", "staff", "admin"]);
     const url = new URL(request.url);
     const status = url.searchParams.get("status");
 
@@ -162,7 +176,30 @@ export async function GET(request: Request) {
 
     const { data, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ bookings: data });
+
+    let bookings = data ?? [];
+    if (role === "staff") {
+      const toRedact = bookings.filter((b) => STAFF_HIDDEN_ADDRESS_STATUSES.has(b.status));
+      if (toRedact.length > 0) {
+        const parentIds = [...new Set(toRedact.map((b) => b.parent_profile_id))];
+        const { data: profiles } = await supabase
+          .from("parent_profiles")
+          .select("id, area")
+          .in("id", parentIds);
+        const areaById = new Map((profiles ?? []).map((p) => [p.id, p.area as string]));
+        bookings = bookings.map((b) =>
+          STAFF_HIDDEN_ADDRESS_STATUSES.has(b.status)
+            ? {
+                ...b,
+                address: null,
+                careLocationGeneral: areaById.get(b.parent_profile_id) ?? null,
+              }
+            : b,
+        );
+      }
+    }
+
+    return NextResponse.json({ bookings });
   } catch (error) {
     return (
       authErrorResponse(error) ?? NextResponse.json({ error: "Unexpected error" }, { status: 500 })

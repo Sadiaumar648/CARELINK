@@ -84,6 +84,82 @@ function WeightsSection() {
   );
 }
 
+const EMERGENCY_NUMBER_KEYS = [
+  { key: "police_emergency_number", label: "Police / Security emergency number" },
+  { key: "fire_emergency_number", label: "Fire & Rescue emergency number" },
+  { key: "medical_emergency_number", label: "Medical emergency number" },
+] as const;
+
+// Backs the caregiver-facing SOS screen's police/fire/medical options
+// (GET /api/settings/emergency-contacts) — that screen never guesses a
+// number, so it stays blank ("not yet configured") until set here.
+function EmergencyContactsSection() {
+  const [values, setValues] = useState<Record<string, string> | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    Promise.all(
+      EMERGENCY_NUMBER_KEYS.map(({ key }) =>
+        apiFetch<{ setting: { value: string } }>(`/api/admin/settings/${key}`)
+          .then((res) => [key, String(res.setting.value)] as const)
+          .catch(() => [key, ""] as const),
+      ),
+    ).then((entries) => setValues(Object.fromEntries(entries)));
+  }, []);
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!values) return;
+    setSaving(true);
+    setError(null);
+    setSaved(false);
+    try {
+      await Promise.all(
+        EMERGENCY_NUMBER_KEYS.map(({ key }) =>
+          apiFetch(`/api/admin/settings/${key}`, {
+            method: "PATCH",
+            body: { value: values[key] ?? "" },
+          }),
+        ),
+      );
+      setSaved(true);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!values) return <Skeleton className="h-64" />;
+
+  return (
+    <Sheet as="form" onSubmit={onSubmit} className="flex flex-col gap-4">
+      <h2 className="text-[19px] font-semibold font-heading">Emergency contact numbers</h2>
+      <p className="text-[13px] text-ink-muted">
+        Shown to caregivers on the Emergency SOS screen. Left blank, that option shows &quot;not yet
+        configured&quot; rather than a guessed number.
+      </p>
+      {EMERGENCY_NUMBER_KEYS.map(({ key, label }) => (
+        <Field
+          key={key}
+          label={label}
+          type="tel"
+          placeholder="e.g. 191"
+          value={values[key] ?? ""}
+          onChange={(e) => setValues((v) => (v ? { ...v, [key]: e.target.value } : v))}
+        />
+      ))}
+      {error && <p className="text-[13px] text-error">{error}</p>}
+      {saved && <p className="text-[13px] text-sage-pressed">Saved.</p>}
+      <Button type="submit" disabled={saving}>
+        {saving ? "Saving…" : "Save emergency numbers"}
+      </Button>
+    </Sheet>
+  );
+}
+
 function CommissionSection() {
   const [rate, setRate] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -147,6 +223,7 @@ export default function AdminSettingsPage() {
       <h1 className="text-[26px] font-semibold font-heading">Settings</h1>
       <WeightsSection />
       <CommissionSection />
+      <EmergencyContactsSection />
     </div>
   );
 }

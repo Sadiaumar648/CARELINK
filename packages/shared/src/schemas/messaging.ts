@@ -19,6 +19,14 @@ export type StaffResponseInput = z.infer<typeof staffResponseSchema>;
 export const reportCategorySchema = z.enum(["no_show", "conduct", "payment", "safety", "other"]);
 export type ReportCategory = z.infer<typeof reportCategorySchema>;
 
+// A plain text marker, not a schema column — an SOS alert is just a
+// "safety"-category report (see createReportSchema below) whose
+// description starts with this string, so the existing admin reports
+// queue can flag it as urgent without a new severity column, and the
+// caregiver-side SOS screen and the admin reports page agree on the
+// exact same string.
+export const SOS_REPORT_MARKER = "🚨 SOS EMERGENCY ALERT";
+
 export const createReportSchema = z.object({
   bookingId: z.string().uuid().optional(),
   subjectUserId: z.string().uuid(),

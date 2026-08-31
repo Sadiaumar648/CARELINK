@@ -2,6 +2,24 @@ import { NextResponse } from "next/server";
 import { authErrorResponse, requireUser } from "@/lib/auth/require-user";
 import { createServiceRoleClient } from "@/lib/db/supabase-server";
 
+// A caregiver is a party to a booking (and so passes bookings_read_parties)
+// from the moment a parent requests it — RLS has no status condition, by
+// design, since several parents may request the same slot before one is
+// accepted. That means "don't show the exact address before the caregiver
+// has accepted" has to be enforced here, in what the route returns, not in
+// the row-level policy. A status of pending/declined/expired can only be
+// reached without ever having passed through "accepted" (see the booking
+// state machine); cancelled/disputed are reachable either way, so those two
+// fall back to checking the booking's own event log for a real "accepted"
+// transition, rather than guessing from the current status alone.
+const NEVER_ACCEPTED_STATUSES = new Set(["pending", "declined", "expired"]);
+function staffCanSeeExactAddress(status: string, events: { to_status: string }[]): boolean {
+  if (status === "cancelled" || status === "disputed") {
+    return events.some((e) => e.to_status === "accepted");
+  }
+  return !NEVER_ACCEPTED_STATUSES.has(status);
+}
+
 // Task 2.13 (detail), 2.14 (care profile attachment) and 3.8 (symmetric
 // emergency-contact reveal). The ward is fetched through the same
 // request-scoped client as the booking, so row-level security alone
@@ -47,6 +65,14 @@ export async function GET(request: Request, ctx: RouteContext<"/api/bookings/[id
     // messaging/reviews already imply.
     let emergencyContact: { name: string; phone: string } | null = null;
     let counterpartyUserId: string | null = null;
+    // Whether the counterparty has completed identity verification — the
+    // caregiver safety spec's "✓ Verified Parent" needs this, and it's the
+    // same "reasonable to know once a booking exists" reasoning as the user
+    // id above. users RLS only allows reading your own row, so — like the
+    // emergency contact next to it — this is read through the service role,
+    // narrowly, only for the one counterparty id this booking already
+    // establishes a relationship with.
+    let counterpartyVerificationStatus: string | null = null;
     if (role === "parent" || role === "staff") {
       const admin = createServiceRoleClient();
       const counterpartyTable = role === "parent" ? "staff_profiles" : "parent_profiles";
@@ -64,14 +90,40 @@ export async function GET(request: Request, ctx: RouteContext<"/api/bookings/[id
           phone: data.emergency_contact_phone,
         };
       }
+      if (counterpartyUserId) {
+        const { data: counterpartyUser } = await admin
+          .from("users")
+          .select("verification_status")
+          .eq("id", counterpartyUserId)
+          .maybeSingle();
+        counterpartyVerificationStatus = counterpartyUser?.verification_status ?? null;
+      }
+    }
+
+    // Address privacy (caregiver safety spec §1-3): a caregiver who hasn't
+    // accepted yet gets the parent's general area only, never the exact
+    // address — the parent themselves and an admin always see the real
+    // thing.
+    let responseBooking = booking;
+    let careLocationGeneral: string | null = null;
+    if (role === "staff" && !staffCanSeeExactAddress(booking.status, events ?? [])) {
+      const { data: parentProfile } = await supabase
+        .from("parent_profiles")
+        .select("area")
+        .eq("id", booking.parent_profile_id)
+        .maybeSingle();
+      careLocationGeneral = parentProfile?.area ?? null;
+      responseBooking = { ...booking, address: null };
     }
 
     return NextResponse.json({
-      booking,
+      booking: responseBooking,
+      careLocationGeneral,
       ward,
       events: events ?? [],
       emergencyContact,
       counterpartyUserId,
+      counterpartyVerificationStatus,
     });
   } catch (error) {
     return (

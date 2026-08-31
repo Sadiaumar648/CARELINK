@@ -16,7 +16,8 @@ type Booking = {
   starts_at: string;
   ends_at: string;
   total_amount: number;
-  address: string;
+  address: string | null;
+  careLocationGeneral?: string | null;
   one_off_notes: string | null;
   status: string;
 };
@@ -76,7 +77,10 @@ function RequestCard({ booking, onRespond }: { booking: Booking; onRespond: () =
           >
             {formatRange(booking.starts_at, booking.ends_at)}
           </Link>
-          <p className="text-[14px] text-ink-muted">{booking.address}</p>
+          <p className="text-[14px] text-ink-muted">
+            {booking.address ??
+              `${booking.careLocationGeneral ?? "General area not available"} (exact address shown once accepted)`}
+          </p>
         </div>
         <p className="text-[19px] font-semibold tabular-nums">GH₵{booking.total_amount}</p>
       </div>
