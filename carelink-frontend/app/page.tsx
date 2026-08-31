@@ -129,7 +129,7 @@ const FAQ_ITEMS = [
   {
     question: "How does CareLink verify caregivers?",
     answer:
-      "Caregivers submit a government ID and a reference contact. An administrator reviews every submission by hand before an account is marked verified — an AI check assists by flagging whether a selfie plausibly matches the ID, but it never makes the final call on its own.",
+      "Caregivers submit a government ID, a live photo, and a reference contact. An administrator reviews every submission by hand before an account is marked verified.",
   },
   {
     question: "Do parents need to verify their identity?",

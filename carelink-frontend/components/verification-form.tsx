@@ -202,7 +202,7 @@ export function VerificationForm() {
                   checked={consent}
                   onChange={(e) => setConsent(e.target.checked)}
                 />
-                I consent to this selfie being compared against my ID by an automated service
+                I consent to this selfie being compared against my ID as part of verification
               </label>
             )}
           </div>
