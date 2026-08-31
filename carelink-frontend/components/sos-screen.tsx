@@ -5,10 +5,12 @@ import { Fire, FirstAid, ShieldWarning, Siren, X } from "@phosphor-icons/react";
 import { SOS_REPORT_MARKER } from "@carelink/shared";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
+import { minutesAgoLabel } from "@/lib/relative-time";
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 
 type EmergencyContacts = { police: string | null; fire: string | null; medical: string | null };
+type SafeTrackLocation = { latitude: number; longitude: number; updated_at: string } | null;
 
 const SAFETY_DISCLAIMER =
   "For immediate danger, contact the appropriate emergency service. CareLink Safety Team alerts are for CareLink follow-up and do not replace emergency services.";
@@ -84,13 +86,26 @@ export function SosScreen({
     setSending(true);
     setError(null);
     try {
+      // Best-effort: attach whatever SafeTrack location is currently on
+      // file for this booking, never a guessed one — "Location
+      // unavailable" if sharing isn't on or the lookup fails.
+      const locationLine = await apiFetch<{ location: SafeTrackLocation }>(
+        `/api/bookings/${bookingId}/location`,
+      )
+        .then((res) =>
+          res.location
+            ? `Last known location: ${res.location.latitude}, ${res.location.longitude} (updated ${minutesAgoLabel(res.location.updated_at)}).`
+            : "Location unavailable.",
+        )
+        .catch(() => "Location unavailable.");
+
       await apiFetch("/api/reports", {
         method: "POST",
         body: {
           bookingId,
           subjectUserId: bookingSubjectUserId,
           category: "safety",
-          description: `${SOS_REPORT_MARKER} — caregiver triggered an emergency safety alert during this booking at ${new Date().toLocaleString()}.`,
+          description: `${SOS_REPORT_MARKER} — caregiver triggered an emergency safety alert during this booking at ${new Date().toLocaleString()}. ${locationLine}`,
         },
       });
       setSent(true);

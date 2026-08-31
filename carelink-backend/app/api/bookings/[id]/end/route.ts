@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { authErrorResponse, requireRole } from "@/lib/auth/require-user";
 import { computeCommissionSplit } from "@/lib/services/commission";
+import { createServiceRoleClient } from "@/lib/db/supabase-server";
 
 // Task 3.8 (closes the session) and 3.9 (credits the commission split
 // against the succeeded payment, at the configured rate). staff_profiles.
@@ -29,6 +30,14 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/bookings/[
       .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+    // SafeTrack (caregiver safety spec): stop location sharing the
+    // instant the session ends, regardless of which party ended it — the
+    // caregiver-owned delete policy wouldn't cover a parent-initiated
+    // end, so this goes through the service role rather than the
+    // request-scoped client. Best-effort: a booking that never had
+    // sharing enabled has no row to delete, which is not an error.
+    await createServiceRoleClient().from("caregiver_locations").delete().eq("booking_id", id);
 
     const { data: settingRow } = await supabase
       .from("platform_settings")

@@ -22,6 +22,8 @@ import { VerificationBadge } from "@/components/ui/badge";
 import { ErrorState } from "@/components/ui/empty-state";
 import { ReportForm } from "@/components/report-form";
 import { SosScreen } from "@/components/sos-screen";
+import { SafeTrackCaregiverControl } from "@/components/safe-track";
+import { CaregiverLocationView } from "@/components/caregiver-location-view";
 import { caregiverPhotoUrl } from "@/lib/photo-url";
 
 type Booking = {
@@ -532,6 +534,13 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
 
         {viewerRole === "parent" && canCancel && <CancelForm bookingId={id} onCancelled={load} />}
       </div>
+
+      {viewerRole === "staff" && (
+        <SafeTrackCaregiverControl bookingId={id} bookingStatus={booking.status} />
+      )}
+      {viewerRole === "parent" && (
+        <CaregiverLocationView bookingId={id} active={booking.status === "active"} />
+      )}
 
       {!["pending", "declined"].includes(booking.status) && counterpartyUserId && (
         <Sheet className="flex flex-col gap-3">
