@@ -132,16 +132,20 @@ $$;
 -- from migration 20260901000000 unchanged, and adds caregiver_type plus
 -- a qualifications array using the exact same jsonb_agg pass-through
 -- pattern the view already uses for skills and areas.
+-- Postgres requires CREATE OR REPLACE VIEW to keep every pre-existing
+-- column in its original name AND position — new columns can only be
+-- appended at the end of the select list, never inserted in the middle.
+-- So verification_method, caregiver_type, and qualifications all go
+-- after the original last column (areas), even though that reads a bit
+-- out of order next to the fields they're conceptually grouped with.
 create or replace view public.public_caregivers as
 select
   sp.id as staff_profile_id,
   sp.user_id,
   u.full_name,
   u.verification_status,
-  u.verification_method,
   sp.photo_path,
   sp.bio,
-  sp.caregiver_type,
   sp.years_experience,
   sp.hourly_rate,
   sp.languages,
@@ -161,6 +165,8 @@ select
     ),
     '[]'::jsonb
   ) as areas,
+  u.verification_method,
+  sp.caregiver_type,
   coalesce(
     (
       select jsonb_agg(
