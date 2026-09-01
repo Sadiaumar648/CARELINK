@@ -8,7 +8,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { VerificationBadge } from "@/components/ui/badge";
 import { caregiverPhotoUrl } from "@/lib/photo-url";
-import { skillLabel, type CaregiverResult, type SearchFilters } from "./types";
+import { caregiverTypeLabel, skillLabel, type CaregiverResult, type SearchFilters } from "./types";
 
 // Every reason here is grounded in something the backend actually did:
 // the hard filters in GET /api/search/caregivers exclude a candidate
@@ -69,12 +69,17 @@ export function CaregiverResultCard({
               {caregiver.full_name}
             </Link>
             <p className="text-[12px] text-ink-muted">
+              {caregiverTypeLabel(caregiver.caregiver_type)
+                ? `${caregiverTypeLabel(caregiver.caregiver_type)} · `
+                : ""}
               {caregiver.years_experience ?? 0} yrs
               {primaryArea ? ` · ${primaryArea}` : ""}
             </p>
           </div>
         </div>
-        {caregiver.verification_status === "verified" && <VerificationBadge />}
+        {caregiver.verification_status === "verified" && (
+          <VerificationBadge method={caregiver.verification_method} />
+        )}
       </div>
 
       <RatingStars rating={caregiver.rating_avg} reviewCount={caregiver.rating_count} />

@@ -73,6 +73,7 @@ export async function GET(request: Request, ctx: RouteContext<"/api/bookings/[id
     // narrowly, only for the one counterparty id this booking already
     // establishes a relationship with.
     let counterpartyVerificationStatus: string | null = null;
+    let counterpartyVerificationMethod: string | null = null;
     if (role === "parent" || role === "staff") {
       const admin = createServiceRoleClient();
       const counterpartyTable = role === "parent" ? "staff_profiles" : "parent_profiles";
@@ -93,10 +94,11 @@ export async function GET(request: Request, ctx: RouteContext<"/api/bookings/[id
       if (counterpartyUserId) {
         const { data: counterpartyUser } = await admin
           .from("users")
-          .select("verification_status")
+          .select("verification_status, verification_method")
           .eq("id", counterpartyUserId)
           .maybeSingle();
         counterpartyVerificationStatus = counterpartyUser?.verification_status ?? null;
+        counterpartyVerificationMethod = counterpartyUser?.verification_method ?? null;
       }
     }
 
@@ -124,6 +126,7 @@ export async function GET(request: Request, ctx: RouteContext<"/api/bookings/[id
       emergencyContact,
       counterpartyUserId,
       counterpartyVerificationStatus,
+      counterpartyVerificationMethod,
     });
   } catch (error) {
     return (

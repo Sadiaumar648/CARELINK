@@ -10,6 +10,7 @@ import {
   ChatCircleText,
   CheckCircle,
   ArrowLeft,
+  SealCheck,
 } from "@phosphor-icons/react";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
@@ -27,7 +28,9 @@ type Caregiver = {
   user_id: string;
   full_name: string;
   verification_status: string;
+  verification_method: "carelink" | "agency" | null;
   photo_path: string | null;
+  caregiver_type: "nanny" | "babysitter" | null;
   hourly_rate: number;
   years_experience: number | null;
   rating_avg: number | null;
@@ -35,8 +38,20 @@ type Caregiver = {
   skills: string[];
   languages: string[] | null;
   areas: { area: string; isPrimary: boolean }[];
+  qualifications: {
+    name: string;
+    institution: string | null;
+    year: number | null;
+    verificationStatus: string;
+  }[];
   bio: string | null;
 };
+
+function caregiverTypeLabel(type: "nanny" | "babysitter" | null): string | null {
+  if (type === "nanny") return "Nanny";
+  if (type === "babysitter") return "Babysitter";
+  return null;
+}
 
 type Ward = { id: string; display_name: string; age_years: number };
 type Booking = { id: string };
@@ -446,13 +461,14 @@ export default function CaregiverProfilePage({ params }: { params: Promise<{ id:
                     className="flex items-center gap-1 text-[13px] font-semibold text-sage hover:text-sage-hover"
                     aria-expanded={verificationInfoOpen}
                   >
-                    <VerificationBadge />
+                    <VerificationBadge method={caregiver.verification_method} />
                     <Info size={14} />
                   </button>
                   {verificationInfoOpen && (
                     <p className="max-w-xs text-[12px] leading-relaxed text-ink-muted">
-                      Verification means the caregiver&apos;s submitted identity information has
-                      been reviewed according to CareLink&apos;s verification process.
+                      {caregiver.verification_method === "agency"
+                        ? "This caregiver's identity was verified by the agency before joining CareLink."
+                        : "Verification means the caregiver's submitted identity information has been reviewed according to CareLink's verification process."}
                     </p>
                   )}
                 </div>
@@ -466,6 +482,9 @@ export default function CaregiverProfilePage({ params }: { params: Promise<{ id:
               {caregiver.rating_count > 0 && <span>· {caregiver.rating_count} reviews</span>}
             </p>
             <p className="text-[13px] text-ink-muted">
+              {caregiverTypeLabel(caregiver.caregiver_type)
+                ? `${caregiverTypeLabel(caregiver.caregiver_type)} · `
+                : ""}
               {caregiver.years_experience ?? 0} yrs experience
               {primaryArea ? ` · ${primaryArea}` : ""}
             </p>
@@ -516,6 +535,32 @@ export default function CaregiverProfilePage({ params }: { params: Promise<{ id:
             <section className="flex flex-col gap-2">
               <h2 className="text-[15px] font-semibold font-heading">Languages</h2>
               <p className="text-[14px] text-ink-muted">{caregiver.languages.join(", ")}</p>
+            </section>
+          )}
+
+          {caregiver.qualifications.length > 0 && (
+            <section className="flex flex-col gap-2">
+              <h2 className="text-[15px] font-semibold font-heading">
+                Qualifications & Certifications
+              </h2>
+              <ul className="flex flex-col gap-1.5">
+                {caregiver.qualifications.map((q, i) => (
+                  <li key={i} className="flex items-center gap-2 text-[14px] text-ink-muted">
+                    {q.verificationStatus === "verified" && (
+                      <SealCheck
+                        size={14}
+                        weight="fill"
+                        className="shrink-0 text-[var(--color-success)]"
+                      />
+                    )}
+                    <span>
+                      {q.name}
+                      {q.institution ? ` — ${q.institution}` : ""}
+                      {q.year ? ` (${q.year})` : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </section>
           )}
 

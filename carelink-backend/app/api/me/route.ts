@@ -12,13 +12,14 @@ export async function GET(request: Request) {
     const { supabase, userId, role } = await requireUser(request);
     const { data } = await supabase
       .from("users")
-      .select("verification_status")
+      .select("verification_status, verification_method")
       .eq("id", userId)
       .single();
     return NextResponse.json({
       id: userId,
       role,
       verificationStatus: data?.verification_status ?? "unverified",
+      verificationMethod: data?.verification_method ?? null,
     });
   } catch (error) {
     return (

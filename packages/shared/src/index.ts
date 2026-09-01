@@ -5,6 +5,7 @@ export * from "./schemas/parent-invite";
 export * from "./schemas/claim-invitation";
 export * from "./schemas/staff-profile";
 export * from "./schemas/staff-skills";
+export * from "./schemas/staff-qualifications";
 export * from "./schemas/staff-areas";
 export * from "./schemas/staff-availability";
 export * from "./schemas/parent-household";

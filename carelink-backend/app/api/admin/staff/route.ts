@@ -52,13 +52,18 @@ export async function POST(request: Request) {
       .from("users")
       .update({
         invitation_code_hash: hashInvitationCode(code),
+        agency_reference_id: body.agencyReferenceId ?? null,
         // The admin's explicit attestation that the agency already
         // verified this person — never assumed, only ever set when the
-        // caller checked the box. Writes the exact same column the
-        // document-review flow (verification_submissions decision)
-        // already writes, so every existing "is this account verified"
-        // check elsewhere in the app keeps working unmodified.
-        ...(body.agencyVerified ? { verification_status: "verified" as const } : {}),
+        // caller checked the box. Writes the exact same verification_status
+        // column the document-review flow (verification_submissions
+        // decision) already writes, so every existing "is this account
+        // verified" check elsewhere in the app keeps working unmodified;
+        // verification_method records which of the two paths this was,
+        // for display only.
+        ...(body.agencyVerified
+          ? { verification_status: "verified" as const, verification_method: "agency" as const }
+          : {}),
       })
       .eq("id", created.user.id);
 

@@ -58,6 +58,7 @@ type CaregiverBrief = {
   full_name: string;
   photo_path: string | null;
   verification_status: string;
+  verification_method: "carelink" | "agency" | null;
   rating_avg: number | null;
   rating_count: number;
   areas: { area: string; isPrimary: boolean }[];
@@ -157,6 +158,9 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
   const [counterpartyVerificationStatus, setCounterpartyVerificationStatus] = useState<
     string | null
   >(null);
+  const [counterpartyVerificationMethod, setCounterpartyVerificationMethod] = useState<
+    "carelink" | "agency" | null
+  >(null);
   const [careLocationGeneral, setCareLocationGeneral] = useState<string | null>(null);
   const [events, setEvents] = useState<BookingEvent[]>([]);
   const [caregiver, setCaregiver] = useState<CaregiverBrief | null>(null);
@@ -175,6 +179,7 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
       emergencyContact: EmergencyContact;
       counterpartyUserId: string | null;
       counterpartyVerificationStatus: string | null;
+      counterpartyVerificationMethod: "carelink" | "agency" | null;
     }>(`/api/bookings/${id}`)
       .then((res) => {
         setError(null);
@@ -185,6 +190,7 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
         setEmergencyContact(res.emergencyContact);
         setCounterpartyUserId(res.counterpartyUserId);
         setCounterpartyVerificationStatus(res.counterpartyVerificationStatus);
+        setCounterpartyVerificationMethod(res.counterpartyVerificationMethod);
       })
       .catch((err) => setError(errorMessage(err)));
   }
@@ -253,7 +259,9 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
               <p className="text-[16px] font-semibold">{caregiver.full_name}</p>
-              {caregiver.verification_status === "verified" && <VerificationBadge />}
+              {caregiver.verification_status === "verified" && (
+                <VerificationBadge method={caregiver.verification_method} />
+              )}
             </div>
             <p className="flex items-center gap-1 text-[13px] text-ink-muted">
               <Star size={14} weight="fill" className="text-gold" />
@@ -335,7 +343,13 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
         </div>
         {viewerRole === "staff" && counterpartyVerificationStatus === "verified" && (
           <p className="flex items-center gap-1.5 text-[13px] font-semibold text-sage">
-            <ShieldCheck size={16} weight="fill" /> Verified Parent
+            <ShieldCheck size={16} weight="fill" />
+            Verified Parent
+            {counterpartyVerificationMethod && (
+              <span className="text-ink-muted">
+                ({counterpartyVerificationMethod === "carelink" ? "by CareLink" : "by Agency"})
+              </span>
+            )}
           </p>
         )}
         {booking.one_off_notes && (

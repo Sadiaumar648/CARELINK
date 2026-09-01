@@ -23,12 +23,23 @@ export function Badge({
 }
 
 // Only ever reflects the backend's real verification_status — never
-// shown unless the account is actually verified.
-export function VerificationBadge() {
+// shown unless the account is actually verified. `method`, when known
+// (users.verification_method — carelink or agency), makes the label
+// specific rather than a bare "Verified", so the UI never implies a
+// CareLink document review happened when the account was actually
+// verified by the agency directly. Omitting it (every call site that
+// predates verification_method) keeps the original generic label.
+export function VerificationBadge({ method }: { method?: "carelink" | "agency" | null }) {
+  const label =
+    method === "carelink"
+      ? "Verified by CareLink"
+      : method === "agency"
+        ? "Verified by Agency"
+        : "Verified";
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-success-tint px-3 py-1 text-[12px] font-semibold text-[var(--color-success)]">
       <SealCheck size={14} weight="fill" />
-      Verified
+      {label}
     </span>
   );
 }

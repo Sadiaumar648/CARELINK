@@ -34,6 +34,7 @@ export async function PATCH(request: Request) {
         {
           user_id: userId,
           bio: body.bio ?? null,
+          caregiver_type: body.caregiverType ?? null,
           years_experience: body.yearsExperience,
           hourly_rate: body.hourlyRate,
           languages: body.languages,

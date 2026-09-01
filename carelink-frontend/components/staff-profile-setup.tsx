@@ -82,6 +82,7 @@ function PhotoSection() {
 
 type Profile = {
   bio: string | null;
+  caregiver_type: "nanny" | "babysitter" | null;
   years_experience: number;
   hourly_rate: number;
   languages: string[];
@@ -89,8 +90,14 @@ type Profile = {
   emergency_contact_phone: string;
 } | null;
 
+const CAREGIVER_TYPES: { value: "nanny" | "babysitter"; label: string }[] = [
+  { value: "nanny", label: "Nanny" },
+  { value: "babysitter", label: "Babysitter" },
+];
+
 function ProfileSection() {
   const [bio, setBio] = useState("");
+  const [caregiverType, setCaregiverType] = useState<"nanny" | "babysitter" | "">("");
   const [yearsExperience, setYearsExperience] = useState("");
   const [hourlyRate, setHourlyRate] = useState("");
   const [languages, setLanguages] = useState("");
@@ -106,6 +113,7 @@ function ProfileSection() {
       .then((res) => {
         if (res.profile) {
           setBio(res.profile.bio ?? "");
+          setCaregiverType(res.profile.caregiver_type ?? "");
           setYearsExperience(String(res.profile.years_experience));
           setHourlyRate(String(res.profile.hourly_rate));
           setLanguages(res.profile.languages.join(", "));
@@ -127,6 +135,7 @@ function ProfileSection() {
         method: "PATCH",
         body: {
           bio: bio || undefined,
+          caregiverType: caregiverType || undefined,
           yearsExperience: Number(yearsExperience),
           hourlyRate: Number(hourlyRate),
           languages: languages
@@ -150,6 +159,27 @@ function ProfileSection() {
   return (
     <Sheet as="form" onSubmit={onSubmit} className="flex flex-col gap-4">
       <h2 className="text-[19px] font-semibold font-heading">Profile</h2>
+      <div className="flex flex-col gap-2">
+        <span className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+          Caregiver type (optional)
+        </span>
+        <div className="flex gap-2">
+          {CAREGIVER_TYPES.map((t) => (
+            <button
+              key={t.value}
+              type="button"
+              onClick={() => setCaregiverType((c) => (c === t.value ? "" : t.value))}
+              className={`rounded border px-3 py-2 text-[13px] font-semibold ${
+                caregiverType === t.value
+                  ? "border-sage bg-sage/10 text-sage-pressed"
+                  : "border-hairline text-ink-muted"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
       <Field label="Bio (optional)" value={bio} onChange={(e) => setBio(e.target.value)} />
       <div className="grid grid-cols-2 gap-4">
         <Field
@@ -466,12 +496,149 @@ function AvailabilitySection() {
   );
 }
 
+type Qualification = { id?: string; name: string; institution: string; year: string };
+
+// Mirrors AreasSection's own add/remove-then-save-the-whole-list
+// pattern exactly, against the new GET/PUT /api/staff/qualifications
+// (same delete-then-insert shape staff_areas and staff_skills already
+// use). verificationStatus isn't editable here — an administrator sets
+// that, this section only manages what the caregiver themselves claims.
+function QualificationsSection() {
+  const [items, setItems] = useState<Qualification[]>([]);
+  const [name, setName] = useState("");
+  const [institution, setInstitution] = useState("");
+  const [year, setYear] = useState("");
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    apiFetch<{
+      qualifications: {
+        id: string;
+        name: string;
+        institution: string | null;
+        year: number | null;
+      }[];
+    }>("/api/staff/qualifications")
+      .then((res) => {
+        setItems(
+          res.qualifications.map((q) => ({
+            id: q.id,
+            name: q.name,
+            institution: q.institution ?? "",
+            year: q.year ? String(q.year) : "",
+          })),
+        );
+        setLoaded(true);
+      })
+      .catch((err) => setError(errorMessage(err)));
+  }, []);
+
+  function addItem() {
+    if (!name.trim()) return;
+    setItems((prev) => [
+      ...prev,
+      { name: name.trim(), institution: institution.trim(), year: year.trim() },
+    ]);
+    setName("");
+    setInstitution("");
+    setYear("");
+  }
+
+  function removeItem(index: number) {
+    setItems((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function save() {
+    setSaving(true);
+    setError(null);
+    setSaved(false);
+    try {
+      await apiFetch("/api/staff/qualifications", {
+        method: "PUT",
+        body: {
+          qualifications: items.map((q) => ({
+            name: q.name,
+            institution: q.institution || undefined,
+            year: q.year ? Number(q.year) : undefined,
+          })),
+        },
+      });
+      setSaved(true);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!loaded) return <p className="text-[13px] text-ink-muted">Loading…</p>;
+
+  return (
+    <Sheet className="flex flex-col gap-4">
+      <h2 className="text-[19px] font-semibold font-heading">Qualifications & certifications</h2>
+      <p className="text-[13px] text-ink-muted">
+        Optional — an administrator reviews these before they show as verified on your profile.
+      </p>
+      <div className="flex flex-col gap-2">
+        {items.map((q, i) => (
+          <div
+            key={i}
+            className="flex items-center justify-between gap-3 rounded border border-hairline px-3 py-2"
+          >
+            <span className="text-[14px] text-ink">
+              {q.name}
+              {q.institution ? ` — ${q.institution}` : ""}
+              {q.year ? ` (${q.year})` : ""}
+            </span>
+            <button type="button" onClick={() => removeItem(i)} className="text-[13px] text-error">
+              Remove
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Name (e.g. First Aid Certificate)"
+          className="rounded border border-hairline bg-sheet px-3 py-2 text-[15px] text-ink"
+        />
+        <input
+          value={institution}
+          onChange={(e) => setInstitution(e.target.value)}
+          placeholder="Institution (optional)"
+          className="rounded border border-hairline bg-sheet px-3 py-2 text-[15px] text-ink"
+        />
+        <input
+          value={year}
+          onChange={(e) => setYear(e.target.value)}
+          placeholder="Year (optional)"
+          type="number"
+          className="rounded border border-hairline bg-sheet px-3 py-2 text-[15px] text-ink"
+        />
+      </div>
+      <Button type="button" variant="secondary" onClick={addItem} className="self-start">
+        Add
+      </Button>
+      {error && <p className="text-[13px] text-error">{error}</p>}
+      <Saved show={saved} />
+      <Button onClick={() => void save()} disabled={saving}>
+        {saving ? "Saving…" : "Save qualifications"}
+      </Button>
+    </Sheet>
+  );
+}
+
 export function StaffProfileSetup() {
   return (
     <div className="flex flex-col gap-6">
       <PhotoSection />
       <ProfileSection />
       <SkillsSection />
+      <QualificationsSection />
       <AreasSection />
       <AvailabilitySection />
     </div>

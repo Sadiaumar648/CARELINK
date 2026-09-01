@@ -51,7 +51,10 @@ export async function POST(request: Request) {
       .from("users")
       .update({
         invitation_code_hash: hashInvitationCode(code),
-        ...(body.agencyVerified ? { verification_status: "verified" as const } : {}),
+        agency_reference_id: body.agencyReferenceId ?? null,
+        ...(body.agencyVerified
+          ? { verification_status: "verified" as const, verification_method: "agency" as const }
+          : {}),
       })
       .eq("id", created.user.id);
 
@@ -83,7 +86,7 @@ export async function GET(request: Request) {
     const { data, error } = await supabase
       .from("users")
       .select(
-        "id, full_name, phone, email, account_status, verification_status, invited_by, created_at, parent_profiles(id, area)",
+        "id, full_name, phone, email, account_status, verification_status, verification_method, agency_reference_id, invited_by, created_at, parent_profiles(id, area)",
       )
       .eq("role", "parent")
       .order("created_at", { ascending: false });
@@ -101,9 +104,16 @@ export async function GET(request: Request) {
         email: row.email,
         accountStatus: row.account_status,
         verificationStatus: row.verification_status,
+        verificationMethod: row.verification_method,
+        agencyReferenceId: row.agency_reference_id,
         existingAgencyUser: row.invited_by !== null,
+        // account_status flips from "invited" to "active" the moment
+        // /api/auth/claim-invitation succeeds — no separate flag needed.
+        invitationStatus:
+          row.invited_by === null ? null : row.account_status === "invited" ? "pending" : "claimed",
         profileComplete: Boolean(profile),
         area: profile?.area ?? null,
+        createdAt: row.created_at,
       };
     });
 

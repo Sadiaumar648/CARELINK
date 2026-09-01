@@ -12,6 +12,7 @@ export const createParentInviteSchema = z.object({
   phone: z.string().trim().min(1, "Enter a phone number"),
   email: z.string().trim().email("Enter a valid email").optional(),
   agencyVerified: z.boolean().optional(),
+  agencyReferenceId: z.string().trim().min(1).optional(),
 });
 
 export type CreateParentInviteInput = z.infer<typeof createParentInviteSchema>;

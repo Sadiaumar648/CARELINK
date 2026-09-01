@@ -20,37 +20,55 @@ type ParentEntry = {
   email: string;
   accountStatus: string;
   verificationStatus: string;
+  verificationMethod: "carelink" | "agency" | null;
+  agencyReferenceId: string | null;
   existingAgencyUser: boolean;
+  invitationStatus: "pending" | "claimed" | null;
   profileComplete: boolean;
   area: string | null;
+  createdAt: string;
 };
 
 type CaregiverEntry = {
   id: string;
   fullName: string;
   phone: string;
+  email: string;
   accountStatus: string;
   verificationStatus: string;
+  verificationMethod: "carelink" | "agency" | null;
+  agencyReferenceId: string | null;
   existingAgencyUser: boolean;
+  invitationStatus: "pending" | "claimed" | null;
   profileComplete: boolean;
+  caregiverType: "nanny" | "babysitter" | null;
   ratingAvg: number | null;
   bookingsCompleted: number;
   acceptingBookings: boolean;
+  createdAt: string;
 };
 
-// "Agency Verified" vs plain "Verified" is presentational only — both
-// read the exact same verification_status column every other part of
-// the app already relies on (the booking-creation gate, the caregiver
-// profile badge, etc.). There is no separate "who verified this"
-// column, and none is added here — existingAgencyUser (derived from
-// the already-existing invited_by column) is only used to choose which
-// label to show for an already-verified account, never to change what
-// verified actually means.
-function verificationLabel(status: string, existingAgencyUser: boolean): string {
-  if (status === "verified") return existingAgencyUser ? "✓ Agency Verified" : "✓ Verified";
+// Reads users.verification_method directly now (added alongside
+// verification_status, never replacing it) rather than guessing from
+// invited_by — a real, per-account record of which of the two paths
+// verified them, not a heuristic.
+function verificationLabel(status: string, method: "carelink" | "agency" | null): string {
+  if (status === "verified") {
+    if (method === "carelink") return "✓ Verified by CareLink";
+    if (method === "agency") return "✓ Verified by Agency";
+    return "✓ Verified";
+  }
   if (status === "pending") return "Pending review";
   if (status === "rejected") return "Rejected";
   return "Verification required";
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 const VERIFICATION_TONE: Record<string, "neutral" | "positive" | "attention" | "info"> = {
@@ -83,6 +101,7 @@ function OnboardExistingUserForm({ role, onDone }: { role: Role; onDone: () => v
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [agencyReferenceId, setAgencyReferenceId] = useState("");
   const [agencyVerified, setAgencyVerified] = useState(false);
   const [issued, setIssued] = useState<{ fullName: string; code: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -100,6 +119,7 @@ function OnboardExistingUserForm({ role, onDone }: { role: Role; onDone: () => v
           fullName,
           phone,
           email: email.trim() || undefined,
+          agencyReferenceId: agencyReferenceId.trim() || undefined,
           agencyVerified,
         },
       });
@@ -126,6 +146,7 @@ function OnboardExistingUserForm({ role, onDone }: { role: Role; onDone: () => v
             setFullName("");
             setPhone("");
             setEmail("");
+            setAgencyReferenceId("");
             setAgencyVerified(false);
             onDone();
           }}
@@ -161,6 +182,12 @@ function OnboardExistingUserForm({ role, onDone }: { role: Role; onDone: () => v
         placeholder="If the agency already has one on file"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
+      />
+      <Field
+        label="Agency reference ID (optional)"
+        placeholder="The agency's own client/staff number, if they use one"
+        value={agencyReferenceId}
+        onChange={(e) => setAgencyReferenceId(e.target.value)}
       />
       <label className="flex items-start gap-2 rounded-[10px] border border-hairline bg-paper p-3 text-[13px] text-ink">
         <input
@@ -297,12 +324,16 @@ function ParentsTab() {
               </p>
               <p className="text-[12px] text-ink-muted">
                 {p.profileComplete ? "Household profile complete" : "Household profile incomplete"}
+                {p.agencyReferenceId ? ` · Ref: ${p.agencyReferenceId}` : ""}
+                {p.invitationStatus === "pending" ? " · Invitation pending" : ""}
+                {p.invitationStatus === "claimed" ? " · Invitation claimed" : ""}
+                {" · Added " + formatDate(p.createdAt)}
               </p>
             </div>
             <div className="flex items-center gap-2">
               <StatusBadge label={p.accountStatus} />
               <StatusBadge
-                label={verificationLabel(p.verificationStatus, p.existingAgencyUser)}
+                label={verificationLabel(p.verificationStatus, p.verificationMethod)}
                 tone={VERIFICATION_TONE[p.verificationStatus] ?? "neutral"}
               />
             </div>
@@ -354,15 +385,22 @@ function CaregiversTab() {
               <p className="text-[13px] text-ink-muted">
                 {c.phone} · {c.bookingsCompleted} bookings
                 {c.ratingAvg ? ` · ${c.ratingAvg.toFixed(1)}★` : ""}
+                {c.caregiverType
+                  ? ` · ${c.caregiverType === "nanny" ? "Nanny" : "Babysitter"}`
+                  : ""}
               </p>
               <p className="text-[12px] text-ink-muted">
                 {c.profileComplete ? "Profile complete" : "Profile incomplete"}
+                {c.agencyReferenceId ? ` · Ref: ${c.agencyReferenceId}` : ""}
+                {c.invitationStatus === "pending" ? " · Invitation pending" : ""}
+                {c.invitationStatus === "claimed" ? " · Invitation claimed" : ""}
+                {" · Added " + formatDate(c.createdAt)}
               </p>
             </div>
             <div className="flex items-center gap-2">
               <StatusBadge label={c.accountStatus} />
               <StatusBadge
-                label={verificationLabel(c.verificationStatus, c.existingAgencyUser)}
+                label={verificationLabel(c.verificationStatus, c.verificationMethod)}
                 tone={VERIFICATION_TONE[c.verificationStatus] ?? "neutral"}
               />
             </div>
