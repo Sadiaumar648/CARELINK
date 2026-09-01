@@ -53,7 +53,7 @@ export function CaregiverResultCard({
   const reasons = matchReasons(caregiver, appliedFilters);
 
   return (
-    <Sheet className="flex flex-col gap-3 p-4">
+    <Sheet className="flex h-full flex-col gap-3 p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5">
           <Avatar
@@ -96,29 +96,6 @@ export function CaregiverResultCard({
         </div>
       )}
 
-      <div className="flex items-center justify-between border-t border-hairline pt-3">
-        <div>
-          <p className="text-[15px] font-semibold tabular-nums">GH₵{caregiver.hourly_rate}/hr</p>
-          <p className="text-[11.5px] font-semibold text-sage">
-            {Math.round(caregiver.matchScore)}% Match
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link
-            href={`/parent/caregivers/${caregiver.staff_profile_id}`}
-            className="rounded-[10px] border border-hairline px-2.5 py-1.5 text-[12.5px] font-semibold text-ink hover:border-sage hover:text-sage"
-          >
-            View Profile
-          </Link>
-          <Link
-            href={`/parent/caregivers/${caregiver.staff_profile_id}#request-booking`}
-            className="rounded-[10px] bg-sage px-3 py-1.5 text-[12.5px] font-semibold text-sheet hover:bg-sage-hover"
-          >
-            Request
-          </Link>
-        </div>
-      </div>
-
       {reasons.length > 0 && (
         <div className="border-t border-hairline pt-2">
           <button
@@ -142,6 +119,31 @@ export function CaregiverResultCard({
           )}
         </div>
       )}
+
+      {/* Pinned to the bottom of the card regardless of how much sits
+          above it, so every card in the row lines its buttons up. */}
+      <div className="mt-auto flex items-center justify-between border-t border-hairline pt-3">
+        <div>
+          <p className="text-[15px] font-semibold tabular-nums">GH₵{caregiver.hourly_rate}/hr</p>
+          <p className="text-[11.5px] font-semibold text-sage">
+            {Math.round(caregiver.matchScore)}% Match
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/parent/caregivers/${caregiver.staff_profile_id}`}
+            className="rounded-[10px] border border-hairline px-2.5 py-1.5 text-[12.5px] font-semibold text-ink hover:border-sage hover:text-sage"
+          >
+            View Profile
+          </Link>
+          <Link
+            href={`/parent/caregivers/${caregiver.staff_profile_id}#request-booking`}
+            className="rounded-[10px] bg-sage px-3 py-1.5 text-[12.5px] font-semibold text-sheet hover:bg-sage-hover"
+          >
+            Request
+          </Link>
+        </div>
+      </div>
     </Sheet>
   );
 }

@@ -20,6 +20,12 @@ import {
 
 const DEFAULT_ROSTER_MEDIAN_RATING = 3.5;
 
+// A parent doesn't need to browse a roster of hundreds — the
+// highest-scoring results genuinely are the most relevant ones, so
+// this is a real cap on what the response contains, not a frontend
+// display limit the full list is still fetched behind.
+const MAX_RESULTS = 10;
+
 type CaregiverRow = {
   staff_profile_id: string;
   user_id: string;
@@ -213,7 +219,10 @@ export async function GET(request: Request) {
       })
       .sort((a, b) => b.matchScore - a.matchScore);
 
-    return NextResponse.json({ results, appliedFilters: query });
+    // A real cap, applied after scoring and sorting, not a display
+    // trick the frontend works around — the response body itself never
+    // contains more than this many results.
+    return NextResponse.json({ results: results.slice(0, MAX_RESULTS), appliedFilters: query });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

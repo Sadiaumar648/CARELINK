@@ -29,7 +29,11 @@ import {
 
 type SortKey = "recommended" | "rating" | "experience" | "rate";
 
-const PAGE_SIZE = 9;
+// The backend caps GET /api/search/caregivers at 10 results (a real
+// limit on the response, not a display trick) — this only needs to be
+// at least that large so pagination controls never appear for a set
+// that already fits on one screen.
+const PAGE_SIZE = 12;
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "recommended", label: "Recommended" },
@@ -457,7 +461,7 @@ function FindCarePage() {
 
           {!loading && !error && sortedResults && sortedResults.length > 0 && pagedResults && (
             <>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-1 items-stretch gap-5 md:grid-cols-2 lg:grid-cols-3">
                 {pagedResults.map((c) => (
                   <CaregiverResultCard
                     key={c.staff_profile_id}
