@@ -2,6 +2,7 @@
 
 import {
   SquaresFour,
+  UsersFour,
   UsersThree,
   ShieldCheck,
   CalendarCheck,
@@ -13,6 +14,7 @@ import { RoleShell, type NavItem } from "@/components/role-shell";
 
 const items: NavItem[] = [
   { href: "/admin", label: "Overview", icon: SquaresFour },
+  { href: "/admin/users", label: "Users", icon: UsersFour },
   { href: "/admin/roster", label: "Caregivers", icon: UsersThree },
   { href: "/admin/verifications", label: "Verifications", icon: ShieldCheck },
   { href: "/admin/bookings", label: "Bookings", icon: CalendarCheck },

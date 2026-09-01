@@ -3,7 +3,11 @@ import { z } from "zod";
 import { createStaffInviteSchema } from "@carelink/shared";
 import { authErrorResponse, requireRole } from "@/lib/auth/require-user";
 import { createServiceRoleClient } from "@/lib/db/supabase-server";
-import { generateInvitationCode, hashInvitationCode, placeholderStaffEmail } from "@/lib/invitations";
+import {
+  generateInvitationCode,
+  hashInvitationCode,
+  placeholderStaffEmail,
+} from "@/lib/invitations";
 
 // Task 1.8: an administrator places a caregiver on the roster directly —
 // this is how the agency already recruits (doc 1, PRD, §1). The record is
@@ -17,7 +21,11 @@ export async function POST(request: Request) {
     const body = createStaffInviteSchema.parse(await request.json());
     const admin = createServiceRoleClient();
 
-    const email = placeholderStaffEmail(body.phone);
+    // A real email, when the admin has one on file for an existing
+    // caregiver, replaces the placeholder — see createStaffInviteSchema
+    // for why. Still falls back to the placeholder for the normal
+    // brand-new-caregiver case, unchanged.
+    const email = body.email ?? placeholderStaffEmail(body.phone);
     const code = generateInvitationCode();
 
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
@@ -42,7 +50,16 @@ export async function POST(request: Request) {
 
     const { error: updateErr } = await admin
       .from("users")
-      .update({ invitation_code_hash: hashInvitationCode(code) })
+      .update({
+        invitation_code_hash: hashInvitationCode(code),
+        // The admin's explicit attestation that the agency already
+        // verified this person — never assumed, only ever set when the
+        // caller checked the box. Writes the exact same column the
+        // document-review flow (verification_submissions decision)
+        // already writes, so every existing "is this account verified"
+        // check elsewhere in the app keeps working unmodified.
+        ...(body.agencyVerified ? { verification_status: "verified" as const } : {}),
+      })
       .eq("id", created.user.id);
 
     if (updateErr) {
@@ -54,7 +71,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ id: created.user.id, invitationCode: code }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
+      return NextResponse.json(
+        { error: error.issues[0]?.message ?? "Invalid input" },
+        { status: 400 },
+      );
     }
     return (
       authErrorResponse(error) ?? NextResponse.json({ error: "Unexpected error" }, { status: 500 })

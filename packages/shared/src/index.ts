@@ -1,6 +1,7 @@
 export * from "./enums";
 export * from "./schemas/ward";
 export * from "./schemas/staff-invite";
+export * from "./schemas/parent-invite";
 export * from "./schemas/claim-invitation";
 export * from "./schemas/staff-profile";
 export * from "./schemas/staff-skills";

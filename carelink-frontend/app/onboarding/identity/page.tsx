@@ -37,6 +37,13 @@ export default function IdentityVerificationPage() {
   const [submissions, setSubmissions] = useState<Submission[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [resubmitting, setResubmitting] = useState(false);
+  // An existing agency parent/caregiver onboarded by an admin (see
+  // api/admin/parents and api/admin/staff's agencyVerified flag) has
+  // verification_status "verified" directly on their account but no
+  // verification_submissions row at all — nothing was ever uploaded
+  // through CareLink to review. Checked separately from `submissions`
+  // so that case still skips the document-upload wizard.
+  const [agencyVerified, setAgencyVerified] = useState<boolean | null>(null);
 
   const [step, setStep] = useState<Step>("intro");
   const [idDocumentType, setIdDocumentType] = useState<IdType>("ghana_card");
@@ -65,8 +72,23 @@ export default function IdentityVerificationPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch<{ verificationStatus: string }>("/api/me")
+      .then((res) => {
+        if (!cancelled) setAgencyVerified(res.verificationStatus === "verified");
+      })
+      .catch(() => {
+        if (!cancelled) setAgencyVerified(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const latest = submissions?.[0] ?? null;
-  const showStatus = latest && !resubmitting;
+  const agencyVerifiedNoSubmission = agencyVerified === true && !latest;
+  const showStatus = (latest || agencyVerifiedNoSubmission) && !resubmitting;
 
   function goUpload() {
     setStepError(null);
@@ -129,7 +151,7 @@ export default function IdentityVerificationPage() {
     }
   }
 
-  if (submissions === null && !loadError) {
+  if ((submissions === null || agencyVerified === null) && !loadError) {
     return <p className="text-[13px] text-ink-muted">Loading…</p>;
   }
 
@@ -178,6 +200,19 @@ export default function IdentityVerificationPage() {
         <p className="max-w-sm text-[15px] text-ink-muted">
           Your identity verification is being reviewed. This usually doesn&apos;t take long — you
           can continue setting up your profile in the meantime.
+        </p>
+        <Button onClick={() => router.push("/onboarding/setup")}>Continue →</Button>
+      </div>
+    );
+  }
+
+  if (showStatus && agencyVerifiedNoSubmission) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+        <CheckCircle size={48} weight="fill" className="text-[var(--color-success)]" />
+        <h1 className="text-[24px] font-semibold font-heading">You&apos;re verified!</h1>
+        <p className="max-w-sm text-[15px] text-ink-muted">
+          Your identity has already been verified by CareLink.
         </p>
         <Button onClick={() => router.push("/onboarding/setup")}>Continue →</Button>
       </div>

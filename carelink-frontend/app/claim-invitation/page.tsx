@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import type { UserRole } from "@carelink/shared";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
@@ -32,7 +33,26 @@ export default function ClaimInvitationPage() {
         refresh_token: res.refreshToken,
       });
       if (sessionErr) throw new Error(sessionErr.message);
-      router.replace("/staff");
+
+      // This claim flow now also covers an existing agency parent
+      // (api/admin/parents issues the same kind of invitation), so the
+      // landing page has to follow the role that was actually claimed —
+      // this mirrors sign-in/page.tsx's own role-based redirect exactly,
+      // including its "no household yet" check for a parent, rather
+      // than inventing a second version of that logic here.
+      const me = await apiFetch<{ role: UserRole }>("/api/me");
+      if (me.role === "parent") {
+        try {
+          const { household } = await apiFetch<{ household: unknown }>("/api/parents/household");
+          if (!household) {
+            router.replace("/onboarding/identity");
+            return;
+          }
+        } catch {
+          // fall through to the normal dashboard redirect
+        }
+      }
+      router.replace(`/${me.role}`);
     } catch (err) {
       setError(errorMessage(err));
       setLoading(false);

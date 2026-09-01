@@ -14,11 +14,15 @@ export async function POST(request: Request) {
     const body = claimInvitationSchema.parse(await request.json());
     const admin = createServiceRoleClient();
 
+    // Not restricted to role "staff": account_status "invited" already
+    // uniquely identifies "an account an administrator created via an
+    // invite flow, awaiting claim" regardless of role — the admin
+    // parent-invite route (api/admin/parents) sets the exact same
+    // status, so an existing parent claims through this identical path.
     const { data: userRow, error: lookupErr } = await admin
       .from("users")
-      .select("id, invitation_code_hash, account_status, email")
+      .select("id, role, invitation_code_hash, account_status, email")
       .eq("phone", body.phone)
-      .eq("role", "staff")
       .maybeSingle();
 
     if (lookupErr) {
@@ -74,7 +78,10 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
+      return NextResponse.json(
+        { error: error.issues[0]?.message ?? "Invalid input" },
+        { status: 400 },
+      );
     }
     return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
   }

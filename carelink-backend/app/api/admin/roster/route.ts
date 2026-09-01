@@ -10,7 +10,7 @@ export async function GET(request: Request) {
     const { data, error } = await supabase
       .from("users")
       .select(
-        "id, full_name, phone, account_status, verification_status, created_at, staff_profiles(id, hourly_rate, years_experience, rating_avg, rating_count, bookings_completed, accepting_bookings)",
+        "id, full_name, phone, account_status, verification_status, invited_by, created_at, staff_profiles(id, hourly_rate, years_experience, rating_avg, rating_count, bookings_completed, accepting_bookings)",
       )
       .eq("role", "staff")
       .order("created_at", { ascending: false });
@@ -27,6 +27,7 @@ export async function GET(request: Request) {
         phone: row.phone,
         accountStatus: row.account_status,
         verificationStatus: row.verification_status,
+        existingAgencyUser: row.invited_by !== null,
         profileComplete: Boolean(profile),
         ratingAvg: profile?.rating_avg ?? null,
         bookingsCompleted: profile?.bookings_completed ?? 0,
