@@ -26,7 +26,10 @@ type CaregiverSeed = {
   phone: string;
   bio: string;
   years: number;
-  rate: number; // pesewas
+  // Whole GH₵/hr, not pesewas — every real consumer of hourly_rate
+  // (display, matching, booking-total calculation) treats it that way.
+  // See scripts/fix-demo-rates.ts.
+  rate: number;
   languages: string[];
   area: string;
   skills: string[];
@@ -39,7 +42,7 @@ const CAREGIVERS: CaregiverSeed[] = [
     phone: "+233551111011",
     bio: "Newborn and infant specialist with maternity-support training. Gentle, structured routines and meticulous hygiene practices.",
     years: 8,
-    rate: 3000,
+    rate: 40,
     languages: ["English", "Twi", "Fante"],
     area: "Cantonments",
     skills: ["newborn_care", "infant_care", "meal_preparation"],
@@ -50,7 +53,7 @@ const CAREGIVERS: CaregiverSeed[] = [
     phone: "+233551111012",
     bio: "Former primary school teaching assistant. Homework support, reading practice, and after-school supervision for school-age children.",
     years: 4,
-    rate: 2200,
+    rate: 25,
     languages: ["English", "Twi"],
     area: "Adenta",
     skills: ["school_age_supervision", "light_housekeeping"],
@@ -61,7 +64,7 @@ const CAREGIVERS: CaregiverSeed[] = [
     phone: "+233551111013",
     bio: "Ten years with toddlers and preschoolers. Calm with tantrums, big on outdoor play and early learning activities.",
     years: 10,
-    rate: 2800,
+    rate: 30,
     languages: ["English", "Twi", "Ga"],
     area: "Spintex",
     skills: ["toddler_care", "meal_preparation", "light_housekeeping"],
@@ -72,7 +75,7 @@ const CAREGIVERS: CaregiverSeed[] = [
     phone: "+233551111014",
     bio: "CPR and first-aid certified. Experienced with children who have additional support needs, and comfortable with medication schedules.",
     years: 6,
-    rate: 3200,
+    rate: 38,
     languages: ["English", "Twi"],
     area: "Dansoman",
     skills: ["special_needs_care", "toddler_care"],
@@ -83,7 +86,7 @@ const CAREGIVERS: CaregiverSeed[] = [
     phone: "+233551111015",
     bio: "Warm and reliable, three years' experience with infants through school age. Enjoys cooking and involving children in simple meal prep.",
     years: 3,
-    rate: 1900,
+    rate: 22,
     languages: ["English", "Ga"],
     area: "Osu",
     skills: ["infant_care", "meal_preparation", "school_age_supervision"],
@@ -94,7 +97,7 @@ const CAREGIVERS: CaregiverSeed[] = [
     phone: "+233551111016",
     bio: "Seven years as a live-out nanny for busy dual-income households. Structured routines, homework help, and light housekeeping included.",
     years: 7,
-    rate: 2600,
+    rate: 32,
     languages: ["English", "Twi", "Ewe"],
     area: "Achimota",
     skills: ["school_age_supervision", "toddler_care", "light_housekeeping"],
@@ -105,7 +108,7 @@ const CAREGIVERS: CaregiverSeed[] = [
     phone: "+233551111017",
     bio: "Early-years specialist with a background in childcare training. Patient, playful, and experienced with twins and multiples.",
     years: 9,
-    rate: 3100,
+    rate: 35,
     languages: ["English", "Twi"],
     area: "Labone",
     skills: ["infant_care", "toddler_care", "newborn_care"],
@@ -116,7 +119,7 @@ const CAREGIVERS: CaregiverSeed[] = [
     phone: "+233551111018",
     bio: "Dependable and punctual, two years' experience with school-age children. Strong focus on homework routines and screen-time balance.",
     years: 2,
-    rate: 1800,
+    rate: 20,
     languages: ["English", "Twi"],
     area: "Tema",
     skills: ["school_age_supervision"],
@@ -127,7 +130,7 @@ const CAREGIVERS: CaregiverSeed[] = [
     phone: "+233551111019",
     bio: "Five years across infant and toddler care. Meal prep, light housekeeping, and a genuinely calm presence with fussy sleepers.",
     years: 5,
-    rate: 2400,
+    rate: 30,
     languages: ["English", "Ga", "Twi"],
     area: "East Legon",
     skills: ["infant_care", "toddler_care", "meal_preparation", "light_housekeeping"],

@@ -166,7 +166,13 @@ async function main() {
         // instead of inventing a new column.
         bio: "DEMO/TEST account. Experienced nanny — infant and toddler care, meal prep, and light housekeeping.",
         years_experience: 5,
-        hourly_rate: 2500,
+        // A realistic Ghanaian hourly rate: every consumer of this
+        // column (frontend display, the budget-fit matcher, the
+        // booking-total calculation) treats it as whole cedis, not
+        // pesewas — despite scripts/seed.ts's own comment suggesting
+        // otherwise. See scripts/fix-demo-rates.ts for the full
+        // reasoning and for correcting an already-seeded value.
+        hourly_rate: 50,
         languages: ["English", "Twi"],
         emergency_contact_name: "Demo Emergency Contact",
         emergency_contact_phone: "+233551111098",
