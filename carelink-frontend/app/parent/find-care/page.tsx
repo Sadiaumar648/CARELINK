@@ -2,14 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import {
-  CaretLeft,
-  CaretRight,
-  Funnel,
-  MagnifyingGlass,
-  ShieldCheck,
-  X,
-} from "@phosphor-icons/react";
+import { Funnel, MagnifyingGlass, ShieldCheck, X } from "@phosphor-icons/react";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
@@ -28,13 +21,6 @@ import {
 } from "@/components/find-care/types";
 
 type SortKey = "recommended" | "rating" | "experience" | "rate";
-
-// The backend caps GET /api/search/caregivers at 10 results (a real
-// limit on the response, not a display trick). At 2 columns, a page
-// size of 6 always fills complete rows — 3 full rows on a 10-result
-// page 1, 2 full rows on page 2 — so there's never a lone trailing
-// card left alone in an otherwise-empty row.
-const PAGE_SIZE = 6;
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "recommended", label: "Recommended" },
@@ -87,12 +73,10 @@ function FindCarePage() {
   const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>("recommended");
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const [page, setPage] = useState(1);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   function selectSort(key: SortKey) {
     setSortBy(key);
-    setPage(1);
   }
 
   useEffect(() => {
@@ -123,8 +107,7 @@ function FindCarePage() {
     setValidationError(null);
     setEmptyMessage(null);
     setHasSearched(true);
-    setMobileFiltersOpen(false);
-    setPage(1);
+    setFiltersOpen(false);
     try {
       const params = new URLSearchParams();
       if (activeFilters.area) params.set("area", activeFilters.area);
@@ -157,9 +140,21 @@ function FindCarePage() {
     }
   }
 
+  // The primary AI search box: each submission is a fresh statement of
+  // what the parent wants, so the parsed result REPLACES the current
+  // filters entirely rather than merging onto whatever was there before
+  // (a previous search's area/date/skills must never leak into this
+  // one) — and since the model is never asked for and never returns a
+  // ward/child field, any previously-selected ward is cleared too, so
+  // the results page can't show a child that wasn't mentioned in this
+  // query. "Refine filters" (patchFilters, below) is the one place
+  // incremental merging is correct, since refining is explicitly meant
+  // to add to what the AI already set.
   async function onFindCare() {
+    setSelectedWardId("");
     if (!nlQuery.trim()) {
-      void runSearch(filters);
+      setFilters({});
+      void runSearch({});
       return;
     }
     setLoading(true);
@@ -170,13 +165,15 @@ function FindCarePage() {
         method: "POST",
         body: { query: nlQuery },
       });
-      const merged = { ...filters, ...(res.filters ?? {}) };
-      setFilters(merged);
-      await runSearch(merged);
+      const parsed = res.filters ?? {};
+      setFilters(parsed);
+      await runSearch(parsed);
       // runSearch resets validationError itself, so this has to land after
       // it settles rather than before — otherwise its own reset wipes it.
       if (!res.filters) {
-        setValidationError("Couldn't understand that — try the filters below instead.");
+        setValidationError(
+          "Couldn't fully understand your request — try refining your search below.",
+        );
       }
     } catch (err) {
       setLoading(false);
@@ -249,15 +246,15 @@ function FindCarePage() {
   const selectedWard = wards?.find((w) => w.id === selectedWardId) ?? null;
   const sortedResults = results ? sortResults(results, sortBy) : null;
   const filterCount = activeFilterCount(filters);
-  const pageCount = sortedResults ? Math.max(1, Math.ceil(sortedResults.length / PAGE_SIZE)) : 1;
-  const pagedResults = sortedResults?.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) ?? null;
 
-  function goToPage(next: number) {
-    setPage(next);
-    document.getElementById("search-results-top")?.scrollIntoView({ block: "start" });
+  const chips: { keys: (keyof SearchFilters)[]; label: string; ward?: boolean }[] = [];
+  if (selectedWard) {
+    chips.push({
+      keys: [],
+      label: `${selectedWard.display_name}, ${selectedWard.age_years}`,
+      ward: true,
+    });
   }
-
-  const chips: { keys: (keyof SearchFilters)[]; label: string }[] = [];
   if (filters.area) chips.push({ keys: ["area"], label: filters.area });
   if (filters.date) {
     // A time window needs a date server-side, so dropping the date has to
@@ -273,7 +270,7 @@ function FindCarePage() {
     });
   }
   if (filters.minExperience) {
-    chips.push({ keys: ["minExperience"], label: `${filters.minExperience}+ yrs` });
+    chips.push({ keys: ["minExperience"], label: `${filters.minExperience}+ yrs experience` });
   }
   if (filters.budgetCeiling) {
     chips.push({ keys: ["budgetCeiling"], label: `Under GH₵${filters.budgetCeiling}/hr` });
@@ -283,6 +280,14 @@ function FindCarePage() {
   }
   if (filters.skills?.length) {
     chips.push({ keys: ["skills"], label: filters.skills.map(skillLabel).join(", ") });
+  }
+
+  function removeChip(chip: { keys: (keyof SearchFilters)[]; ward?: boolean }) {
+    if (chip.ward) {
+      setSelectedWardId("");
+      return;
+    }
+    removeFilters(chip.keys);
   }
 
   return (
@@ -317,108 +322,28 @@ function FindCarePage() {
         >
           <MagnifyingGlass size={18} /> Find Care →
         </Button>
-        {validationError && <p className="text-[13px] text-error">{validationError}</p>}
+        {validationError && (
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-[13px] text-error">{validationError}</p>
+            <button
+              type="button"
+              onClick={() => setFiltersOpen(true)}
+              className="text-[13px] font-semibold text-sage hover:text-sage-hover"
+            >
+              Refine filters →
+            </button>
+          </div>
+        )}
       </Sheet>
 
-      <div className="flex items-center justify-between gap-3 lg:hidden">
-        <Button variant="secondary" onClick={() => setMobileFiltersOpen(true)}>
-          <Funnel size={16} /> Filters{filterCount > 0 ? ` (${filterCount})` : ""}
-        </Button>
-        {sortedResults && sortedResults.length > 0 && (
-          <select
-            aria-label="Sort caregivers"
-            value={sortBy}
-            onChange={(e) => selectSort(e.target.value as SortKey)}
-            className="rounded-[10px] border border-hairline bg-sheet px-3 py-2 text-[13px] font-semibold text-ink"
-          >
-            {SORT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[280px_1fr]">
-        <aside id="search-filters" className="hidden flex-col gap-6 lg:flex">
-          <Sheet className="flex flex-col gap-6">
-            <h2 className="text-[15px] font-semibold text-ink">Filters</h2>
-            <FilterFields
-              filters={filters}
-              onChange={patchFilters}
-              wards={wards}
-              selectedWardId={selectedWardId}
-              onSelectWard={onSelectWard}
-            />
-            <Button onClick={() => void runSearch(filters)} disabled={loading}>
-              Update Results
-            </Button>
-            {filterCount > 0 && (
-              <button
-                type="button"
-                onClick={clearAll}
-                className="text-[13px] font-semibold text-ink-muted hover:text-ink"
-              >
-                Clear all
-              </button>
-            )}
-          </Sheet>
-        </aside>
-
-        <div id="search-results-top" className="flex flex-col gap-6 scroll-mt-6">
-          {chips.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              {chips.map((chip) => (
-                <button
-                  key={chip.keys.join("-")}
-                  type="button"
-                  onClick={() => removeFilters(chip.keys)}
-                  className="flex items-center gap-1.5 rounded-full bg-sage-tint px-3 py-1.5 text-[12.5px] font-medium text-sage-pressed hover:bg-sage/20"
-                >
-                  {chip.label}
-                  <X size={12} weight="bold" />
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={clearAll}
-                className="text-[12.5px] font-semibold text-ink-muted hover:text-ink"
-              >
-                Clear all
-              </button>
-            </div>
-          )}
-
-          {hasSearched && !loading && (
-            <Sheet className="flex flex-col gap-1 text-[13px]">
-              <p className="font-semibold text-ink">Looking for:</p>
-              <div className="flex flex-wrap gap-x-6 gap-y-1 text-ink-muted">
-                {selectedWard && (
-                  <span>
-                    For: {selectedWard.display_name}, {selectedWard.age_years}
-                  </span>
-                )}
-                {appliedFilters.area && <span>Location: {appliedFilters.area}</span>}
-                {appliedFilters.date && <span>Date: {formatDate(appliedFilters.date)}</span>}
-                {appliedFilters.startTime && appliedFilters.endTime && (
-                  <span>
-                    Time: {appliedFilters.startTime} – {appliedFilters.endTime}
-                  </span>
-                )}
-                {!selectedWard && !appliedFilters.area && !appliedFilters.date && (
-                  <span>All available caregivers</span>
-                )}
-              </div>
-            </Sheet>
-          )}
-
-          <div className="hidden items-center justify-between lg:flex">
-            <p className="text-[15px] font-semibold text-ink">
-              {sortedResults
-                ? `${sortedResults.length} caregiver${sortedResults.length === 1 ? "" : "s"} match your needs`
-                : "Caregivers matching your search"}
-            </p>
+      <div id="search-results-top" className="flex flex-col gap-4 scroll-mt-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-[15px] font-semibold text-ink">
+            {sortedResults
+              ? `${sortedResults.length} caregiver${sortedResults.length === 1 ? "" : "s"} match your needs`
+              : "Caregivers matching your search"}
+          </p>
+          <div className="flex items-center gap-2">
             {sortedResults && sortedResults.length > 0 && (
               <select
                 aria-label="Sort caregivers"
@@ -433,112 +358,112 @@ function FindCarePage() {
                 ))}
               </select>
             )}
+            <Button variant="secondary" onClick={() => setFiltersOpen(true)}>
+              <Funnel size={16} /> Refine filters{filterCount > 0 ? ` (${filterCount})` : ""}
+            </Button>
           </div>
-
-          {loading && (
-            <div className="flex flex-col gap-4">
-              <p className="text-[13px] text-ink-muted">Searching for care…</p>
-              <CaregiverCardSkeleton />
-              <CaregiverCardSkeleton />
-            </div>
-          )}
-
-          {!loading && error && <ErrorState onRetry={() => void runSearch(filters)} />}
-
-          {!loading && !error && hasSearched && sortedResults?.length === 0 && (
-            <EmptyState
-              icon={MagnifyingGlass}
-              title="We couldn't find an exact match."
-              description={
-                emptyMessage ?? "Try adjusting your search or filters to see more caregivers."
-              }
-              action={
-                <Button variant="secondary" onClick={clearAll}>
-                  Clear Filters
-                </Button>
-              }
-            />
-          )}
-
-          {!loading && !error && sortedResults && sortedResults.length > 0 && pagedResults && (
-            <>
-              <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2">
-                {pagedResults.map((c) => (
-                  <CaregiverResultCard
-                    key={c.staff_profile_id}
-                    caregiver={c}
-                    appliedFilters={appliedFilters}
-                  />
-                ))}
-              </div>
-
-              {pageCount > 1 && (
-                <div className="flex items-center justify-center gap-4">
-                  <button
-                    type="button"
-                    onClick={() => goToPage(page - 1)}
-                    disabled={page === 1}
-                    aria-label="Previous page"
-                    className="flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-ink hover:border-sage hover:text-sage disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <CaretLeft size={16} />
-                  </button>
-                  <p className="text-[13px] font-semibold text-ink-muted">
-                    Page {page} of {pageCount}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => goToPage(page + 1)}
-                    disabled={page === pageCount}
-                    aria-label="Next page"
-                    className="flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-ink hover:border-sage hover:text-sage disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <CaretRight size={16} />
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-
-          {!loading && !error && !hasSearched && (
-            <p className="text-[14px] text-ink-muted">
-              Describe what you need above, or use the filters to browse caregivers.
-            </p>
-          )}
         </div>
-      </div>
 
-      {mobileFiltersOpen && (
-        <div className="fixed inset-0 z-30 flex flex-col bg-paper lg:hidden">
-          <div className="flex items-center justify-between border-b border-hairline p-4">
-            <h2 className="text-[17px] font-semibold font-heading">Filters</h2>
+        {chips.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            {chips.map((chip) => (
+              <button
+                key={chip.ward ? "ward" : chip.keys.join("-")}
+                type="button"
+                onClick={() => removeChip(chip)}
+                className="flex items-center gap-1.5 rounded-full bg-sage-tint px-3 py-1.5 text-[12.5px] font-medium text-sage-pressed hover:bg-sage/20"
+              >
+                {chip.label}
+                <X size={12} weight="bold" />
+              </button>
+            ))}
             <button
               type="button"
-              onClick={() => setMobileFiltersOpen(false)}
-              aria-label="Close filters"
-              className="flex h-9 w-9 items-center justify-center rounded-full text-ink hover:bg-sage-tint"
+              onClick={clearAll}
+              className="text-[12.5px] font-semibold text-ink-muted hover:text-ink"
             >
-              <X size={20} />
+              Clear all
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto p-4">
-            <FilterFields
-              filters={filters}
-              onChange={patchFilters}
-              wards={wards}
-              selectedWardId={selectedWardId}
-              onSelectWard={onSelectWard}
-            />
+        )}
+
+        {loading && (
+          <div className="flex flex-col gap-4">
+            <p className="text-[13px] text-ink-muted">Searching for care…</p>
+            <CaregiverCardSkeleton />
+            <CaregiverCardSkeleton />
           </div>
-          <div className="flex flex-col gap-2 border-t border-hairline p-4">
-            <Button onClick={() => void runSearch(filters)} disabled={loading}>
-              Apply Filters
-            </Button>
-            {filterCount > 0 && (
+        )}
+
+        {!loading && error && <ErrorState onRetry={() => void runSearch(filters)} />}
+
+        {!loading && !error && hasSearched && sortedResults?.length === 0 && (
+          <EmptyState
+            icon={MagnifyingGlass}
+            title="We couldn't find an exact match."
+            description={
+              emptyMessage ?? "Try adjusting your search or filters to see more caregivers."
+            }
+            action={
               <Button variant="secondary" onClick={clearAll}>
-                Clear all
+                Clear Filters
               </Button>
-            )}
+            }
+          />
+        )}
+
+        {!loading && !error && sortedResults && sortedResults.length > 0 && (
+          <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {sortedResults.map((c) => (
+              <CaregiverResultCard
+                key={c.staff_profile_id}
+                caregiver={c}
+                appliedFilters={appliedFilters}
+              />
+            ))}
+          </div>
+        )}
+
+        {!loading && !error && !hasSearched && (
+          <p className="text-[14px] text-ink-muted">
+            Describe what you need above, or use Refine filters to browse caregivers.
+          </p>
+        )}
+      </div>
+
+      {filtersOpen && (
+        <div className="fixed inset-0 z-30 flex flex-col bg-paper">
+          <div className="mx-auto flex w-full max-w-lg flex-1 flex-col overflow-hidden">
+            <div className="flex items-center justify-between border-b border-hairline p-4">
+              <h2 className="text-[17px] font-semibold font-heading">Refine filters</h2>
+              <button
+                type="button"
+                onClick={() => setFiltersOpen(false)}
+                aria-label="Close filters"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-ink hover:bg-sage-tint"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              <FilterFields
+                filters={filters}
+                onChange={patchFilters}
+                wards={wards}
+                selectedWardId={selectedWardId}
+                onSelectWard={onSelectWard}
+              />
+            </div>
+            <div className="flex flex-col gap-2 border-t border-hairline p-4">
+              <Button onClick={() => void runSearch(filters)} disabled={loading}>
+                Apply Filters
+              </Button>
+              {filterCount > 0 && (
+                <Button variant="secondary" onClick={clearAll}>
+                  Clear all
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       )}
