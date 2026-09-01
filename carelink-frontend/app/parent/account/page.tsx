@@ -74,9 +74,9 @@ export default function ParentAccountPage() {
         <MenuRow icon={ShieldCheck} label="Identity Verification" href="#identity-verification" />
         <MenuRow icon={Baby} label="Ward Profiles" href="/parent/children" />
         <MenuRow icon={LockKey} label="Safety & Privacy" href="/parent/safety" />
-        <MenuRow icon={CreditCard} label="Payment Methods" disabled />
-        <MenuRow icon={Bell} label="Notifications" disabled />
-        <MenuRow icon={Question} label="Help & Support" disabled />
+        <MenuRow icon={CreditCard} label="Payment Methods" href="/parent/payment-methods" />
+        <MenuRow icon={Bell} label="Notifications" href="/parent/notifications" />
+        <MenuRow icon={Question} label="Help & Support" href="/parent/help" />
         <MenuRow icon={SignOut} label="Log out" onClick={() => void signOut()} />
       </div>
 
