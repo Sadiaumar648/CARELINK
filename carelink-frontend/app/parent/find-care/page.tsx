@@ -2,7 +2,14 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Funnel, MagnifyingGlass, ShieldCheck, X } from "@phosphor-icons/react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Funnel,
+  MagnifyingGlass,
+  ShieldCheck,
+  X,
+} from "@phosphor-icons/react";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
@@ -21,6 +28,8 @@ import {
 } from "@/components/find-care/types";
 
 type SortKey = "recommended" | "rating" | "experience" | "rate";
+
+const PAGE_SIZE = 6;
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "recommended", label: "Recommended" },
@@ -74,9 +83,11 @@ function FindCarePage() {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>("recommended");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [page, setPage] = useState(1);
 
   function selectSort(key: SortKey) {
     setSortBy(key);
+    setPage(1);
   }
 
   useEffect(() => {
@@ -108,6 +119,7 @@ function FindCarePage() {
     setEmptyMessage(null);
     setHasSearched(true);
     setFiltersOpen(false);
+    setPage(1);
     try {
       const params = new URLSearchParams();
       if (activeFilters.area) params.set("area", activeFilters.area);
@@ -246,6 +258,9 @@ function FindCarePage() {
   const selectedWard = wards?.find((w) => w.id === selectedWardId) ?? null;
   const sortedResults = results ? sortResults(results, sortBy) : null;
   const filterCount = activeFilterCount(filters);
+  const totalPages = sortedResults ? Math.max(1, Math.ceil(sortedResults.length / PAGE_SIZE)) : 1;
+  const currentPage = Math.min(page, totalPages);
+  const pagedResults = sortedResults?.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const chips: { keys: (keyof SearchFilters)[]; label: string; ward?: boolean }[] = [];
   if (selectedWard) {
@@ -413,15 +428,41 @@ function FindCarePage() {
         )}
 
         {!loading && !error && sortedResults && sortedResults.length > 0 && (
-          <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {sortedResults.map((c) => (
-              <CaregiverResultCard
-                key={c.staff_profile_id}
-                caregiver={c}
-                appliedFilters={appliedFilters}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {pagedResults?.map((c) => (
+                <CaregiverResultCard
+                  key={c.staff_profile_id}
+                  caregiver={c}
+                  appliedFilters={appliedFilters}
+                />
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-4 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="flex items-center gap-1.5 rounded-[10px] border border-hairline px-3 py-2 text-[13px] font-semibold text-ink hover:border-sage hover:text-sage disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-hairline disabled:hover:text-ink"
+                >
+                  <ArrowLeft size={15} /> Previous
+                </button>
+                <p className="text-[13px] font-medium text-ink-muted">
+                  Page {currentPage} of {totalPages}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="flex items-center gap-1.5 rounded-[10px] border border-hairline px-3 py-2 text-[13px] font-semibold text-ink hover:border-sage hover:text-sage disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-hairline disabled:hover:text-ink"
+                >
+                  Next <ArrowRight size={15} />
+                </button>
+              </div>
+            )}
+          </>
         )}
 
         {!loading && !error && !hasSearched && (
