@@ -71,7 +71,12 @@ export function CaregiverLocationView({
           </a>
         </>
       ) : (
-        <p className="text-[13px] text-ink-muted">Caregiver location sharing: OFF</p>
+        <>
+          <p className="text-[14px] font-semibold text-ink-muted">
+            Caregiver location sharing: OFF
+          </p>
+          <p className="text-[13px] text-ink-muted">Location unavailable.</p>
+        </>
       )}
     </Sheet>
   );

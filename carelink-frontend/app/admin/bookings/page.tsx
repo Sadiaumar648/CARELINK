@@ -2,22 +2,47 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CalendarCheck } from "@phosphor-icons/react";
+import { CalendarCheck, CaretDown } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Sheet } from "@/components/ui/sheet";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { BookingCardSkeleton } from "@/components/ui/skeleton";
+import { CaregiverLocationView } from "@/components/caregiver-location-view";
 
 type Booking = {
   id: string;
   reference: string;
+  address: string;
   starts_at: string;
   ends_at: string;
   total_amount: number;
   status: string;
 };
+
+// Admin's own read of a booking's detail — reuses the existing
+// GET /api/bookings/[id] and [id]/location routes rather than a new
+// admin-only endpoint (both already permit the admin role via RLS: the
+// location table's read policy explicitly includes
+// current_user_role() = 'admin', gated to status = 'active' — no
+// permanent tracking, no admin write path). Kept as an inline expand
+// on the existing list rather than a new /admin/bookings/[id] route,
+// since nothing else here needs a dedicated page yet.
+function BookingDetailPanel({ booking }: { booking: Booking }) {
+  return (
+    <div className="flex flex-col gap-3 border-t border-hairline pt-3">
+      <p className="text-[13px] text-ink-muted">{booking.address}</p>
+      {booking.status === "active" ? (
+        <CaregiverLocationView bookingId={booking.id} active />
+      ) : (
+        <p className="text-[12.5px] text-ink-muted">
+          Caregiver location is only shown for a currently active booking.
+        </p>
+      )}
+    </div>
+  );
+}
 
 const STATUSES = [
   "",
@@ -60,6 +85,7 @@ function AdminBookingsPage() {
   const [bookings, setBookings] = useState<Booking[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -166,18 +192,33 @@ function AdminBookingsPage() {
       )}
 
       <div className="flex flex-col gap-4">
-        {bookings?.map((b) => (
-          <Sheet key={b.id} className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-[17px] font-semibold">{formatRange(b.starts_at, b.ends_at)}</p>
-              <p className="text-[13px] text-ink-muted">{b.reference}</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <p className="text-[15px] font-semibold tabular-nums">GH₵{b.total_amount}</p>
-              <StatusBadge label={b.status} tone={TONE[b.status] ?? "neutral"} />
-            </div>
-          </Sheet>
-        ))}
+        {bookings?.map((b) => {
+          const open = openId === b.id;
+          return (
+            <Sheet key={b.id} className="flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={() => setOpenId(open ? null : b.id)}
+                aria-expanded={open}
+                className="flex items-center justify-between gap-4 text-left"
+              >
+                <div>
+                  <p className="text-[17px] font-semibold">{formatRange(b.starts_at, b.ends_at)}</p>
+                  <p className="text-[13px] text-ink-muted">{b.reference}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <p className="text-[15px] font-semibold tabular-nums">GH₵{b.total_amount}</p>
+                  <StatusBadge label={b.status} tone={TONE[b.status] ?? "neutral"} />
+                  <CaretDown
+                    size={16}
+                    className={`text-ink-muted ${open ? "rotate-180 transition-transform" : "transition-transform"}`}
+                  />
+                </div>
+              </button>
+              {open && <BookingDetailPanel booking={b} />}
+            </Sheet>
+          );
+        })}
       </div>
     </div>
   );
