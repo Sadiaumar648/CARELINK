@@ -41,6 +41,16 @@
   --color-bluebell-tint: #eef3f7;
   --color-bluebell-pressed: #4c6c82;
 
+  /* Wisteria — an eighth, additive accent (not part of the original
+     seven-colour palette above). Used only by the parent Home page and
+     its Nanny/Babysitter request flow, matching a purple/indigo
+     reference design for that page specifically — the app-wide primary
+     stays Fern (sage) everywhere else. */
+  --color-wisteria: #4f46e5;
+  --color-wisteria-hover: #4338ca;
+  --color-wisteria-pressed: #3730a3;
+  --color-wisteria-tint: #eef2ff;
+
   /* Status. */
   --color-success: #4e6b54; /* Fern family */
   --color-success-tint: #e6ebe4;

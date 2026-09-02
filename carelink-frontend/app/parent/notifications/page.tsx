@@ -2,23 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  Bell,
-  BellSlash,
-  CheckCircle,
-  Money,
-  SealCheck,
-  Tray,
-  WarningCircle,
-  XCircle,
-} from "@phosphor-icons/react";
+import { ArrowLeft, BellSlash } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { ErrorState } from "@/components/ui/empty-state";
 import { minutesAgoLabel } from "@/lib/relative-time";
+import { KIND_META, DEFAULT_KIND_META } from "@/lib/notification-kind-meta";
 
 type NotificationRow = {
   id: string;
@@ -27,22 +18,6 @@ type NotificationRow = {
   body: string;
   read_at: string | null;
   created_at: string;
-};
-
-// One entry per real `kind` value a trigger in the database actually
-// writes (see supabase/migrations/20260827210000_notifications.sql) —
-// nothing here is invented. booking_request and payment_received are
-// staff-facing in practice, but mapped anyway so the page renders
-// correctly no matter which role's notifications it's handed; any
-// kind not listed here still renders fine via the fallback below.
-const KIND_META: Record<string, { icon: typeof Bell; label: string }> = {
-  booking_request: { icon: Tray, label: "New booking request" },
-  booking_accepted: { icon: CheckCircle, label: "Booking accepted" },
-  booking_declined: { icon: WarningCircle, label: "Booking update" },
-  payment_received: { icon: Money, label: "Payment received" },
-  booking_completed: { icon: CheckCircle, label: "Booking completed" },
-  verification_verified: { icon: SealCheck, label: "Verification approved" },
-  verification_rejected: { icon: XCircle, label: "Verification update" },
 };
 
 function formatDateTime(iso: string): string {
@@ -64,7 +39,7 @@ function NotificationRowItem({
   notification: NotificationRow;
   onRead: (id: string) => void;
 }) {
-  const meta = KIND_META[notification.kind] ?? { icon: Bell, label: "Notification" };
+  const meta = KIND_META[notification.kind] ?? DEFAULT_KIND_META;
   const Icon = meta.icon;
   const unread = !notification.read_at;
 

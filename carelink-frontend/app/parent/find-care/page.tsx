@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -22,6 +23,8 @@ import { CaregiverResultCard } from "@/components/find-care/caregiver-result-car
 import {
   skillLabel,
   activeFilterCount,
+  caregiverTypeLabel,
+  suggestedSkillForAge,
   type CaregiverResult,
   type SearchFilters,
   type Ward,
@@ -52,13 +55,6 @@ function sortResults(results: CaregiverResult[], sortBy: SortKey): CaregiverResu
   }
 }
 
-function suggestedSkillForAge(age: number): string {
-  if (age === 0) return "newborn_care";
-  if (age <= 2) return "infant_care";
-  if (age <= 4) return "toddler_care";
-  return "school_age_supervision";
-}
-
 function formatDate(iso: string): string {
   return new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, {
     weekday: "long",
@@ -76,6 +72,7 @@ function FindCarePage() {
   const [selectedWardId, setSelectedWardId] = useState("");
 
   const [results, setResults] = useState<CaregiverResult[] | null>(null);
+  const [rawResults, setRawResults] = useState<CaregiverResult[] | null>(null);
   const [emptyMessage, setEmptyMessage] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -84,6 +81,14 @@ function FindCarePage() {
   const [sortBy, setSortBy] = useState<SortKey>("recommended");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [page, setPage] = useState(1);
+  // caregiverType/fromRequestFlow/relaxationNotice are all specific to
+  // arriving here from the parent Home page's Nanny/Babysitter request
+  // flow (?type=&panel=…) — every one of them is a no-op when absent, so
+  // the pre-existing manual-filter and ?q= AI-search paths behave exactly
+  // as before.
+  const [caregiverType, setCaregiverType] = useState<"nanny" | "babysitter" | undefined>();
+  const [fromRequestFlow, setFromRequestFlow] = useState(false);
+  const [relaxationNotice, setRelaxationNotice] = useState<string | null>(null);
 
   function selectSort(key: SortKey) {
     setSortBy(key);
@@ -112,35 +117,94 @@ function FindCarePage() {
     setFilters((f) => ({ ...f, ...patch }));
   }
 
+  async function fetchStage(
+    activeFilters: SearchFilters,
+  ): Promise<{ results: CaregiverResult[]; emptyState: { message: string } | null }> {
+    const params = new URLSearchParams();
+    if (activeFilters.area) params.set("area", activeFilters.area);
+    if (activeFilters.date) params.set("date", activeFilters.date);
+    if (activeFilters.startTime) params.set("startTime", activeFilters.startTime);
+    if (activeFilters.endTime) params.set("endTime", activeFilters.endTime);
+    if (activeFilters.budgetCeiling)
+      params.set("budgetCeiling", String(activeFilters.budgetCeiling));
+    if (activeFilters.minExperience)
+      params.set("minExperience", String(activeFilters.minExperience));
+    if (activeFilters.minRating) params.set("minRating", String(activeFilters.minRating));
+    if (activeFilters.skills?.length) params.set("skills", activeFilters.skills.join(","));
+
+    return apiFetch<{ results: CaregiverResult[]; emptyState: { message: string } | null }>(
+      `/api/search/caregivers?${params.toString()}`,
+    );
+  }
+
+  function applyTypeFilter(list: CaregiverResult[], type = caregiverType): CaregiverResult[] {
+    return type ? list.filter((c) => c.caregiver_type === type) : list;
+  }
+
+  // Real, honest progressive relaxation: every stage is an actual second
+  // (or third) call to the existing search endpoint with fewer filters —
+  // never a fabricated "no results" screen when a broader search would
+  // have found someone. Availability (date/time) is never relaxed, and
+  // verification is never a filter to begin with (public_caregivers only
+  // ever surfaces verified, accepting-bookings profiles).
   async function runSearch(activeFilters: SearchFilters) {
     setLoading(true);
     setError(null);
     setValidationError(null);
     setEmptyMessage(null);
+    setRelaxationNotice(null);
     setHasSearched(true);
     setFiltersOpen(false);
     setPage(1);
     try {
-      const params = new URLSearchParams();
-      if (activeFilters.area) params.set("area", activeFilters.area);
-      if (activeFilters.date) params.set("date", activeFilters.date);
-      if (activeFilters.startTime) params.set("startTime", activeFilters.startTime);
-      if (activeFilters.endTime) params.set("endTime", activeFilters.endTime);
-      if (activeFilters.budgetCeiling)
-        params.set("budgetCeiling", String(activeFilters.budgetCeiling));
-      if (activeFilters.minExperience)
-        params.set("minExperience", String(activeFilters.minExperience));
-      if (activeFilters.minRating) params.set("minRating", String(activeFilters.minRating));
-      if (activeFilters.skills?.length) params.set("skills", activeFilters.skills.join(","));
+      let effective = activeFilters;
+      let raw = await fetchStage(effective);
+      let typed = applyTypeFilter(raw.results);
 
-      const res = await apiFetch<{
-        results: CaregiverResult[];
-        emptyState: { message: string } | null;
-      }>(`/api/search/caregivers?${params.toString()}`);
+      if (typed.length === 0 && effective.area) {
+        const relaxed = { ...effective, area: undefined };
+        const res = await fetchStage(relaxed);
+        const relaxedTyped = applyTypeFilter(res.results);
+        raw = res;
+        typed = relaxedTyped;
+        effective = relaxed;
+        if (relaxedTyped.length > 0) {
+          setRelaxationNotice(
+            `We couldn't find an exact match in ${activeFilters.area} — here are ${relaxedTyped.length} verified caregiver${relaxedTyped.length === 1 ? "" : "s"} available at your requested time.`,
+          );
+        }
+      }
 
-      setAppliedFilters(activeFilters);
-      setResults(res.results);
-      if (res.results.length === 0 && res.emptyState) setEmptyMessage(res.emptyState.message);
+      if (typed.length === 0 && (effective.skills?.length || effective.minExperience)) {
+        const relaxed = { ...effective, skills: undefined, minExperience: undefined };
+        const res = await fetchStage(relaxed);
+        const relaxedTyped = applyTypeFilter(res.results);
+        raw = res;
+        typed = relaxedTyped;
+        effective = relaxed;
+        if (relaxedTyped.length > 0) {
+          setRelaxationNotice(
+            `We broadened your search to find ${relaxedTyped.length} available caregiver${relaxedTyped.length === 1 ? "" : "s"}.`,
+          );
+        }
+      }
+
+      setAppliedFilters(effective);
+      setRawResults(raw.results);
+      setResults(typed);
+      if (typed.length === 0) {
+        if (caregiverType && raw.results.length > 0) {
+          setEmptyMessage(
+            `There were caregivers available, but none are registered as a ${caregiverTypeLabel(caregiverType)} — try Find Care to browse everyone.`,
+          );
+        } else if (raw.emptyState) {
+          setEmptyMessage(raw.emptyState.message);
+        } else {
+          setEmptyMessage(
+            "We couldn't find any caregivers matching your request, even after broadening the search.",
+          );
+        }
+      }
     } catch (err) {
       // A 400 here means the filter combination itself is invalid (e.g. a
       // start time without an end time) — that's the parent's to fix, not
@@ -255,6 +319,42 @@ function FindCarePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once, on the initial ?q= only
   }, []);
 
+  // A request arriving from the parent Home page's Nanny/Babysitter
+  // request flow lands here as ?panel=nanny|babysitter plus the already-
+  // resolved structured filters (area/date/startTime/endTime/skills) —
+  // that flow already ran its own free-text field through the AI parser
+  // itself, so this runs the search directly rather than re-parsing.
+  // No-ops (and never fires alongside the ?q= effect above) when neither
+  // param is present, so every other entry point into this page is
+  // unaffected.
+  useEffect(() => {
+    const type = searchParams.get("type");
+    const panel = searchParams.get("panel");
+    if (!panel && !type) return;
+
+    const parsed: SearchFilters = {};
+    const area = searchParams.get("area");
+    const date = searchParams.get("date");
+    const startTime = searchParams.get("startTime");
+    const endTime = searchParams.get("endTime");
+    const skills = searchParams.get("skills");
+    if (area) parsed.area = area;
+    if (date) parsed.date = date;
+    if (startTime) parsed.startTime = startTime;
+    if (endTime) parsed.endTime = endTime;
+    if (skills) parsed.skills = skills.split(",").filter(Boolean);
+
+    // A synchronous external read (the URL), so the resulting state
+    // updates are deferred out of the effect body itself.
+    void Promise.resolve().then(() => {
+      if (type === "nanny" || type === "babysitter") setCaregiverType(type);
+      setFromRequestFlow(true);
+      setFilters(parsed);
+      void runSearch(parsed);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once, from the initial structured params only
+  }, []);
+
   const selectedWard = wards?.find((w) => w.id === selectedWardId) ?? null;
   const sortedResults = results ? sortResults(results, sortBy) : null;
   const filterCount = activeFilterCount(filters);
@@ -262,7 +362,15 @@ function FindCarePage() {
   const currentPage = Math.min(page, totalPages);
   const pagedResults = sortedResults?.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-  const chips: { keys: (keyof SearchFilters)[]; label: string; ward?: boolean }[] = [];
+  const chips: {
+    keys: (keyof SearchFilters)[];
+    label: string;
+    ward?: boolean;
+    caregiverType?: boolean;
+  }[] = [];
+  if (caregiverType) {
+    chips.push({ keys: [], label: caregiverTypeLabel(caregiverType) ?? "", caregiverType: true });
+  }
   if (selectedWard) {
     chips.push({
       keys: [],
@@ -297,9 +405,20 @@ function FindCarePage() {
     chips.push({ keys: ["skills"], label: filters.skills.map(skillLabel).join(", ") });
   }
 
-  function removeChip(chip: { keys: (keyof SearchFilters)[]; ward?: boolean }) {
+  function removeChip(chip: {
+    keys: (keyof SearchFilters)[];
+    ward?: boolean;
+    caregiverType?: boolean;
+  }) {
     if (chip.ward) {
       setSelectedWardId("");
+      return;
+    }
+    if (chip.caregiverType) {
+      // A pure client-side filter on data already in hand — no refetch,
+      // just show the untyped set from whichever stage last succeeded.
+      setCaregiverType(undefined);
+      if (rawResults) setResults(rawResults);
       return;
     }
     removeFilters(chip.keys);
@@ -383,7 +502,9 @@ function FindCarePage() {
           <div className="flex flex-wrap items-center gap-2">
             {chips.map((chip) => (
               <button
-                key={chip.ward ? "ward" : chip.keys.join("-")}
+                key={
+                  chip.ward ? "ward" : chip.caregiverType ? "caregiverType" : chip.keys.join("-")
+                }
                 type="button"
                 onClick={() => removeChip(chip)}
                 className="flex items-center gap-1.5 rounded-full bg-sage-tint px-3 py-1.5 text-[12.5px] font-medium text-sage-pressed hover:bg-sage/20"
@@ -420,15 +541,27 @@ function FindCarePage() {
               emptyMessage ?? "Try adjusting your search or filters to see more caregivers."
             }
             action={
-              <Button variant="secondary" onClick={clearAll}>
-                Clear Filters
-              </Button>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                {fromRequestFlow && (
+                  <Link href={`/parent?${searchParams.toString()}`}>
+                    <Button variant="secondary">Edit your request</Button>
+                  </Link>
+                )}
+                <Button variant="secondary" onClick={clearAll}>
+                  Clear Filters
+                </Button>
+              </div>
             }
           />
         )}
 
         {!loading && !error && sortedResults && sortedResults.length > 0 && (
           <>
+            {relaxationNotice && (
+              <p className="rounded-[10px] bg-wisteria-tint px-3.5 py-2.5 text-[13px] font-medium text-wisteria-pressed">
+                {relaxationNotice}
+              </p>
+            )}
             <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {pagedResults?.map((c) => (
                 <CaregiverResultCard

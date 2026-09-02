@@ -56,3 +56,13 @@ export function activeFilterCount(filters: SearchFilters): number {
     (v) => v !== undefined && v !== "" && (!Array.isArray(v) || v.length > 0),
   ).length;
 }
+
+// Shared by the Find Care ward-picker and the parent Home page's
+// Nanny/Babysitter request flow, so both derive a skill suggestion from
+// a child's age the same way.
+export function suggestedSkillForAge(age: number): string {
+  if (age === 0) return "newborn_care";
+  if (age <= 2) return "infant_care";
+  if (age <= 4) return "toddler_care";
+  return "school_age_supervision";
+}
