@@ -92,7 +92,7 @@ function SignInForm() {
         </div>
         {error && <p className="text-[13px] text-error">{error}</p>}
         <Button type="submit" disabled={loading}>
-          {loading ? "Signing in…" : "Log In →"}
+          {loading ? "Signing in…" : "Log In"}
         </Button>
       </Sheet>
       <p className="text-center text-[13px] text-ink-muted">
