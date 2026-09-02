@@ -179,7 +179,7 @@ export default function Home() {
                 trusted caregiving agency.
               </p>
               <div className="flex flex-wrap gap-3 pt-2">
-                <LinkButton href="/register">Find a Caregiver →</LinkButton>
+                <LinkButton href="/register">Find a Caregiver</LinkButton>
                 <LinkButton href="/claim-invitation" variant="secondary">
                   Become a Caregiver
                 </LinkButton>
@@ -333,7 +333,7 @@ export default function Home() {
                   href="#faq"
                   className="text-[14px] font-semibold text-wisteria hover:text-wisteria-hover"
                 >
-                  Explore our safety approach →
+                  Explore our safety approach
                 </Link>
               </div>
             </div>
@@ -403,7 +403,7 @@ export default function Home() {
               description="Already part of our caregiving agency? Claim your CareLink account, share your skills and availability, and connect with families looking for childcare."
               align="center"
             />
-            <LinkButton href="/claim-invitation">Claim your account →</LinkButton>
+            <LinkButton href="/claim-invitation">Claim your account</LinkButton>
             <p className="text-[12px] text-ink-muted">
               Verification is required before receiving bookings.
             </p>
@@ -457,14 +457,14 @@ export default function Home() {
                   color: "var(--color-wisteria-pressed)",
                 }}
               >
-                Find a Caregiver →
+                Find a Caregiver
               </LinkButton>
               <LinkButton
                 href="/claim-invitation"
                 variant="secondary"
                 className="border-sheet/40 text-black hover:border-sheet hover:text-black"
               >
-                Are you a caregiver? Join CareLink →
+                Are you a caregiver? Join CareLink
               </LinkButton>
             </div>
           </div>
