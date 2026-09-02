@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ShieldCheck } from "@phosphor-icons/react";
+import { Shield, ShieldCheck, User } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -137,6 +137,7 @@ export default function ParentDashboardPage() {
             description="Long-term care and daily support"
             imageSrc="/demo/hero-reading.jpeg"
             imageAlt="A nanny reading with a child"
+            badgeIcon={User}
             onClick={() => openPanel("nanny")}
           />
           <CareTypeCard
@@ -144,6 +145,7 @@ export default function ParentDashboardPage() {
             description="Short-term care and occasional support"
             imageSrc="/demo/ward-activity.jpeg"
             imageAlt="A babysitter playing with a child"
+            badgeIcon={Shield}
             onClick={() => openPanel("babysitter")}
           />
         </div>
