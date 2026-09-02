@@ -6,28 +6,22 @@ import { useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
-  Funnel,
   MagnifyingGlass,
   ShieldCheck,
+  Sparkle,
   X,
 } from "@phosphor-icons/react";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
-import { Button } from "@/components/ui/button";
-import { Field } from "@/components/ui/field";
-import { Sheet } from "@/components/ui/sheet";
+import { Button, LinkButton } from "@/components/ui/button";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { CaregiverCardSkeleton } from "@/components/ui/skeleton";
-import { FilterFields } from "@/components/find-care/filter-fields";
 import { CaregiverResultCard } from "@/components/find-care/caregiver-result-card";
 import {
   skillLabel,
-  activeFilterCount,
   caregiverTypeLabel,
-  suggestedSkillForAge,
   type CaregiverResult,
   type SearchFilters,
-  type Ward,
 } from "@/components/find-care/types";
 
 type SortKey = "recommended" | "rating" | "experience" | "rate";
@@ -65,11 +59,8 @@ function formatDate(iso: string): string {
 
 function FindCarePage() {
   const searchParams = useSearchParams();
-  const [nlQuery, setNlQuery] = useState(() => searchParams.get("q") ?? "");
   const [filters, setFilters] = useState<SearchFilters>({});
   const [appliedFilters, setAppliedFilters] = useState<SearchFilters>({});
-  const [wards, setWards] = useState<Ward[] | null>(null);
-  const [selectedWardId, setSelectedWardId] = useState("");
 
   const [results, setResults] = useState<CaregiverResult[] | null>(null);
   const [rawResults, setRawResults] = useState<CaregiverResult[] | null>(null);
@@ -79,7 +70,6 @@ function FindCarePage() {
   const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>("recommended");
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [page, setPage] = useState(1);
   // caregiverType/fromRequestFlow/relaxationNotice are all specific to
   // arriving here from the parent Home page's Nanny/Babysitter request
@@ -97,28 +87,6 @@ function FindCarePage() {
   function selectSort(key: SortKey) {
     setSortBy(key);
     setPage(1);
-  }
-
-  useEffect(() => {
-    apiFetch<{ wards: Ward[] }>("/api/wards")
-      .then((res) => setWards(res.wards))
-      .catch(() => setWards([]));
-  }, []);
-
-  function onSelectWard(wardId: string) {
-    setSelectedWardId(wardId);
-    const ward = wards?.find((w) => w.id === wardId);
-    if (!ward) return;
-    const suggested = suggestedSkillForAge(ward.age_years);
-    setFilters((f) => {
-      const current = f.skills ?? [];
-      if (current.includes(suggested)) return f;
-      return { ...f, skills: [...current, suggested] };
-    });
-  }
-
-  function patchFilters(patch: Partial<SearchFilters>) {
-    setFilters((f) => ({ ...f, ...patch }));
   }
 
   async function fetchStage(
@@ -158,7 +126,6 @@ function FindCarePage() {
     setEmptyMessage(null);
     setRelaxationNotice(null);
     setHasSearched(true);
-    setFiltersOpen(false);
     setPage(1);
     try {
       let effective = activeFilters;
@@ -220,47 +187,6 @@ function FindCarePage() {
     }
   }
 
-  // The primary AI search box: each submission is a fresh statement of
-  // what the parent wants, so the parsed result REPLACES the current
-  // filters entirely rather than merging onto whatever was there before
-  // (a previous search's area/date/skills must never leak into this
-  // one) — and since the model is never asked for and never returns a
-  // ward/child field, any previously-selected ward is cleared too, so
-  // the results page can't show a child that wasn't mentioned in this
-  // query. "Refine filters" (patchFilters, below) is the one place
-  // incremental merging is correct, since refining is explicitly meant
-  // to add to what the AI already set.
-  async function onFindCare() {
-    setSelectedWardId("");
-    if (!nlQuery.trim()) {
-      setFilters({});
-      void runSearch({});
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    setValidationError(null);
-    try {
-      const res = await apiFetch<{ filters: Partial<SearchFilters> | null }>("/api/search/parse", {
-        method: "POST",
-        body: { query: nlQuery },
-      });
-      const parsed = res.filters ?? {};
-      setFilters(parsed);
-      await runSearch(parsed);
-      // runSearch resets validationError itself, so this has to land after
-      // it settles rather than before — otherwise its own reset wipes it.
-      if (!res.filters) {
-        setValidationError(
-          "Couldn't fully understand your request — try refining your search below.",
-        );
-      }
-    } catch (err) {
-      setLoading(false);
-      setError(errorMessage(err));
-    }
-  }
-
   function removeFilters(keys: (keyof SearchFilters)[]) {
     const next = { ...filters };
     for (const key of keys) delete next[key];
@@ -270,8 +196,6 @@ function FindCarePage() {
 
   function clearAll() {
     setFilters({});
-    setSelectedWardId("");
-    setNlQuery("");
     void runSearch({});
   }
 
@@ -361,9 +285,7 @@ function FindCarePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once, from the initial structured params only
   }, []);
 
-  const selectedWard = wards?.find((w) => w.id === selectedWardId) ?? null;
   const sortedResults = results ? sortResults(results, sortBy) : null;
-  const filterCount = activeFilterCount(filters);
   const totalPages = sortedResults ? Math.max(1, Math.ceil(sortedResults.length / PAGE_SIZE)) : 1;
   const currentPage = Math.min(page, totalPages);
   const pagedResults = sortedResults?.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -371,18 +293,10 @@ function FindCarePage() {
   const chips: {
     keys: (keyof SearchFilters)[];
     label: string;
-    ward?: boolean;
     caregiverType?: boolean;
   }[] = [];
   if (caregiverType) {
     chips.push({ keys: [], label: caregiverTypeLabel(caregiverType) ?? "", caregiverType: true });
-  }
-  if (selectedWard) {
-    chips.push({
-      keys: [],
-      label: `${selectedWard.display_name}, ${selectedWard.age_years}`,
-      ward: true,
-    });
   }
   if (filters.area) chips.push({ keys: ["area"], label: filters.area });
   if (filters.date) {
@@ -411,15 +325,7 @@ function FindCarePage() {
     chips.push({ keys: ["skills"], label: filters.skills.map(skillLabel).join(", ") });
   }
 
-  function removeChip(chip: {
-    keys: (keyof SearchFilters)[];
-    ward?: boolean;
-    caregiverType?: boolean;
-  }) {
-    if (chip.ward) {
-      setSelectedWardId("");
-      return;
-    }
+  function removeChip(chip: { keys: (keyof SearchFilters)[]; caregiverType?: boolean }) {
     if (chip.caregiverType) {
       // A pure client-side filter on data already in hand — no refetch,
       // just show the untyped set from whichever stage last succeeded.
@@ -445,46 +351,14 @@ function FindCarePage() {
         </p>
       </div>
 
-      <Sheet className="flex flex-col gap-4">
-        <h2 className="text-[15px] font-semibold text-ink">What kind of care do you need?</h2>
-        <Field
-          label="Describe the care you're looking for"
-          placeholder="I need a babysitter this Saturday from 9am to 4pm for my 4-year-old…"
-          value={nlQuery}
-          onChange={(e) => setNlQuery(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && void onFindCare()}
-        />
-        <Button
-          type="button"
-          onClick={() => void onFindCare()}
-          disabled={loading}
-          className="self-start"
-        >
-          <MagnifyingGlass size={18} /> Find Care →
-        </Button>
-        {validationError && (
-          <div className="flex flex-wrap items-center gap-3">
-            <p className="text-[13px] text-error">{validationError}</p>
-            <button
-              type="button"
-              onClick={() => setFiltersOpen(true)}
-              className="text-[13px] font-semibold text-sage hover:text-sage-hover"
-            >
-              Refine filters →
-            </button>
-          </div>
-        )}
-      </Sheet>
-
       <div id="search-results-top" className="flex flex-col gap-4 scroll-mt-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-[15px] font-semibold text-ink">
-            {sortedResults
-              ? `${sortedResults.length} caregiver${sortedResults.length === 1 ? "" : "s"} match your needs`
-              : "Caregivers matching your search"}
-          </p>
-          <div className="flex items-center gap-2">
-            {sortedResults && sortedResults.length > 0 && (
+        {hasSearched && !loading && sortedResults && (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[15px] font-semibold text-ink">
+              {sortedResults.length} caregiver{sortedResults.length === 1 ? "" : "s"} match your
+              needs
+            </p>
+            {sortedResults.length > 0 && (
               <select
                 aria-label="Sort caregivers"
                 value={sortBy}
@@ -498,19 +372,14 @@ function FindCarePage() {
                 ))}
               </select>
             )}
-            <Button variant="secondary" onClick={() => setFiltersOpen(true)}>
-              <Funnel size={16} /> Refine filters{filterCount > 0 ? ` (${filterCount})` : ""}
-            </Button>
           </div>
-        </div>
+        )}
 
-        {chips.length > 0 && (
+        {hasSearched && chips.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
             {chips.map((chip) => (
               <button
-                key={
-                  chip.ward ? "ward" : chip.caregiverType ? "caregiverType" : chip.keys.join("-")
-                }
+                key={chip.caregiverType ? "caregiverType" : chip.keys.join("-")}
                 type="button"
                 onClick={() => removeChip(chip)}
                 className="flex items-center gap-1.5 rounded-full bg-sage-tint px-3 py-1.5 text-[12.5px] font-medium text-sage-pressed hover:bg-sage/20"
@@ -539,7 +408,25 @@ function FindCarePage() {
 
         {!loading && error && <ErrorState onRetry={() => void runSearch(filters)} />}
 
-        {!loading && !error && hasSearched && sortedResults?.length === 0 && (
+        {!loading && !error && validationError && (
+          <EmptyState
+            icon={MagnifyingGlass}
+            title="We couldn't process that request."
+            description={validationError}
+            action={
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <LinkButton href="/parent/care-ai" variant="accent">
+                  <Sparkle size={16} weight="fill" /> Ask CareLink AI
+                </LinkButton>
+                <LinkButton href="/parent" variant="secondary">
+                  Go to Home
+                </LinkButton>
+              </div>
+            }
+          />
+        )}
+
+        {!loading && !error && !validationError && hasSearched && sortedResults?.length === 0 && (
           <EmptyState
             icon={MagnifyingGlass}
             title="We couldn't find an exact match."
@@ -607,48 +494,23 @@ function FindCarePage() {
         )}
 
         {!loading && !error && !hasSearched && (
-          <p className="text-[14px] text-ink-muted">
-            Describe what you need above, or use Refine filters to browse caregivers.
-          </p>
+          <EmptyState
+            icon={Sparkle}
+            title="Let's find the right care for your family"
+            description="Tell CareLink AI what you need, or go to Home to request a Nanny or Babysitter directly — we'll match you with a verified caregiver nearby."
+            action={
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <LinkButton href="/parent/care-ai" variant="accent">
+                  <Sparkle size={16} weight="fill" /> Ask CareLink AI
+                </LinkButton>
+                <LinkButton href="/parent" variant="secondary">
+                  Go to Home
+                </LinkButton>
+              </div>
+            }
+          />
         )}
       </div>
-
-      {filtersOpen && (
-        <div className="fixed inset-0 z-30 flex flex-col bg-paper">
-          <div className="mx-auto flex w-full max-w-lg flex-1 flex-col overflow-hidden">
-            <div className="flex items-center justify-between border-b border-hairline p-4">
-              <h2 className="text-[17px] font-semibold font-heading">Refine filters</h2>
-              <button
-                type="button"
-                onClick={() => setFiltersOpen(false)}
-                aria-label="Close filters"
-                className="flex h-9 w-9 items-center justify-center rounded-full text-ink hover:bg-sage-tint"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4">
-              <FilterFields
-                filters={filters}
-                onChange={patchFilters}
-                wards={wards}
-                selectedWardId={selectedWardId}
-                onSelectWard={onSelectWard}
-              />
-            </div>
-            <div className="flex flex-col gap-2 border-t border-hairline p-4">
-              <Button onClick={() => void runSearch(filters)} disabled={loading}>
-                Apply Filters
-              </Button>
-              {filterCount > 0 && (
-                <Button variant="secondary" onClick={clearAll}>
-                  Clear all
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
