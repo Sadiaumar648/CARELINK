@@ -46,11 +46,11 @@
      its Nanny/Babysitter request flow, matching a purple/indigo
      reference design for that page specifically — the app-wide primary
      stays Fern (sage) everywhere else. Values match the reference
-     design's stated hex palette (~#4B24C7 primary, ~#F0EBFF tint). */
-  --color-wisteria: #4b24c7;
-  --color-wisteria-hover: #3f1da8;
-  --color-wisteria-pressed: #331791;
-  --color-wisteria-tint: #f0ebff;
+     design's own stated hex palette (#6d3fef primary, #f3eeff tint). */
+  --color-wisteria: #6d3fef;
+  --color-wisteria-hover: #5c2fe0;
+  --color-wisteria-pressed: #4a23b8;
+  --color-wisteria-tint: #f3eeff;
 
   /* Lavender neutrals — also scoped to the parent Home page only, for
      its near-white page background and light card borders, matching
@@ -58,8 +58,8 @@
      --color-paper/--color-hairline (the app-wide warm neutrals used
      everywhere else) so this page can differ without repainting the
      rest of the app. */
-  --color-lavender-bg: #faf9ff;
-  --color-lavender-border: #e7e5ef;
+  --color-lavender-bg: #fafafc;
+  --color-lavender-border: #eaeaea;
 
   /* Status. */
   --color-success: #4e6b54; /* Fern family */

@@ -21,19 +21,24 @@ export type NavItem = { href: string; label: string; icon: Icon; badge?: number 
 // nine labelled tabs at the bottom of a phone) — it defaults to `items`,
 // so a role that doesn't pass it renders exactly as before.
 // `sidebarHeader`/`sidebarFooter` are optional desktop-rail-only slots
-// for role-specific content (a logo block, a support/emergency card),
-// and `headerExtra` is an optional slot in the top header bar next to
-// the notifications bell (e.g. a profile/name cluster) — all omitted by
+// for role-specific content (a logo block, a support/emergency card).
+// `headerLeft` is an optional slot at the start of the top header bar
+// (e.g. a logo, when a role has no desktop rail to put one in) and
+// `headerExtra` is an optional slot at the end of it, after the
+// notifications bell (e.g. a profile/name cluster) — all omitted by
 // default, so roles that don't use them are unaffected.
 // `activeItemClassName`/`railWidthClassName`/`mainClassName` are small
-// visual overrides (active-nav styling, rail width, content background)
-// so one role's reference design can differ from the rest without a
-// second component — all default to today's exact values.
+// visual overrides (active-nav styling, rail width, content background).
+// Passing `railWidthClassName="md:hidden"` removes the desktop rail
+// entirely (mobile's bottom tab bar is untouched either way) for a role
+// whose reference design puts every destination in the header instead —
+// all of this defaults to today's exact rail-based layout otherwise.
 export function RoleShell({
   items,
   mobileItems,
   sidebarHeader,
   sidebarFooter,
+  headerLeft,
   headerExtra,
   bookingHref,
   largeTargets = false,
@@ -47,6 +52,7 @@ export function RoleShell({
   mobileItems?: NavItem[];
   sidebarHeader?: React.ReactNode;
   sidebarFooter?: React.ReactNode;
+  headerLeft?: React.ReactNode;
   headerExtra?: React.ReactNode;
   bookingHref?: (bookingId: string) => string;
   largeTargets?: boolean;
@@ -123,10 +129,13 @@ export function RoleShell({
         </div>
       </nav>
       <main className={`flex-1 pb-20 md:pb-0 ${mainClassName}`}>
-        <div className="flex items-center justify-end gap-2 border-b border-hairline p-2 md:p-3">
-          {readAloud && <ReadAloudToggle />}
-          <NotificationsBell bookingHref={bookingHref} />
-          {headerExtra}
+        <div className="flex items-center justify-between gap-2 border-b border-hairline p-2 md:p-3">
+          <div className="flex items-center">{headerLeft}</div>
+          <div className="flex items-center gap-2">
+            {readAloud && <ReadAloudToggle />}
+            <NotificationsBell bookingHref={bookingHref} />
+            {headerExtra}
+          </div>
         </div>
         {children}
       </main>

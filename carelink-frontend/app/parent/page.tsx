@@ -89,7 +89,7 @@ export default function ParentDashboardPage() {
 
   if (error) {
     return (
-      <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
+      <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
         <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />
       </div>
     );
@@ -97,7 +97,7 @@ export default function ParentDashboardPage() {
 
   if (activePanel) {
     return (
-      <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
+      <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
         <RequestFlowPanel
           type={activePanel}
           initial={panelInitial}
@@ -108,10 +108,10 @@ export default function ParentDashboardPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-8 p-6">
+    <div className="mx-auto flex max-w-4xl flex-col gap-10 p-6 md:p-8">
       {/* GREETING */}
-      <div className="flex flex-col gap-1">
-        <h1 className="text-[26px] font-semibold font-heading">
+      <div className="flex flex-col gap-1.5">
+        <h1 className="text-[28px] font-bold font-heading">
           {greeting()}
           {firstName ? `, ${firstName}` : ""} 👋
         </h1>
@@ -120,17 +120,18 @@ export default function ParentDashboardPage() {
         </p>
       </div>
 
-      {/* CARE TYPE SELECTION */}
-      <Sheet className="flex flex-col gap-4 border-[var(--color-lavender-border)]">
+      {/* CARE TYPE SELECTION — two fully independent cards, not nested
+          inside a combined wrapper card. */}
+      <div className="flex flex-col gap-5">
         <div>
-          <h2 className="text-[18px] font-semibold font-heading text-ink">
+          <h2 className="text-[19px] font-bold font-heading text-ink">
             What type of care do you need?
           </h2>
-          <p className="text-[13px] text-ink-muted">
+          <p className="text-[14px] text-ink-muted">
             Choose the type of caregiver that best fits your needs.
           </p>
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
           <CareTypeCard
             title="Nanny"
             description="Long-term care and daily support"
@@ -146,7 +147,7 @@ export default function ParentDashboardPage() {
             onClick={() => openPanel("babysitter")}
           />
         </div>
-      </Sheet>
+      </div>
 
       {/* RECENT ACTIVITY + SAFETY */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
@@ -197,17 +198,17 @@ export default function ParentDashboardPage() {
           )}
         </Sheet>
 
-        <Sheet className="flex flex-col gap-3 bg-[var(--color-gold-tint)]">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-sheet text-ink">
-            <ShieldCheck size={18} weight="fill" />
-          </span>
+        <Sheet className="flex flex-col gap-3 border-[var(--color-lavender-border)]">
+          <ShieldCheck size={22} weight="fill" className="text-ink" />
           <h2 className="text-[15px] font-semibold font-heading text-ink">CareLink Safety</h2>
           <p className="text-[12.5px] leading-relaxed text-ink-muted">
-            Your family&apos;s safety is our priority. Every caregiver is identity-verified before
-            they can accept a booking, and your private details are only ever shared with the
-            caregiver you&apos;ve confirmed.
+            We verify all caregivers before they can accept a booking.
           </p>
-          <LinkButton href="/parent/safety" variant="secondary" className="justify-center">
+          <LinkButton
+            href="/parent/safety"
+            variant="secondary"
+            className="justify-center border-[var(--color-lavender-border)]"
+          >
             Learn about safety
           </LinkButton>
         </Sheet>
