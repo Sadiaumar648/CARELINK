@@ -9,6 +9,7 @@ import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
 import { RecommendationCard } from "@/components/parent/care-ai/recommendation-card";
 import { ConfirmationCard } from "@/components/parent/care-ai/confirmation-card";
+import { SCHEDULE_OPTIONS } from "@/components/parent/request-flow-panel";
 import type { Ward } from "@/components/find-care/types";
 import type { CareRequestDraft } from "@carelink/shared";
 
@@ -23,6 +24,16 @@ const SUGGESTED_PROMPTS = [
 
 const INTRO_MESSAGE =
   "Hi, I'm CareLink AI 👋 Tell me a bit about the care you need — who it's for, and when — and I'll help you find the right caregiver.";
+
+// The same bucketing suggestedSkillForAge already uses (0 → newborn,
+// 1–2 → infant, 3–4 → toddler, 5+ → school-age), just mapped onto the
+// request form's own AGE_OPTIONS values instead of a skill tag.
+function ageOptionFor(age: number): string {
+  if (age === 0) return "0";
+  if (age <= 2) return "2";
+  if (age <= 4) return "4";
+  return "6";
+}
 
 function CareAiPage() {
   const router = useRouter();
@@ -182,6 +193,25 @@ function CareAiPage() {
     }
   }
 
+  // Tapping either recommendation option hands off to the same request
+  // form the direct Nanny/Babysitter cards use, prefilled with whatever
+  // the conversation already established, rather than continuing to
+  // fill in the rest by chat — one form for finishing a request, whether
+  // its type came from CareLink AI's advice or the parent's own pick.
+  function chooseType(type: "nanny" | "babysitter") {
+    const params = new URLSearchParams();
+    params.set("panel", type);
+    if (draft.date) params.set("startDate", draft.date);
+    if (draft.startTime) {
+      const matched = SCHEDULE_OPTIONS.find((s) => s.startTime === draft.startTime);
+      if (matched) params.set("schedule", matched.value);
+    }
+    if (draft.location) params.set("area", draft.location);
+    if (draft.wardAgeYears != null) params.set("age", ageOptionFor(draft.wardAgeYears));
+    if (draft.notes) params.set("requirements", draft.notes);
+    router.push(`/parent?${params.toString()}`);
+  }
+
   // The second, additive path: instead of browsing ranked results,
   // dispatch the request to eligible caregivers one at a time.
   async function dispatch() {
@@ -272,7 +302,7 @@ function CareAiPage() {
         )}
 
         {recommendation && !chosenType && (
-          <RecommendationCard recommendation={recommendation} onChoose={setChosenType} />
+          <RecommendationCard recommendation={recommendation} onChoose={chooseType} />
         )}
 
         {canShowConfirmation && (

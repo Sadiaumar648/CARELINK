@@ -49,7 +49,9 @@ const COPY: Record<
   },
 };
 
-const SCHEDULE_OPTIONS = [
+// Exported so the CareLink AI page can map its own gathered startTime
+// back onto one of these named blocks when handing off to this form.
+export const SCHEDULE_OPTIONS = [
   { value: "morning", label: "Morning (6:00am – 12:00pm)", startTime: "06:00", endTime: "12:00" },
   {
     value: "afternoon",
