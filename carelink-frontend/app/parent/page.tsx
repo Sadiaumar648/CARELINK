@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ShieldCheck } from "@phosphor-icons/react";
+import { ArrowRight, ShieldCheck, Sparkle } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -120,16 +120,36 @@ export default function ParentDashboardPage() {
         </p>
       </div>
 
-      {/* CARE TYPE SELECTION — two fully independent cards, not nested
-          inside a combined wrapper card. */}
+      {/* CARELINK AI — the primary way to start. Advisory only: it never
+          picks a caregiver itself, it only produces a structured request
+          for the parent to confirm before the existing search runs. */}
+      <Sheet className="flex flex-col gap-4 border-[var(--color-lavender-border)] bg-wisteria-tint sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sheet text-wisteria shadow-[var(--shadow-card)]">
+            <Sparkle size={20} weight="fill" />
+          </span>
+          <div>
+            <p className="text-[17px] font-bold font-heading text-ink">✨ CareLink AI</p>
+            <p className="text-[13.5px] text-ink-muted">
+              Tell us what you need and we&apos;ll help you find the right type of care.
+            </p>
+          </div>
+        </div>
+        <LinkButton
+          href="/parent/care-ai"
+          variant="accent"
+          className="w-full shrink-0 justify-center sm:w-auto"
+        >
+          Start with CareLink AI <ArrowRight size={16} />
+        </LinkButton>
+      </Sheet>
+
+      {/* CARE TYPE SELECTION — secondary/direct path, for a parent who
+          already knows what they need. Two fully independent cards, not
+          nested inside a combined wrapper card. */}
       <div className="flex flex-col gap-5">
         <div>
-          <h2 className="text-[19px] font-bold font-heading text-ink">
-            What type of care do you need?
-          </h2>
-          <p className="text-[14px] text-ink-muted">
-            Choose the type of caregiver that best fits your needs.
-          </p>
+          <h2 className="text-[15px] font-semibold text-ink-muted">Already know what you need?</h2>
         </div>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
           <CareTypeCard

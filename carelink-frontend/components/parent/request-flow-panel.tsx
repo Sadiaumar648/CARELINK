@@ -161,6 +161,12 @@ export function RequestFlowPanel({
       setFormError("Choose a start date and a schedule to continue.");
       return;
     }
+    // CareLink's strict rule: no location, no caregiver search — enforced
+    // here and again by the backend (POST /api/care-requests requires it).
+    if (!area.trim()) {
+      setFormError("Add a care location so we can find caregivers who serve your area.");
+      return;
+    }
     setFormError(null);
     setSubmitting(true);
 
@@ -178,7 +184,7 @@ export function RequestFlowPanel({
       startTime,
       endTime,
     };
-    if (area.trim()) filters.area = area.trim();
+    filters.area = area.trim();
     if (age) filters.skills = [suggestedSkillForAge(Number(age))];
 
     // Only the genuinely free-text field goes through the existing AI
@@ -211,6 +217,28 @@ export function RequestFlowPanel({
       }
     }
 
+    // Persist a structured record of what was actually asked for — this
+    // never affects the search itself (still the same filters below);
+    // failure here doesn't block the parent's search either, same
+    // best-effort convention as the AI parse call above.
+    try {
+      await apiFetch("/api/care-requests", {
+        method: "POST",
+        body: {
+          source: "direct",
+          caregiverType: type,
+          date: filters.date,
+          startTime: filters.startTime,
+          endTime: filters.endTime,
+          location: filters.area,
+          skills: filters.skills,
+          notes: requirements.trim() || undefined,
+        },
+      });
+    } catch {
+      // Best-effort — see comment above.
+    }
+
     const params = new URLSearchParams();
     if (filters.area) params.set("area", filters.area);
     if (filters.date) params.set("date", filters.date);
@@ -221,6 +249,7 @@ export function RequestFlowPanel({
     if (filters.minExperience) params.set("minExperience", String(filters.minExperience));
     params.set("type", type);
     params.set("panel", type);
+    params.set("source", "direct");
     // Raw form fields too, so "Edit your request" on Find Care can hand
     // the whole querystring straight back here for a pre-filled re-open.
     params.set("startDate", startDate);
@@ -284,6 +313,7 @@ export function RequestFlowPanel({
           <Field
             label="Location / Area"
             placeholder="Enter your area"
+            required
             value={area}
             onChange={(e) => setArea(e.target.value)}
             className="border-[var(--color-lavender-border)] focus:border-wisteria focus:ring-wisteria/15"

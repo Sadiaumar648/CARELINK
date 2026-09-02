@@ -88,6 +88,10 @@ function FindCarePage() {
   // as before.
   const [caregiverType, setCaregiverType] = useState<"nanny" | "babysitter" | undefined>();
   const [fromRequestFlow, setFromRequestFlow] = useState(false);
+  // Which request flow this search came from — decides where "Edit your
+  // request" sends the parent back to: the CareLink AI conversation, or
+  // the direct Nanny/Babysitter panel on Home.
+  const [requestSource, setRequestSource] = useState<"ai" | "direct" | null>(null);
   const [relaxationNotice, setRelaxationNotice] = useState<string | null>(null);
 
   function selectSort(key: SortKey) {
@@ -346,9 +350,11 @@ function FindCarePage() {
 
     // A synchronous external read (the URL), so the resulting state
     // updates are deferred out of the effect body itself.
+    const source = searchParams.get("source");
     void Promise.resolve().then(() => {
       if (type === "nanny" || type === "babysitter") setCaregiverType(type);
       setFromRequestFlow(true);
+      setRequestSource(source === "ai" ? "ai" : "direct");
       setFilters(parsed);
       void runSearch(parsed);
     });
@@ -543,7 +549,9 @@ function FindCarePage() {
             action={
               <div className="flex flex-wrap items-center justify-center gap-3">
                 {fromRequestFlow && (
-                  <Link href={`/parent?${searchParams.toString()}`}>
+                  <Link
+                    href={`${requestSource === "ai" ? "/parent/care-ai" : "/parent"}?${searchParams.toString()}`}
+                  >
                     <Button variant="secondary">Edit your request</Button>
                   </Link>
                 )}

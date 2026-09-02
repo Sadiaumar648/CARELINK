@@ -16,3 +16,4 @@ export * from "./schemas/payment";
 export * from "./schemas/messaging";
 export * from "./schemas/settings";
 export * from "./schemas/nl-search";
+export * from "./schemas/care-request";
