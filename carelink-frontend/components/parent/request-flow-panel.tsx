@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "@phosphor-icons/react";
@@ -8,7 +8,8 @@ import { Sheet } from "@/components/ui/sheet";
 import { Field } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api/client";
-import { suggestedSkillForAge, type SearchFilters } from "@/components/find-care/types";
+import { errorMessage } from "@/lib/error-message";
+import { suggestedSkillForAge, type SearchFilters, type Ward } from "@/components/find-care/types";
 
 type CaregiverType = "nanny" | "babysitter";
 
@@ -152,9 +153,34 @@ export function RequestFlowPanel({
   const [area, setArea] = useState(initial?.area ?? "");
   const [age, setAge] = useState(initial?.age ?? "");
   const [requirements, setRequirements] = useState(initial?.requirements ?? "");
+  const [wards, setWards] = useState<Ward[] | null>(null);
+  const [wardId, setWardId] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    apiFetch<{ wards: Ward[] }>("/api/wards")
+      .then((res) => setWards(res.wards))
+      .catch(() => setWards([]));
+  }, []);
+
+  // A best-effort default by stated age — never auto-picked without a
+  // real ward existing, and the parent can always change it.
+  useEffect(() => {
+    if (!wards || wardId) return;
+    const suggested =
+      wards.length === 1
+        ? wards[0].id
+        : (wards.find((w) => String(w.age_years) === age)?.id ?? null);
+    if (!suggested) return;
+    void Promise.resolve().then(() => setWardId(suggested));
+  }, [wards, age, wardId]);
+
+  // Every dispatched request goes to an eligible caregiver who then
+  // holds a real booking for a real child — the same invariant every
+  // other booking in this app already has (createBookingRequestSchema
+  // requires a wardId) — so this form now requires one too, the same
+  // way CareLink AI's confirmation card already does.
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!startDate || !schedule) {
@@ -167,64 +193,65 @@ export function RequestFlowPanel({
       setFormError("Add a care location so we can find caregivers who serve your area.");
       return;
     }
+    if (!wardId) {
+      setFormError("Choose which child this request is for.");
+      return;
+    }
     setFormError(null);
     setSubmitting(true);
 
-    const scheduleOption = SCHEDULE_OPTIONS.find((s) => s.value === schedule)!;
-    const startTime = scheduleOption.startTime;
-    const endTime =
-      type === "babysitter" && daysOrHours
-        ? addHours(scheduleOption.startTime, Number(daysOrHours))
-        : scheduleOption.endTime;
-
-    // Everything here is already known exactly, so it's built directly —
-    // no need to round-trip it through the AI parser.
-    const filters: SearchFilters = {
-      date: startDate,
-      startTime,
-      endTime,
-    };
-    filters.area = area.trim();
-    if (age) filters.skills = [suggestedSkillForAge(Number(age))];
-
-    // Only the genuinely free-text field goes through the existing AI
-    // parser — and only if the parent actually wrote something — and
-    // only ever adds to what's already known, never overrides it.
-    if (requirements.trim()) {
-      try {
-        const res = await apiFetch<{ filters: Partial<SearchFilters> | null }>(
-          "/api/search/parse",
-          {
-            method: "POST",
-            body: {
-              query: `Looking for a ${copy.heading.toLowerCase()} in ${area.trim() || "any area"}. ${requirements.trim()}`,
-            },
-          },
-        );
-        if (res.filters?.skills?.length) {
-          const merged = new Set([...(filters.skills ?? []), ...res.filters.skills]);
-          filters.skills = Array.from(merged);
-        }
-        if (res.filters?.budgetCeiling && !filters.budgetCeiling) {
-          filters.budgetCeiling = res.filters.budgetCeiling;
-        }
-        if (res.filters?.minExperience && !filters.minExperience) {
-          filters.minExperience = res.filters.minExperience;
-        }
-      } catch {
-        // AI parsing is best-effort — a parent's search is never blocked
-        // by it, same convention as the rest of the app.
-      }
-    }
-
-    // Persist a structured record of what was actually asked for — this
-    // never affects the search itself (still the same filters below);
-    // failure here doesn't block the parent's search either, same
-    // best-effort convention as the AI parse call above.
     try {
-      await apiFetch("/api/care-requests", {
+      const scheduleOption = SCHEDULE_OPTIONS.find((s) => s.value === schedule)!;
+      const startTime = scheduleOption.startTime;
+      const endTime =
+        type === "babysitter" && daysOrHours
+          ? addHours(scheduleOption.startTime, Number(daysOrHours))
+          : scheduleOption.endTime;
+
+      // Everything here is already known exactly, so it's built directly
+      // — no need to round-trip it through the AI parser.
+      const filters: SearchFilters = { date: startDate, startTime, endTime };
+      filters.area = area.trim();
+      if (age) filters.skills = [suggestedSkillForAge(Number(age))];
+
+      // Only the genuinely free-text field goes through the existing AI
+      // parser — and only if the parent actually wrote something — and
+      // only ever adds to what's already known, never overrides it.
+      if (requirements.trim()) {
+        try {
+          const res = await apiFetch<{ filters: Partial<SearchFilters> | null }>(
+            "/api/search/parse",
+            {
+              method: "POST",
+              body: {
+                query: `Looking for a ${copy.heading.toLowerCase()} in ${area.trim() || "any area"}. ${requirements.trim()}`,
+              },
+            },
+          );
+          if (res.filters?.skills?.length) {
+            const merged = new Set([...(filters.skills ?? []), ...res.filters.skills]);
+            filters.skills = Array.from(merged);
+          }
+          if (res.filters?.budgetCeiling && !filters.budgetCeiling) {
+            filters.budgetCeiling = res.filters.budgetCeiling;
+          }
+          if (res.filters?.minExperience && !filters.minExperience) {
+            filters.minExperience = res.filters.minExperience;
+          }
+        } catch {
+          // AI parsing is best-effort — a parent's search is never
+          // blocked by it, same convention as the rest of the app.
+        }
+      }
+
+      // The structured request now drives the outcome — CareLink
+      // dispatches it to eligible caregivers one at a time, the same
+      // experience as the AI-assisted path, not just a browse-and-pick
+      // results page.
+      const res = await apiFetch<{ careRequest: { id: string } }>("/api/care-requests", {
         method: "POST",
         body: {
+          wardId,
           source: "direct",
           caregiverType: type,
           date: filters.date,
@@ -235,30 +262,12 @@ export function RequestFlowPanel({
           notes: requirements.trim() || undefined,
         },
       });
-    } catch {
-      // Best-effort — see comment above.
+      await apiFetch(`/api/care-requests/${res.careRequest.id}/dispatch/start`, { method: "POST" });
+      router.push(`/parent/care-requests/${res.careRequest.id}`);
+    } catch (err) {
+      setFormError(errorMessage(err));
+      setSubmitting(false);
     }
-
-    const params = new URLSearchParams();
-    if (filters.area) params.set("area", filters.area);
-    if (filters.date) params.set("date", filters.date);
-    if (filters.startTime) params.set("startTime", filters.startTime);
-    if (filters.endTime) params.set("endTime", filters.endTime);
-    if (filters.skills?.length) params.set("skills", filters.skills.join(","));
-    if (filters.budgetCeiling) params.set("budgetCeiling", String(filters.budgetCeiling));
-    if (filters.minExperience) params.set("minExperience", String(filters.minExperience));
-    params.set("type", type);
-    params.set("panel", type);
-    params.set("source", "direct");
-    // Raw form fields too, so "Edit your request" on Find Care can hand
-    // the whole querystring straight back here for a pre-filled re-open.
-    params.set("startDate", startDate);
-    params.set("schedule", schedule);
-    if (daysOrHours) params.set(type === "nanny" ? "days" : "hours", daysOrHours);
-    if (age) params.set("age", age);
-    if (requirements.trim()) params.set("requirements", requirements.trim());
-
-    router.push(`/parent/find-care?${params.toString()}`);
   }
 
   return (
@@ -289,6 +298,24 @@ export function RequestFlowPanel({
 
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {wards && wards.length > 0 ? (
+            <SelectField
+              label="Which child?"
+              value={wardId}
+              onChange={setWardId}
+              options={wards.map((w) => ({
+                value: w.id,
+                label: `${w.display_name} (${w.age_years})`,
+              }))}
+              placeholder="Choose a child"
+            />
+          ) : (
+            wards && (
+              <p className="text-[12.5px] text-error sm:col-span-2">
+                Add a child under My Wards before requesting care.
+              </p>
+            )
+          )}
           <Field
             label="Start date"
             type="date"
@@ -336,7 +363,13 @@ export function RequestFlowPanel({
 
         {formError && <p className="text-[13px] text-error">{formError}</p>}
 
-        <Button type="submit" variant="accent" size="lg" disabled={submitting} className="w-full">
+        <Button
+          type="submit"
+          variant="accent"
+          size="lg"
+          disabled={submitting || wards === null || wards.length === 0}
+          className="w-full"
+        >
           {submitting ? "Searching…" : copy.button}
         </Button>
       </form>
