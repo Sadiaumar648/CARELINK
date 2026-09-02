@@ -1,12 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "@phosphor-icons/react";
+import {
+  ArrowLeft,
+  CaretRight,
+  CheckCircle,
+  MapPin,
+  Plus,
+  Sparkle,
+  ShieldCheck,
+} from "@phosphor-icons/react";
 import { Sheet } from "@/components/ui/sheet";
 import { Field } from "@/components/ui/field";
-import { Button } from "@/components/ui/button";
+import { Button, LinkButton } from "@/components/ui/button";
+import { Avatar } from "@/components/ui/avatar";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { suggestedSkillForAge, type SearchFilters, type Ward } from "@/components/find-care/types";
@@ -23,30 +32,9 @@ export type RequestFlowInitial = {
   requirements?: string;
 };
 
-const COPY: Record<
-  CaregiverType,
-  {
-    heading: string;
-    image: string;
-    imageAlt: string;
-    hoursOrDays: "days" | "hours";
-    button: string;
-  }
-> = {
-  nanny: {
-    heading: "Nanny",
-    image: "/demo/hero-reading.jpeg",
-    imageAlt: "A nanny reading with a child",
-    hoursOrDays: "days",
-    button: "Find Nannies",
-  },
-  babysitter: {
-    heading: "Babysitter",
-    image: "/demo/ward-activity.jpeg",
-    imageAlt: "A babysitter playing with a child",
-    hoursOrDays: "hours",
-    button: "Find Babysitters",
-  },
+const COPY: Record<CaregiverType, { heading: string }> = {
+  nanny: { heading: "Nanny" },
+  babysitter: { heading: "Babysitter" },
 };
 
 // Exported so the CareLink AI page can map its own gathered startTime
@@ -68,21 +56,29 @@ export const SCHEDULE_OPTIONS = [
   },
 ] as const;
 
-const DAYS_OPTIONS = [1, 2, 3, 4, 5, 6, 7].map((n) => ({
-  value: String(n),
-  label: `${n} day${n === 1 ? "" : "s"} a week`,
-}));
-
-const HOURS_OPTIONS = [1, 2, 3, 4, 6, 8].map((n) => ({
+const DURATION_OPTIONS = [1, 2, 3, 4, 6, 8].map((n) => ({
   value: String(n),
   label: `${n} hour${n === 1 ? "" : "s"}`,
 }));
 
-const AGE_OPTIONS = [
-  { value: "0", label: "Newborn (0–11 months)" },
-  { value: "2", label: "Infant (1–2 years)" },
-  { value: "4", label: "Toddler (3–4 years)" },
-  { value: "6", label: "School-age (5+ years)" },
+const REPEAT_OPTIONS = [
+  { value: "once", label: "Once" },
+  { value: "weekly", label: "Weekly" },
+  { value: "custom", label: "Custom" },
+];
+
+// The 7 real, existing skill_tag values this app's matching already
+// understands — relabelled for a parent instead of a caregiver's own
+// profile form, not a new taxonomy. "Other" isn't a real filter; it just
+// reveals the free-text field below for anything not covered here.
+const REQUIREMENT_CHIPS: { value: string; label: string }[] = [
+  { value: "newborn_care", label: "Newborn care" },
+  { value: "infant_care", label: "Infant care" },
+  { value: "toddler_care", label: "Supervised play" },
+  { value: "school_age_supervision", label: "Homework & learning" },
+  { value: "meal_preparation", label: "Meals / Feeding" },
+  { value: "special_needs_care", label: "Special needs care" },
+  { value: "light_housekeeping", label: "Light housekeeping" },
 ];
 
 function SelectField({
@@ -96,7 +92,7 @@ function SelectField({
   value: string;
   onChange: (value: string) => void;
   options: { value: string; label: string }[];
-  placeholder: string;
+  placeholder?: string;
 }) {
   const id = label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
   return (
@@ -113,9 +109,11 @@ function SelectField({
         onChange={(e) => onChange(e.target.value)}
         className="rounded-[10px] border border-[var(--color-lavender-border)] bg-sheet px-3 py-2 text-[15px] text-ink focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
       >
-        <option value="" disabled>
-          {placeholder}
-        </option>
+        {placeholder && (
+          <option value="" disabled>
+            {placeholder}
+          </option>
+        )}
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
@@ -126,8 +124,7 @@ function SelectField({
   );
 }
 
-// hh:mm + N hours → hh:mm, capped so it never crosses midnight (matches
-// the same 23:45 ceiling the backend's own "overnight" window uses).
+// hh:mm + N hours → hh:mm, capped so it never crosses midnight.
 function addHours(time: string, hours: number): string {
   const [h, m] = time.split(":").map(Number);
   const totalMinutes = Math.min(h * 60 + m + hours * 60, 23 * 60 + 45);
@@ -135,6 +132,33 @@ function addHours(time: string, hours: number): string {
   const endM = totalMinutes % 60;
   return `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
 }
+
+// Directly from lib/services/dispatch.ts's real stages — never implies
+// every caregiver is contacted at once, and never promises a third
+// expansion round the backend doesn't have (there's no real geographic
+// data in this schema to expand further than one "nearby" round).
+const DISPATCH_STEPS = [
+  {
+    icon: "caregivers" as const,
+    title: "We find caregivers",
+    body: "CareLink checks eligible, verified caregivers near your care location.",
+  },
+  {
+    icon: "offer" as const,
+    title: "Request is offered",
+    body: "Your request is offered to eligible caregivers, one at a time, in priority order.",
+  },
+  {
+    icon: "expand" as const,
+    title: "Search expands if needed",
+    body: "If nobody accepts nearby, CareLink checks the next closest eligible caregivers.",
+  },
+  {
+    icon: "accept" as const,
+    title: "Caregiver accepts",
+    body: "Once a caregiver accepts, you'll be notified immediately.",
+  },
+];
 
 export function RequestFlowPanel({
   type,
@@ -148,15 +172,22 @@ export function RequestFlowPanel({
   const router = useRouter();
   const copy = COPY[type];
   const [startDate, setStartDate] = useState(initial?.startDate ?? "");
-  const [schedule, setSchedule] = useState(initial?.schedule ?? "");
-  const [daysOrHours, setDaysOrHours] = useState(
-    (type === "nanny" ? initial?.days : initial?.hours) ?? "",
-  );
+  const [startTime, setStartTime] = useState(() => {
+    const matched = SCHEDULE_OPTIONS.find((s) => s.value === initial?.schedule);
+    return matched?.startTime ?? "";
+  });
+  // initial?.days ("N days a week", a frequency) is a different unit
+  // than duration ("N hours") and is deliberately not reused here — only
+  // a genuine hour count prefills this.
+  const [duration, setDuration] = useState(initial?.hours ?? "4");
+  const [repeat, setRepeat] = useState("once");
   const [area, setArea] = useState(initial?.area ?? "");
-  const [age, setAge] = useState(initial?.age ?? "");
+  const [requirementChips, setRequirementChips] = useState<Set<string>>(new Set());
+  const [showOther, setShowOther] = useState(Boolean(initial?.requirements));
   const [requirements, setRequirements] = useState(initial?.requirements ?? "");
   const [wards, setWards] = useState<Ward[] | null>(null);
   const [wardId, setWardId] = useState("");
+  const [changingWard, setChangingWard] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -166,27 +197,50 @@ export function RequestFlowPanel({
       .catch(() => setWards([]));
   }, []);
 
-  // A best-effort default by stated age — never auto-picked without a
+  const selectedWard = wards?.find((w) => w.id === wardId) ?? null;
+
+  // A best-effort default (single child, or a match against the age the
+  // AI already gathered on a round trip) — never auto-picked without a
   // real ward existing, and the parent can always change it.
   useEffect(() => {
     if (!wards || wardId) return;
     const suggested =
       wards.length === 1
         ? wards[0].id
-        : (wards.find((w) => String(w.age_years) === age)?.id ?? null);
+        : (wards.find((w) => String(w.age_years) === initial?.age)?.id ?? null);
     if (!suggested) return;
     void Promise.resolve().then(() => setWardId(suggested));
-  }, [wards, age, wardId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initial is a one-time prefill, not a live dependency
+  }, [wards, wardId]);
 
-  // Every dispatched request goes to an eligible caregiver who then
-  // holds a real booking for a real child — the same invariant every
-  // other booking in this app already has (createBookingRequestSchema
-  // requires a wardId) — so this form now requires one too, the same
-  // way CareLink AI's confirmation card already does.
+  // Pre-check the age-appropriate chip once a child is known — visible,
+  // adjustable, never hidden magic: the chip state itself is what gets
+  // submitted, not a silent extra filter.
+  useEffect(() => {
+    if (!selectedWard) return;
+    const suggested = suggestedSkillForAge(selectedWard.age_years);
+    void Promise.resolve().then(() => {
+      setRequirementChips((prev) => (prev.has(suggested) ? prev : new Set(prev).add(suggested)));
+    });
+  }, [selectedWard]);
+
+  function toggleChip(value: string) {
+    setRequirementChips((prev) => {
+      const next = new Set(prev);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
+      return next;
+    });
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!startDate || !schedule) {
-      setFormError("Choose a start date and a schedule to continue.");
+    if (!wardId) {
+      setFormError("Choose which child this request is for.");
+      return;
+    }
+    if (!startDate || !startTime) {
+      setFormError("Choose a start date and time to continue.");
       return;
     }
     // CareLink's strict rule: no location, no caregiver search — enforced
@@ -195,61 +249,23 @@ export function RequestFlowPanel({
       setFormError("Add a care location so we can find caregivers who serve your area.");
       return;
     }
-    if (!wardId) {
-      setFormError("Choose which child this request is for.");
-      return;
-    }
     setFormError(null);
     setSubmitting(true);
 
     try {
-      const scheduleOption = SCHEDULE_OPTIONS.find((s) => s.value === schedule)!;
-      const startTime = scheduleOption.startTime;
-      const endTime =
-        type === "babysitter" && daysOrHours
-          ? addHours(scheduleOption.startTime, Number(daysOrHours))
-          : scheduleOption.endTime;
+      const endTime = addHours(startTime, Number(duration));
+      const filters: SearchFilters = { date: startDate, startTime, endTime, area: area.trim() };
+      if (requirementChips.size > 0) filters.skills = Array.from(requirementChips);
 
-      // Everything here is already known exactly, so it's built directly
-      // — no need to round-trip it through the AI parser.
-      const filters: SearchFilters = { date: startDate, startTime, endTime };
-      filters.area = area.trim();
-      if (age) filters.skills = [suggestedSkillForAge(Number(age))];
-
-      // Only the genuinely free-text field goes through the existing AI
-      // parser — and only if the parent actually wrote something — and
-      // only ever adds to what's already known, never overrides it.
-      if (requirements.trim()) {
-        try {
-          const res = await apiFetch<{ filters: Partial<SearchFilters> | null }>(
-            "/api/search/parse",
-            {
-              method: "POST",
-              body: {
-                query: `Looking for a ${copy.heading.toLowerCase()} in ${area.trim() || "any area"}. ${requirements.trim()}`,
-              },
-            },
-          );
-          if (res.filters?.skills?.length) {
-            const merged = new Set([...(filters.skills ?? []), ...res.filters.skills]);
-            filters.skills = Array.from(merged);
-          }
-          if (res.filters?.budgetCeiling && !filters.budgetCeiling) {
-            filters.budgetCeiling = res.filters.budgetCeiling;
-          }
-          if (res.filters?.minExperience && !filters.minExperience) {
-            filters.minExperience = res.filters.minExperience;
-          }
-        } catch {
-          // AI parsing is best-effort — a parent's search is never
-          // blocked by it, same convention as the rest of the app.
-        }
+      const notesParts: string[] = [];
+      if (requirements.trim()) notesParts.push(requirements.trim());
+      if (repeat !== "once") {
+        const label = REPEAT_OPTIONS.find((r) => r.value === repeat)?.label ?? repeat;
+        notesParts.push(
+          `Repeats: ${label} (CareLink bookings are single-session today — please confirm follow-up sessions separately).`,
+        );
       }
 
-      // The structured request now drives the outcome — CareLink
-      // dispatches it to eligible caregivers one at a time, the same
-      // experience as the AI-assisted path, not just a browse-and-pick
-      // results page.
       const res = await apiFetch<{ careRequest: { id: string } }>("/api/care-requests", {
         method: "POST",
         body: {
@@ -261,7 +277,7 @@ export function RequestFlowPanel({
           endTime: filters.endTime,
           location: filters.area,
           skills: filters.skills,
-          notes: requirements.trim() || undefined,
+          notes: notesParts.join(" ") || undefined,
         },
       });
       await apiFetch(`/api/care-requests/${res.careRequest.id}/dispatch/start`, { method: "POST" });
@@ -273,7 +289,7 @@ export function RequestFlowPanel({
   }
 
   return (
-    <Sheet className="mx-auto flex w-full max-w-[440px] flex-col gap-5 border-[var(--color-lavender-border)]">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <button
         type="button"
         onClick={onBack}
@@ -282,99 +298,319 @@ export function RequestFlowPanel({
         <ArrowLeft size={16} /> Back
       </button>
 
-      <h1 className="text-[22px] font-semibold font-heading text-ink">
-        I need a <span className="text-wisteria">{copy.heading}</span>
-      </h1>
-
-      <div className="relative aspect-[5/2] w-full overflow-hidden rounded-[14px]">
-        <Image src={copy.image} alt={copy.imageAlt} fill sizes="480px" className="object-cover" />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <h2 className="text-[15px] font-semibold text-ink">Tell us what you need</h2>
-        <p className="text-[13px] text-ink-muted">
-          Please provide a few details so we can find the perfect {copy.heading.toLowerCase()} for
-          your family.
-        </p>
-      </div>
-
-      <form onSubmit={onSubmit} className="flex flex-col gap-4">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {wards && wards.length > 0 ? (
-            <SelectField
-              label="Which child?"
-              value={wardId}
-              onChange={setWardId}
-              options={wards.map((w) => ({
-                value: w.id,
-                label: `${w.display_name} (${w.age_years})`,
-              }))}
-              placeholder="Choose a child"
-            />
-          ) : (
-            wards && (
-              <p className="text-[12.5px] text-error sm:col-span-2">
-                Add a child under My Wards before requesting care.
-              </p>
-            )
-          )}
-          <Field
-            label="Start date"
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="border-[var(--color-lavender-border)] focus:border-wisteria focus:ring-wisteria/15"
-          />
-          <SelectField
-            label="Schedule"
-            value={schedule}
-            onChange={setSchedule}
-            options={SCHEDULE_OPTIONS.map(({ value, label }) => ({ value, label }))}
-            placeholder="Select time"
-          />
-          <SelectField
-            label={type === "nanny" ? "How many days per week?" : "How many hours?"}
-            value={daysOrHours}
-            onChange={setDaysOrHours}
-            options={type === "nanny" ? DAYS_OPTIONS : HOURS_OPTIONS}
-            placeholder="Select"
-          />
-          <Field
-            label="Location / Area"
-            placeholder="Enter your area"
-            required
-            value={area}
-            onChange={(e) => setArea(e.target.value)}
-            className="border-[var(--color-lavender-border)] focus:border-wisteria focus:ring-wisteria/15"
-          />
-          <SelectField
-            label="Child's age"
-            value={age}
-            onChange={setAge}
-            options={AGE_OPTIONS}
-            placeholder="Select age"
-          />
-          <Field
-            label="Any special requirements?"
-            placeholder="e.g. food allergies, experience with infants…"
-            value={requirements}
-            onChange={(e) => setRequirements(e.target.value)}
-            className="border-[var(--color-lavender-border)] focus:border-wisteria focus:ring-wisteria/15"
-          />
+      {/* CARELINK AI ENTRY — unchanged system, just an entry point */}
+      <Sheet className="flex flex-col gap-3 border-[var(--color-lavender-border)] bg-wisteria-tint sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <Sparkle size={20} weight="fill" className="mt-0.5 shrink-0 text-wisteria" />
+          <div>
+            <p className="text-[14px] font-semibold text-ink">
+              Not sure what type of care you need?
+            </p>
+            <p className="text-[13px] text-ink-muted">
+              Let CareLink AI help you describe what you need and guide you to the right type of
+              care.
+            </p>
+          </div>
         </div>
+        <LinkButton href="/parent/care-ai" variant="secondary" className="shrink-0">
+          <Sparkle size={14} weight="fill" /> Ask CareLink AI
+        </LinkButton>
+      </Sheet>
 
-        {formError && <p className="text-[13px] text-error">{formError}</p>}
+      {/* TITLE */}
+      <div className="flex flex-col gap-2">
+        <h1 className="text-[26px] font-bold font-heading text-ink">Request a {copy.heading}</h1>
+        <p className="text-[14px] text-ink-muted">
+          Tell us what you need and we&apos;ll find an available, verified{" "}
+          {copy.heading.toLowerCase()} near you.
+        </p>
+        <div className="flex flex-wrap gap-x-4 gap-y-1">
+          {["Verified caregivers", "Availability checked", "CareLink safety process"].map((t) => (
+            <span
+              key={t}
+              className="flex items-center gap-1.5 text-[12.5px] font-medium text-wisteria"
+            >
+              <CheckCircle size={14} weight="fill" /> {t}
+            </span>
+          ))}
+        </div>
+      </div>
 
-        <Button
-          type="submit"
-          variant="accent"
-          size="lg"
-          disabled={submitting || wards === null || wards.length === 0}
-          className="w-full"
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
+        {/* LEFT: the form */}
+        <Sheet
+          as="form"
+          onSubmit={onSubmit}
+          className="flex flex-col gap-6 border-[var(--color-lavender-border)]"
         >
-          {submitting ? "Searching…" : copy.button}
-        </Button>
-      </form>
-    </Sheet>
+          {/* 1. WHO NEEDS CARE */}
+          <section className="flex flex-col gap-3">
+            <h2 className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em] text-ink">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-wisteria text-[11px] text-white">
+                1
+              </span>
+              Who needs care?
+            </h2>
+
+            {wards === null && <p className="text-[13px] text-ink-muted">Loading your children…</p>}
+
+            {wards && wards.length === 0 && (
+              <LinkButton
+                href="/parent/children"
+                variant="secondary"
+                className="justify-center border-dashed"
+              >
+                <Plus size={16} /> Add a child before requesting care
+              </LinkButton>
+            )}
+
+            {wards && wards.length > 0 && selectedWard && !changingWard && (
+              <div className="flex items-center justify-between gap-3 rounded-[12px] border border-[var(--color-lavender-border)] p-3">
+                <div className="flex items-center gap-3">
+                  <Avatar photoUrl={null} name={selectedWard.display_name} size="sm" />
+                  <div>
+                    <p className="text-[14px] font-semibold text-ink">
+                      {selectedWard.display_name}
+                    </p>
+                    <p className="text-[12.5px] text-ink-muted">Age {selectedWard.age_years}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setChangingWard(true)}
+                  className="text-[13px] font-semibold text-wisteria hover:text-wisteria-hover"
+                >
+                  Change
+                </button>
+              </div>
+            )}
+
+            {wards && wards.length > 0 && (changingWard || !selectedWard) && (
+              <div className="flex flex-col gap-2">
+                {wards.map((w) => (
+                  <button
+                    key={w.id}
+                    type="button"
+                    onClick={() => {
+                      setWardId(w.id);
+                      setChangingWard(false);
+                    }}
+                    className="flex items-center justify-between gap-3 rounded-[12px] border border-[var(--color-lavender-border)] p-3 text-left hover:border-wisteria"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Avatar photoUrl={null} name={w.display_name} size="sm" />
+                      <div>
+                        <p className="text-[14px] font-semibold text-ink">{w.display_name}</p>
+                        <p className="text-[12.5px] text-ink-muted">Age {w.age_years}</p>
+                      </div>
+                    </div>
+                    <CaretRight size={16} className="text-ink-muted" />
+                  </button>
+                ))}
+                <LinkButton
+                  href="/parent/children"
+                  variant="secondary"
+                  className="justify-center border-dashed"
+                >
+                  <Plus size={16} /> Add another child
+                </LinkButton>
+              </div>
+            )}
+          </section>
+
+          {/* 2. WHEN */}
+          <section className="flex flex-col gap-3 border-t border-[var(--color-lavender-border)] pt-6">
+            <h2 className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em] text-ink">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-wisteria text-[11px] text-white">
+                2
+              </span>
+              When do you need care?
+            </h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field
+                label="Date"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="border-[var(--color-lavender-border)] focus:border-wisteria focus:ring-wisteria/15"
+              />
+              <Field
+                label="Start time"
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="border-[var(--color-lavender-border)] focus:border-wisteria focus:ring-wisteria/15"
+              />
+              <SelectField
+                label="Duration"
+                value={duration}
+                onChange={setDuration}
+                options={DURATION_OPTIONS}
+              />
+              <SelectField
+                label="Repeat"
+                value={repeat}
+                onChange={setRepeat}
+                options={REPEAT_OPTIONS}
+              />
+            </div>
+          </section>
+
+          {/* 3. WHERE */}
+          <section className="flex flex-col gap-2 border-t border-[var(--color-lavender-border)] pt-6">
+            <h2 className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em] text-ink">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-wisteria text-[11px] text-white">
+                3
+              </span>
+              Where will care take place?
+            </h2>
+            <div className="relative">
+              <MapPin
+                size={17}
+                className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-muted"
+              />
+              <input
+                value={area}
+                onChange={(e) => setArea(e.target.value)}
+                placeholder="Enter your care location"
+                required
+                className="w-full rounded-[10px] border border-[var(--color-lavender-border)] bg-sheet py-2.5 pr-3 pl-9 text-[15px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
+              />
+            </div>
+            <p className="text-[12px] text-ink-muted">
+              Your care location is required so we can find caregivers who serve your area.
+            </p>
+          </section>
+
+          {/* 4. WHAT HELP */}
+          <section className="flex flex-col gap-3 border-t border-[var(--color-lavender-border)] pt-6">
+            <div>
+              <h2 className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em] text-ink">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-wisteria text-[11px] text-white">
+                  4
+                </span>
+                What help do you need?
+              </h2>
+              <p className="ml-7 text-[12px] text-ink-muted">Select all that apply.</p>
+            </div>
+            <div className="ml-7 flex flex-wrap gap-2">
+              {REQUIREMENT_CHIPS.map((chip) => {
+                const active = requirementChips.has(chip.value);
+                return (
+                  <button
+                    key={chip.value}
+                    type="button"
+                    onClick={() => toggleChip(chip.value)}
+                    className={`rounded-full border px-3 py-1.5 text-[12.5px] font-medium transition-colors ${
+                      active
+                        ? "border-wisteria bg-wisteria text-white"
+                        : "border-[var(--color-lavender-border)] bg-sheet text-ink hover:border-wisteria"
+                    }`}
+                  >
+                    {chip.label}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => setShowOther((s) => !s)}
+                className={`rounded-full border px-3 py-1.5 text-[12.5px] font-medium transition-colors ${
+                  showOther
+                    ? "border-wisteria bg-wisteria text-white"
+                    : "border-[var(--color-lavender-border)] bg-sheet text-ink hover:border-wisteria"
+                }`}
+              >
+                Other
+              </button>
+            </div>
+          </section>
+
+          {/* 5. ANYTHING ELSE */}
+          {showOther && (
+            <section className="flex flex-col gap-2">
+              <label htmlFor="requirements" className="ml-7 text-[13px] font-semibold text-ink">
+                Anything else? <span className="font-normal text-ink-muted">Optional</span>
+              </label>
+              <textarea
+                id="requirements"
+                rows={3}
+                maxLength={1000}
+                value={requirements}
+                onChange={(e) => setRequirements(e.target.value)}
+                placeholder="Tell us anything else your caregiver should know…"
+                className="ml-7 rounded-[10px] border border-[var(--color-lavender-border)] bg-sheet px-3 py-2.5 text-[14px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
+              />
+            </section>
+          )}
+
+          {formError && <p className="text-[13px] text-error">{formError}</p>}
+
+          <div className="flex flex-col items-center gap-1.5">
+            <Button
+              type="submit"
+              variant="accent"
+              size="lg"
+              disabled={submitting || wards === null || wards.length === 0}
+              className="w-full justify-center"
+            >
+              {submitting ? "Starting your search…" : "Find Care"}
+            </Button>
+            <p className="text-[12px] text-ink-muted">
+              We&apos;ll find an available, verified caregiver near you.
+            </p>
+          </div>
+        </Sheet>
+
+        {/* RIGHT RAIL */}
+        <div className="flex flex-col gap-4">
+          <Sheet className="flex flex-col gap-4 border-[var(--color-lavender-border)]">
+            <h2 className="text-[14px] font-semibold text-ink">What happens next?</h2>
+            <div className="flex flex-col gap-4">
+              {DISPATCH_STEPS.map((step) => (
+                <div key={step.title} className="flex items-start gap-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-wisteria-tint text-wisteria">
+                    {step.icon === "caregivers" && <ShieldCheck size={16} weight="fill" />}
+                    {step.icon === "offer" && <Sparkle size={16} weight="fill" />}
+                    {step.icon === "expand" && <MapPin size={16} weight="fill" />}
+                    {step.icon === "accept" && <CheckCircle size={16} weight="fill" />}
+                  </span>
+                  <div>
+                    <p className="text-[13px] font-semibold text-ink">{step.title}</p>
+                    <p className="text-[12px] leading-relaxed text-ink-muted">{step.body}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Sheet>
+
+          <Sheet className="flex flex-col gap-3 border-[var(--color-lavender-border)]">
+            <div className="flex items-center gap-2">
+              <ShieldCheck size={18} weight="fill" className="text-ink" />
+              <h2 className="text-[14px] font-semibold text-ink">Your safety is our priority</h2>
+            </div>
+            <ul className="flex flex-col gap-1.5 text-[12.5px] text-ink-muted">
+              {[
+                "Caregivers are verified before they can accept a booking",
+                "Availability is checked before any offer is made",
+                "Booking status is tracked at every step",
+                "You can report a concern through CareLink at any time",
+                "You can cancel your search anytime",
+              ].map((line) => (
+                <li key={line} className="flex items-start gap-1.5">
+                  <CheckCircle size={13} weight="fill" className="mt-0.5 shrink-0 text-wisteria" />
+                  {line}
+                </li>
+              ))}
+            </ul>
+            <Link
+              href="/parent/safety"
+              className="text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
+            >
+              Learn more about safety →
+            </Link>
+          </Sheet>
+        </div>
+      </div>
+    </div>
   );
 }

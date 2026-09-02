@@ -59,6 +59,50 @@ function useDispatchPolling(
 
 const TERMINAL = new Set(["accepted", "exhausted", "cancelled"]);
 
+const CHECKLIST_LABELS = [
+  "Care request received",
+  "Contacting available caregivers",
+  "Expanding search if needed",
+  "Caregiver confirmation",
+] as const;
+
+// A step is "done" (✓), "active" (●), or "pending" (○) purely from the
+// real dispatchStatus/vicinityRound already being polled — no separate
+// client-side state to drift out of sync with the backend.
+function checklistStates(status: DispatchStatus): ("done" | "active" | "pending")[] {
+  const { dispatchStatus, vicinityRound } = status;
+  if (dispatchStatus === "cancelled") return ["done", "pending", "pending", "pending"];
+  if (dispatchStatus === "accepted") return ["done", "done", "done", "done"];
+  if (dispatchStatus === "exhausted") return ["done", "done", "done", "pending"];
+  if (dispatchStatus === "expanding") return ["done", "done", "active", "pending"];
+  // searching / not_started
+  return vicinityRound > 0
+    ? ["done", "done", "active", "pending"]
+    : ["done", "active", "pending", "pending"];
+}
+
+function ProgressChecklist({ status }: { status: DispatchStatus }) {
+  const states = checklistStates(status);
+  return (
+    <div className="flex flex-col gap-1.5 text-[12.5px]">
+      {CHECKLIST_LABELS.map((label, i) => (
+        <p
+          key={label}
+          className={
+            states[i] === "done"
+              ? "text-[var(--color-success)]"
+              : states[i] === "active"
+                ? "font-semibold text-wisteria"
+                : "text-ink-muted"
+          }
+        >
+          {states[i] === "done" ? "✓" : states[i] === "active" ? "●" : "○"} {label}
+        </p>
+      ))}
+    </div>
+  );
+}
+
 export default function CareRequestDispatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [status, setStatus] = useState<DispatchStatus | null>(null);
@@ -116,10 +160,7 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
               {status.activeOffer.caregiverName}…
             </p>
           )}
-          <div className="flex flex-col gap-1.5 text-[12.5px] text-ink-muted">
-            <p>● Contacting available caregivers</p>
-            <p>● Expanding search if needed</p>
-          </div>
+          <ProgressChecklist status={status} />
           <p className="text-[12px] text-ink-muted">Please stay on this screen while we search.</p>
           <Button variant="secondary" onClick={() => void cancel()} disabled={cancelling}>
             <X size={15} /> Cancel Search
@@ -144,6 +185,7 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
               Contacting {status.activeOffer.caregiverName}…
             </p>
           )}
+          <ProgressChecklist status={status} />
           <Button variant="secondary" onClick={() => void cancel()} disabled={cancelling}>
             <X size={15} /> Cancel Search
           </Button>
