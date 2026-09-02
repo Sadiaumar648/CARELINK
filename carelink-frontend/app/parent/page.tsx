@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, ShieldCheck, Sparkle } from "@phosphor-icons/react";
+import { ShieldCheck, Sparkle } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -140,7 +140,7 @@ export default function ParentDashboardPage() {
           variant="accent"
           className="w-full shrink-0 justify-center sm:w-auto"
         >
-          Start with CareLink AI <ArrowRight size={16} />
+          Start with CareLink AI
         </LinkButton>
       </Sheet>
 
