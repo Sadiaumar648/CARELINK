@@ -7,7 +7,7 @@ import { Button, LinkButton } from "@/components/ui/button";
 
 const LINKS = [
   { href: "#top", label: "Home" },
-  { href: "#find-care", label: "Find Care" },
+  { href: "/register", label: "Find Care" },
   { href: "#how-it-works", label: "How It Works" },
   { href: "#safety", label: "Safety" },
   { href: "#about", label: "About" },
@@ -24,11 +24,17 @@ export function PublicNav() {
         </a>
 
         <nav className="hidden items-center gap-7 text-[14px] font-medium text-ink-muted lg:flex">
-          {LINKS.map((link) => (
-            <a key={link.href} href={link.href} className="hover:text-wisteria">
-              {link.label}
-            </a>
-          ))}
+          {LINKS.map((link) =>
+            link.href.startsWith("#") ? (
+              <a key={link.href} href={link.href} className="hover:text-wisteria">
+                {link.label}
+              </a>
+            ) : (
+              <Link key={link.href} href={link.href} className="hover:text-wisteria">
+                {link.label}
+              </Link>
+            ),
+          )}
         </nav>
 
         <div className="hidden items-center gap-3 lg:flex">
@@ -58,16 +64,27 @@ export function PublicNav() {
 
       {open && (
         <div className="flex flex-col gap-1 border-t border-hairline px-6 py-4 lg:hidden">
-          {LINKS.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              onClick={() => setOpen(false)}
-              className="rounded-[10px] px-2 py-3 text-[15px] font-medium text-ink hover:bg-wisteria-tint"
-            >
-              {link.label}
-            </a>
-          ))}
+          {LINKS.map((link) =>
+            link.href.startsWith("#") ? (
+              <a
+                key={link.href}
+                href={link.href}
+                onClick={() => setOpen(false)}
+                className="rounded-[10px] px-2 py-3 text-[15px] font-medium text-ink hover:bg-wisteria-tint"
+              >
+                {link.label}
+              </a>
+            ) : (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setOpen(false)}
+                className="rounded-[10px] px-2 py-3 text-[15px] font-medium text-ink hover:bg-wisteria-tint"
+              >
+                {link.label}
+              </Link>
+            ),
+          )}
           <div className="mt-2 flex flex-col gap-2">
             <Link href="/sign-in" onClick={() => setOpen(false)}>
               <Button variant="secondary" className="w-full">

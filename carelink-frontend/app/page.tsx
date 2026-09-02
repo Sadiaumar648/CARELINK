@@ -12,7 +12,6 @@ import { Sheet } from "@/components/ui/sheet";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { CaregiverCard } from "@/components/ui/caregiver-card";
 import { Accordion } from "@/components/ui/accordion";
-import { AiSearchSection } from "@/components/ai-search-section";
 import { PublicNav } from "@/components/public-nav";
 import { PublicFooter } from "@/components/public-footer";
 
@@ -264,11 +263,6 @@ export default function Home() {
               ))}
             </div>
           </div>
-        </section>
-
-        {/* AI SEARCH */}
-        <section className="mx-auto w-full max-w-6xl px-6">
-          <AiSearchSection />
         </section>
 
         {/* FEATURED CAREGIVERS */}

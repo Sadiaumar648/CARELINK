@@ -4,7 +4,7 @@ const COLUMNS: { title: string; links: { label: string; href: string }[] }[] = [
   {
     title: "Platform",
     links: [
-      { label: "Find Care", href: "#find-care" },
+      { label: "Find Care", href: "/register" },
       { label: "How It Works", href: "#how-it-works" },
       { label: "Become a Caregiver", href: "/claim-invitation" },
     ],
