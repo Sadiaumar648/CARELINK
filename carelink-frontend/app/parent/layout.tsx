@@ -3,8 +3,6 @@
 import {
   House,
   MagnifyingGlass,
-  Baby,
-  CalendarCheck,
   ChatCircle,
   Bell,
   Wallet,
@@ -14,17 +12,19 @@ import {
 import { RequireRole } from "@/components/require-role";
 import { RoleShell, type NavItem } from "@/components/role-shell";
 import { ParentSidebarHeader, ParentSidebarFooter } from "@/components/parent/sidebar-extras";
+import { ParentHeaderProfile } from "@/components/parent/header-profile";
 import { useUnreadNotificationsCount } from "@/lib/hooks/use-unread-notifications-count";
 
-// The full set shown on the desktop rail. Everything not in the mobile
-// bar below is still reachable within one tap from /parent/account,
-// which already links to Wards, Payments, Notifications, Help, and
-// Safety — so nothing here becomes unreachable on a small screen.
+// Exactly the seven items the reference design specifies. My Wards and
+// My Bookings are reachable from /parent/account (Settings) instead of
+// occupying a top-level slot — that page already lists Ward Profiles,
+// Payment Methods, Notifications, Help & Support, and Safety this way,
+// and now also lists My Bookings alongside them.
 const mobileItems: NavItem[] = [
   { href: "/parent", label: "Home", icon: House },
   { href: "/parent/find-care", label: "Find Care", icon: MagnifyingGlass },
-  { href: "/parent/bookings", label: "Bookings", icon: CalendarCheck },
   { href: "/parent/messages", label: "Messages", icon: ChatCircle },
+  { href: "/parent/notifications", label: "Notifications", icon: Bell },
   { href: "/parent/account", label: "Settings", icon: GearSix },
 ];
 
@@ -34,8 +34,6 @@ export default function ParentLayout({ children }: LayoutProps<"/parent">) {
   const items: NavItem[] = [
     { href: "/parent", label: "Home", icon: House },
     { href: "/parent/find-care", label: "Find Care", icon: MagnifyingGlass },
-    { href: "/parent/children", label: "My Wards", icon: Baby },
-    { href: "/parent/bookings", label: "My Bookings", icon: CalendarCheck },
     { href: "/parent/messages", label: "Messages", icon: ChatCircle },
     {
       href: "/parent/notifications",
@@ -55,7 +53,11 @@ export default function ParentLayout({ children }: LayoutProps<"/parent">) {
         mobileItems={mobileItems}
         sidebarHeader={<ParentSidebarHeader />}
         sidebarFooter={<ParentSidebarFooter />}
+        headerExtra={<ParentHeaderProfile />}
         bookingHref={(id) => `/parent/bookings/${id}`}
+        activeItemClassName="rounded-[10px] bg-wisteria-tint text-wisteria"
+        railWidthClassName="md:w-60"
+        mainClassName="bg-[var(--color-lavender-bg)]"
       >
         {children}
       </RoleShell>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Heart, Siren } from "@phosphor-icons/react/dist/ssr";
+import { Headset, Heart, ShieldWarning } from "@phosphor-icons/react/dist/ssr";
 import { LinkButton } from "@/components/ui/button";
 
 // The parent sidebar's logo block (desktop rail only — RoleShell's
@@ -35,16 +35,17 @@ export function ParentSidebarFooter() {
         <LinkButton
           href="/parent/help"
           variant="secondary"
-          className="justify-center text-[12.5px]"
+          className="justify-center gap-1.5 border-wisteria/25 bg-sheet text-[12.5px] text-wisteria hover:border-wisteria"
         >
+          <Headset size={15} weight="fill" />
           Contact Support
         </LinkButton>
       </div>
       <Link
         href="/parent/safety"
-        className="flex items-center gap-2 rounded-full bg-error-tint px-3 py-2 text-[13px] font-semibold text-error hover:opacity-85"
+        className="flex items-center gap-2 rounded-[10px] bg-error-tint px-3 py-2.5 text-[13px] font-semibold text-error hover:opacity-85"
       >
-        <Siren size={16} weight="fill" />
+        <ShieldWarning size={17} weight="fill" />
         Emergency / SOS
       </Link>
     </div>

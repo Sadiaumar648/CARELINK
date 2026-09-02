@@ -21,25 +21,39 @@ export type NavItem = { href: string; label: string; icon: Icon; badge?: number 
 // nine labelled tabs at the bottom of a phone) — it defaults to `items`,
 // so a role that doesn't pass it renders exactly as before.
 // `sidebarHeader`/`sidebarFooter` are optional desktop-rail-only slots
-// for role-specific content (a logo block, a support/emergency card) —
-// omitted by default, so roles that don't use them are unaffected.
+// for role-specific content (a logo block, a support/emergency card),
+// and `headerExtra` is an optional slot in the top header bar next to
+// the notifications bell (e.g. a profile/name cluster) — all omitted by
+// default, so roles that don't use them are unaffected.
+// `activeItemClassName`/`railWidthClassName`/`mainClassName` are small
+// visual overrides (active-nav styling, rail width, content background)
+// so one role's reference design can differ from the rest without a
+// second component — all default to today's exact values.
 export function RoleShell({
   items,
   mobileItems,
   sidebarHeader,
   sidebarFooter,
+  headerExtra,
   bookingHref,
   largeTargets = false,
   readAloud = false,
+  activeItemClassName = "text-sage",
+  railWidthClassName = "md:w-56",
+  mainClassName = "",
   children,
 }: {
   items: NavItem[];
   mobileItems?: NavItem[];
   sidebarHeader?: React.ReactNode;
   sidebarFooter?: React.ReactNode;
+  headerExtra?: React.ReactNode;
   bookingHref?: (bookingId: string) => string;
   largeTargets?: boolean;
   readAloud?: boolean;
+  activeItemClassName?: string;
+  railWidthClassName?: string;
+  mainClassName?: string;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -65,7 +79,7 @@ export function RoleShell({
         href={item.href}
         className={`relative flex flex-col items-center justify-center gap-1 px-3 py-2 text-[13px] font-semibold md:flex-row md:gap-2 md:justify-start md:rounded ${
           largeTargets ? "min-h-[52px] min-w-[52px]" : ""
-        } ${active ? "text-sage" : "text-ink-muted hover:text-ink"}`}
+        } ${active ? activeItemClassName : "text-ink-muted hover:text-ink"}`}
       >
         <span className="relative">
           <ItemIcon size={24} weight={active ? "duotone" : "regular"} />
@@ -82,7 +96,9 @@ export function RoleShell({
 
   return (
     <div className="flex min-h-full flex-1 flex-col md:flex-row">
-      <nav className="fixed inset-x-0 bottom-0 z-20 flex justify-around border-t border-hairline bg-sheet [padding-bottom:env(safe-area-inset-bottom)] md:static md:z-auto md:w-56 md:flex-col md:justify-start md:gap-1 md:border-t-0 md:border-r md:p-4 md:[padding-bottom:1rem]">
+      <nav
+        className={`fixed inset-x-0 bottom-0 z-20 flex justify-around border-t border-hairline bg-sheet [padding-bottom:env(safe-area-inset-bottom)] md:static md:z-auto md:flex-col md:justify-start md:gap-1 md:border-t-0 md:border-r md:p-4 md:[padding-bottom:1rem] ${railWidthClassName}`}
+      >
         {/* Mobile bottom tab bar — curated subset. */}
         <div className="flex w-full justify-around md:hidden">
           {tabItems.map((item) => renderItem(item, item.href === activeHrefFor(tabItems)))}
@@ -106,10 +122,11 @@ export function RoleShell({
           </button>
         </div>
       </nav>
-      <main className="flex-1 pb-20 md:pb-0">
+      <main className={`flex-1 pb-20 md:pb-0 ${mainClassName}`}>
         <div className="flex items-center justify-end gap-2 border-b border-hairline p-2 md:p-3">
           {readAloud && <ReadAloudToggle />}
           <NotificationsBell bookingHref={bookingHref} />
+          {headerExtra}
         </div>
         {children}
       </main>

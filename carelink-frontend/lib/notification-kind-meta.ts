@@ -33,9 +33,14 @@ export const KIND_META: Record<
 
 export const DEFAULT_KIND_META = { icon: Bell, label: "Notification", tone: "neutral" as const };
 
+// Solid-colour circle + white glyph, matching the parent Home page's
+// reference design (its only current consumer — see the module comment
+// above). #28b463 is that reference's own stated activity-green; it's
+// only used here, so it doesn't touch the app-wide --color-success token
+// used elsewhere (status badges, etc.).
 export const TONE_CLASSES: Record<"success" | "info" | "attention" | "neutral", string> = {
-  success: "bg-success-tint text-[var(--color-success)]",
-  info: "bg-bluebell-tint text-bluebell-pressed",
-  attention: "bg-error-tint text-error",
-  neutral: "bg-paper text-ink-muted",
+  success: "bg-[#28b463] text-white",
+  info: "bg-wisteria text-white",
+  attention: "bg-error text-white",
+  neutral: "bg-ink-muted text-white",
 };

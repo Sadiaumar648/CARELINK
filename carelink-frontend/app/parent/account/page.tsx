@@ -5,6 +5,7 @@ import {
   UserCircle,
   ShieldCheck,
   Baby,
+  CalendarCheck,
   CreditCard,
   Bell,
   LockKey,
@@ -73,6 +74,7 @@ export default function ParentAccountPage() {
         <MenuRow icon={UserCircle} label="Personal Information" href="#personal-information" />
         <MenuRow icon={ShieldCheck} label="Identity Verification" href="#identity-verification" />
         <MenuRow icon={Baby} label="Ward Profiles" href="/parent/children" />
+        <MenuRow icon={CalendarCheck} label="My Bookings" href="/parent/bookings" />
         <MenuRow icon={LockKey} label="Safety & Privacy" href="/parent/safety" />
         <MenuRow icon={CreditCard} label="Payment Methods" href="/parent/payment-methods" />
         <MenuRow icon={Bell} label="Notifications" href="/parent/notifications" />

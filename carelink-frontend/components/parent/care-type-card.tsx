@@ -18,8 +18,8 @@ export function CareTypeCard({
   onClick: () => void;
 }) {
   return (
-    <Sheet className="overflow-hidden p-0">
-      <button type="button" onClick={onClick} className="group relative block aspect-[4/5] w-full">
+    <Sheet className="overflow-hidden border-[var(--color-lavender-border)] p-0">
+      <button type="button" onClick={onClick} className="group relative block aspect-[6/5] w-full">
         <Image
           src={imageSrc}
           alt={imageAlt}

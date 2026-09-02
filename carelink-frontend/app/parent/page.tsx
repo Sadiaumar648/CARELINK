@@ -121,7 +121,7 @@ export default function ParentDashboardPage() {
       </div>
 
       {/* CARE TYPE SELECTION */}
-      <Sheet className="flex flex-col gap-4">
+      <Sheet className="flex flex-col gap-4 border-[var(--color-lavender-border)]">
         <div>
           <h2 className="text-[18px] font-semibold font-heading text-ink">
             What type of care do you need?
@@ -150,7 +150,7 @@ export default function ParentDashboardPage() {
 
       {/* RECENT ACTIVITY + SAFETY */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
-        <Sheet className="flex flex-col gap-3">
+        <Sheet className="flex flex-col gap-3 border-[var(--color-lavender-border)]">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-[16px] font-semibold font-heading text-ink">Recent Activity</h2>
             <Link

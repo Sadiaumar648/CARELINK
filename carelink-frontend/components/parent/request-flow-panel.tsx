@@ -108,7 +108,7 @@ function SelectField({
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-[10px] border border-hairline bg-sheet px-3 py-2 text-[15px] text-ink focus:border-sage focus:outline-none focus:ring-4 focus:ring-sage/15"
+        className="rounded-[10px] border border-[var(--color-lavender-border)] bg-sheet px-3 py-2 text-[15px] text-ink focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
       >
         <option value="" disabled>
           {placeholder}
@@ -233,7 +233,7 @@ export function RequestFlowPanel({
   }
 
   return (
-    <Sheet className="mx-auto flex w-full max-w-lg flex-col gap-5">
+    <Sheet className="mx-auto flex w-full max-w-[440px] flex-col gap-5 border-[var(--color-lavender-border)]">
       <button
         type="button"
         onClick={onBack}
@@ -246,7 +246,7 @@ export function RequestFlowPanel({
         I need a <span className="text-wisteria">{copy.heading}</span>
       </h1>
 
-      <div className="relative aspect-[16/9] w-full overflow-hidden rounded-[14px]">
+      <div className="relative aspect-[5/2] w-full overflow-hidden rounded-[14px]">
         <Image src={copy.image} alt={copy.imageAlt} fill sizes="480px" className="object-cover" />
       </div>
 
@@ -265,6 +265,7 @@ export function RequestFlowPanel({
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
+            className="border-[var(--color-lavender-border)] focus:border-wisteria focus:ring-wisteria/15"
           />
           <SelectField
             label="Schedule"
@@ -285,6 +286,7 @@ export function RequestFlowPanel({
             placeholder="Enter your area"
             value={area}
             onChange={(e) => setArea(e.target.value)}
+            className="border-[var(--color-lavender-border)] focus:border-wisteria focus:ring-wisteria/15"
           />
           <SelectField
             label="Child's age"
@@ -298,6 +300,7 @@ export function RequestFlowPanel({
             placeholder="e.g. food allergies, experience with infants…"
             value={requirements}
             onChange={(e) => setRequirements(e.target.value)}
+            className="border-[var(--color-lavender-border)] focus:border-wisteria focus:ring-wisteria/15"
           />
         </div>
 
