@@ -366,7 +366,7 @@ export default function OnboardingSetupPage() {
               placeholder="Tell us anything else about the care you're looking for…"
               value={preferenceNotes}
               onChange={(e) => setPreferenceNotes(e.target.value)}
-              className="rounded-[10px] border border-hairline bg-sheet px-3 py-2 text-[15px] text-ink placeholder:text-ink-muted focus:border-sage focus:outline-none focus:ring-4 focus:ring-sage/15"
+              className="rounded-[10px] border border-hairline bg-sheet px-3 py-2 text-[15px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
             />
           </div>
           <div className="flex gap-3">

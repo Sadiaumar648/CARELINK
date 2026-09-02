@@ -43,7 +43,7 @@ export default function ResetPasswordPage() {
   if (done) {
     return (
       <div className="mx-auto flex w-full max-w-sm flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-        <CheckCircle size={44} weight="fill" className="text-sage" />
+        <CheckCircle size={44} weight="fill" className="text-wisteria" />
         <h1 className="text-[24px] font-semibold font-heading">Password updated</h1>
         <p className="text-[15px] text-ink-muted">Your password has been reset.</p>
         <Button onClick={() => router.replace("/sign-in")}>Continue to log in →</Button>

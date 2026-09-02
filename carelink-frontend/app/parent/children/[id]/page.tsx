@@ -239,9 +239,9 @@ function WardDetail({ id }: { id: string }) {
         </Button>
       </div>
 
-      <Sheet className="flex items-start gap-3 bg-sage-tint">
-        <LockKey size={20} className="mt-0.5 shrink-0 text-sage-pressed" />
-        <p className="text-[13px] text-sage-pressed">
+      <Sheet className="flex items-start gap-3 bg-wisteria-tint">
+        <LockKey size={20} className="mt-0.5 shrink-0 text-wisteria-pressed" />
+        <p className="text-[13px] text-wisteria-pressed">
           Your Ward Profile is private. Relevant information is shared with an authorized caregiver
           only when needed for a confirmed booking.
         </p>
@@ -264,7 +264,7 @@ function WardDetail({ id }: { id: string }) {
             {parsed.careNeeds.map((need) => (
               <span
                 key={need}
-                className="rounded-full bg-sage-tint px-2.5 py-1 text-[12px] text-sage-pressed"
+                className="rounded-full bg-wisteria-tint px-2.5 py-1 text-[12px] text-wisteria-pressed"
               >
                 {need}
               </span>

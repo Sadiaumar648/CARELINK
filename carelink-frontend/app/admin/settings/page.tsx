@@ -76,7 +76,7 @@ function WeightsSection() {
         />
       ))}
       {error && <p className="text-[13px] text-error">{error}</p>}
-      {saved && <p className="text-[13px] text-sage-pressed">Saved.</p>}
+      {saved && <p className="text-[13px] text-wisteria-pressed">Saved.</p>}
       <Button type="submit" disabled={saving || Math.abs(sum - 1) > 0.005}>
         {saving ? "Saving…" : "Save weights"}
       </Button>
@@ -152,7 +152,7 @@ function EmergencyContactsSection() {
         />
       ))}
       {error && <p className="text-[13px] text-error">{error}</p>}
-      {saved && <p className="text-[13px] text-sage-pressed">Saved.</p>}
+      {saved && <p className="text-[13px] text-wisteria-pressed">Saved.</p>}
       <Button type="submit" disabled={saving}>
         {saving ? "Saving…" : "Save emergency numbers"}
       </Button>
@@ -209,7 +209,7 @@ function CommissionSection() {
         onChange={(e) => setRate(Number(e.target.value))}
       />
       {error && <p className="text-[13px] text-error">{error}</p>}
-      {saved && <p className="text-[13px] text-sage-pressed">Saved.</p>}
+      {saved && <p className="text-[13px] text-wisteria-pressed">Saved.</p>}
       <Button type="submit" disabled={saving}>
         {saving ? "Saving…" : "Save rate"}
       </Button>

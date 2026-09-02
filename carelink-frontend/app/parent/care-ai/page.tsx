@@ -338,7 +338,7 @@ function CareAiPage() {
             disabled={loading}
             className="flex-1 rounded-[10px] border border-[var(--color-lavender-border)] bg-sheet px-3 py-2.5 text-[14px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
           />
-          <Button type="submit" variant="accent" disabled={loading || !input.trim()}>
+          <Button type="submit" disabled={loading || !input.trim()}>
             <PaperPlaneRight size={16} weight="fill" />
           </Button>
         </form>

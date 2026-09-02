@@ -23,7 +23,7 @@ export const Field = forwardRef<HTMLInputElement, FieldProps>(function Field(
         id={inputId}
         className={
           "rounded-[10px] border border-hairline bg-sheet px-3 py-2 text-[15px] text-ink transition-colors " +
-          "placeholder:text-ink-muted focus:border-sage focus:outline-none focus:ring-4 focus:ring-sage/15 " +
+          "placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15 " +
           (error ? "border-error " : "") +
           className
         }

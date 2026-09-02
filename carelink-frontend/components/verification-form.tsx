@@ -178,7 +178,7 @@ export function VerificationForm() {
                 <button
                   type="button"
                   onClick={() => setSelfieFile(null)}
-                  className="text-[13px] font-semibold text-sage"
+                  className="text-[13px] font-semibold text-wisteria"
                 >
                   Retake
                 </button>

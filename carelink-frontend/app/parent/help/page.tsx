@@ -143,15 +143,15 @@ export default function ParentHelpPage() {
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search help topics"
           aria-label="Search help topics"
-          className="w-full rounded-[10px] border border-hairline bg-sheet py-2 pl-9 pr-3 text-[14px] text-ink placeholder:text-ink-muted focus:border-sage focus:outline-none focus:ring-4 focus:ring-sage/15"
+          className="w-full rounded-[10px] border border-hairline bg-sheet py-2 pl-9 pr-3 text-[14px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
         />
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {QUICK_LINKS.map((link) => (
           <Link key={link.title} href={link.href}>
-            <Sheet className="flex h-full items-start gap-3 hover:border-sage/50">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sage-tint text-sage-pressed">
+            <Sheet className="flex h-full items-start gap-3 hover:border-wisteria/50">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-wisteria-tint text-wisteria-pressed">
                 <link.icon size={18} weight="duotone" />
               </span>
               <div className="flex flex-col gap-0.5">

@@ -195,7 +195,7 @@ export default function IdentityVerificationPage() {
     }
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-        <CheckCircle size={48} weight="fill" className="text-sage" />
+        <CheckCircle size={48} weight="fill" className="text-wisteria" />
         <h1 className="text-[24px] font-semibold font-heading">Verification submitted</h1>
         <p className="max-w-sm text-[15px] text-ink-muted">
           Your identity verification is being reviewed. This usually doesn&apos;t take long — you
@@ -307,7 +307,7 @@ export default function IdentityVerificationPage() {
                 <button
                   type="button"
                   onClick={() => setIdFile(null)}
-                  className="text-[13px] font-semibold text-sage hover:text-sage-hover"
+                  className="text-[13px] font-semibold text-wisteria hover:text-wisteria-hover"
                 >
                   Remove
                 </button>
@@ -315,9 +315,9 @@ export default function IdentityVerificationPage() {
             ) : (
               <label
                 htmlFor="idFile"
-                className="flex cursor-pointer flex-col items-center gap-2 rounded-[14px] border-2 border-dashed border-hairline bg-sheet px-6 py-10 text-center hover:border-sage/50"
+                className="flex cursor-pointer flex-col items-center gap-2 rounded-[14px] border-2 border-dashed border-hairline bg-sheet px-6 py-10 text-center hover:border-wisteria/50"
               >
-                <UploadSimple size={24} className="text-sage" />
+                <UploadSimple size={24} className="text-wisteria" />
                 <span className="text-[14px] font-semibold text-ink">Tap to upload a photo</span>
                 <span className="text-[12px] text-ink-muted">JPG or PNG, up to 10MB</span>
                 <input
@@ -407,7 +407,7 @@ export default function IdentityVerificationPage() {
               <button
                 type="button"
                 onClick={() => setStep("upload")}
-                className="text-[13px] font-semibold text-sage hover:text-sage-hover"
+                className="text-[13px] font-semibold text-wisteria hover:text-wisteria-hover"
               >
                 Replace ID
               </button>
@@ -423,7 +423,7 @@ export default function IdentityVerificationPage() {
                   setSelfieFile(null);
                   setStep("photo");
                 }}
-                className="text-[13px] font-semibold text-sage hover:text-sage-hover"
+                className="text-[13px] font-semibold text-wisteria hover:text-wisteria-hover"
               >
                 Retake photo
               </button>

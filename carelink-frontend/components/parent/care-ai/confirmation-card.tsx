@@ -128,7 +128,7 @@ export function ConfirmationCard({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button variant="accent" onClick={onConfirm} disabled={!canConfirm || busy}>
+        <Button onClick={onConfirm} disabled={!canConfirm || busy}>
           {confirming ? "Searching…" : "Looks good — Find Care"}
         </Button>
         <Button variant="secondary" onClick={onDispatch} disabled={!canConfirm || busy}>

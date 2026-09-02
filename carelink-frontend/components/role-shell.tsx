@@ -43,7 +43,7 @@ export function RoleShell({
   bookingHref,
   largeTargets = false,
   readAloud = false,
-  activeItemClassName = "text-sage",
+  activeItemClassName = "text-wisteria",
   railWidthClassName = "md:w-56",
   mainClassName = "",
   children,

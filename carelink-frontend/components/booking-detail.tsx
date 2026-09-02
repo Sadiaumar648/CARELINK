@@ -20,6 +20,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Avatar } from "@/components/ui/avatar";
 import { VerificationBadge } from "@/components/ui/badge";
 import { ErrorState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ReportForm } from "@/components/report-form";
 import { SosScreen } from "@/components/sos-screen";
 import { SafeTrackCaregiverControl } from "@/components/safe-track";
@@ -218,8 +219,29 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
     }
   }
 
-  if (error && !booking) return <ErrorState onRetry={load} />;
-  if (!booking) return <p className="p-6 text-[13px] text-ink-muted">Loading…</p>;
+  if (error && !booking) {
+    return (
+      <div className="mx-auto max-w-2xl p-6">
+        <ErrorState onRetry={load} />
+      </div>
+    );
+  }
+  if (!booking) {
+    return (
+      <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
+        <Skeleton className="h-4 w-24" />
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-3 w-40" />
+          </div>
+          <Skeleton className="h-6 w-20 rounded-full" />
+        </div>
+        <Skeleton className="h-20 w-full rounded-[18px]" />
+        <Skeleton className="h-32 w-full rounded-[18px]" />
+      </div>
+    );
+  }
 
   const canCancel = ["pending", "accepted", "paid"].includes(booking.status);
   const isToday = new Date().toISOString().slice(0, 10) === booking.starts_at.slice(0, 10);
@@ -274,20 +296,20 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
       )}
 
       {booking.status === "accepted" && viewerRole === "parent" && (
-        <Sheet className="flex flex-col items-center gap-2 bg-sage-tint text-center">
-          <CheckCircle size={28} weight="fill" className="text-sage-pressed" />
-          <p className="text-[16px] font-semibold text-sage-pressed">Booking accepted</p>
-          <p className="text-[13px] text-sage-pressed">
+        <Sheet className="flex flex-col items-center gap-2 bg-wisteria-tint text-center">
+          <CheckCircle size={28} weight="fill" className="text-wisteria-pressed" />
+          <p className="text-[16px] font-semibold text-wisteria-pressed">Booking accepted</p>
+          <p className="text-[13px] text-wisteria-pressed">
             {caregiver?.full_name ?? "The caregiver"} has accepted your booking request.
           </p>
         </Sheet>
       )}
 
       {booking.status === "paid" && viewerRole === "parent" && (
-        <Sheet className="flex flex-col items-center gap-2 bg-sage-tint text-center">
-          <CheckCircle size={28} weight="fill" className="text-sage-pressed" />
-          <p className="text-[16px] font-semibold text-sage-pressed">Booking confirmed 🎉</p>
-          <p className="text-[13px] text-sage-pressed">
+        <Sheet className="flex flex-col items-center gap-2 bg-wisteria-tint text-center">
+          <CheckCircle size={28} weight="fill" className="text-wisteria-pressed" />
+          <p className="text-[16px] font-semibold text-wisteria-pressed">Booking confirmed 🎉</p>
+          <p className="text-[13px] text-wisteria-pressed">
             Your care booking with {caregiver?.full_name ?? "your caregiver"} is confirmed.
           </p>
           <Link href="/parent">
@@ -342,7 +364,7 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
           )}
         </div>
         {viewerRole === "staff" && counterpartyVerificationStatus === "verified" && (
-          <p className="flex items-center gap-1.5 text-[13px] font-semibold text-sage">
+          <p className="flex items-center gap-1.5 text-[13px] font-semibold text-wisteria">
             <ShieldCheck size={16} weight="fill" />
             Verified Parent
             {counterpartyVerificationMethod && (
@@ -437,12 +459,12 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
 
       {!["pending", "declined"].includes(booking.status) && (
         <Link href={`/${viewerRole}/messages/${id}`}>
-          <Sheet className="flex items-center justify-between gap-3 hover:border-sage/50">
+          <Sheet className="flex items-center justify-between gap-3 hover:border-wisteria/50">
             <span className="flex items-center gap-2 text-[14px] font-semibold text-ink">
-              <ChatCircleText size={18} className="text-sage" />
+              <ChatCircleText size={18} className="text-wisteria" />
               Messages
             </span>
-            <span className="text-[13px] font-semibold text-sage">Open conversation →</span>
+            <span className="text-[13px] font-semibold text-wisteria">Open conversation →</span>
           </Sheet>
         </Link>
       )}
@@ -494,7 +516,7 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
                 rows={2}
                 value={declineReason}
                 onChange={(e) => setDeclineReason(e.target.value)}
-                className="rounded-[10px] border border-hairline bg-sheet px-3 py-2 text-[14px] text-ink placeholder:text-ink-muted focus:border-sage focus:outline-none focus:ring-4 focus:ring-sage/15"
+                className="rounded-[10px] border border-hairline bg-sheet px-3 py-2 text-[14px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
               />
             </label>
             <div className="flex gap-3">
@@ -559,7 +581,7 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
       {!["pending", "declined"].includes(booking.status) && counterpartyUserId && (
         <Sheet className="flex flex-col gap-3">
           <h2 className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-            <ShieldCheck size={16} className="text-sage" />
+            <ShieldCheck size={16} className="text-wisteria" />
             {viewerRole === "staff" ? "Safety & Support" : "CareLink Safety"}
           </h2>
           <p className="text-[13px] text-ink-muted">
@@ -689,7 +711,7 @@ function PaymentForm({
   if (payment?.status === "pending") {
     return (
       <Sheet className="flex flex-col items-center gap-3 text-center">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-sage border-t-transparent" />
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-wisteria border-t-transparent" />
         <h2 className="text-[17px] font-semibold font-heading">Payment pending</h2>
         <p className="text-[13px] text-ink-muted">
           We&apos;re waiting for confirmation of your payment. This page checks automatically — you
@@ -735,7 +757,7 @@ function PaymentForm({
             <label
               key={n.value}
               className={`flex cursor-pointer items-center gap-2 rounded-[10px] border px-3 py-2.5 text-[14px] ${
-                network === n.value ? "border-sage bg-sage-tint" : "border-hairline"
+                network === n.value ? "border-wisteria bg-wisteria-tint" : "border-hairline"
               }`}
             >
               <input
@@ -853,7 +875,7 @@ function ReviewForm({ bookingId }: { bookingId: string }) {
             onClick={() => setRating(n)}
             className={`rounded border px-3 py-2 text-[15px] font-semibold ${
               rating === n
-                ? "border-sage bg-sage/10 text-sage-pressed"
+                ? "border-wisteria bg-wisteria/10 text-wisteria-pressed"
                 : "border-hairline text-ink-muted"
             }`}
           >

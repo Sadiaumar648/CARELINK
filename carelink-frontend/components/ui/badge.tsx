@@ -8,7 +8,7 @@ export function Badge({
   tone?: "neutral" | "peach" | "gold" | "bluebell";
 }) {
   const tones: Record<string, string> = {
-    neutral: "bg-sage-tint text-sage-pressed",
+    neutral: "bg-wisteria-tint text-wisteria-pressed",
     peach: "bg-peach-tint text-[var(--color-error)]",
     gold: "bg-gold-tint text-[var(--color-gold)]",
     bluebell: "bg-bluebell-tint text-[var(--color-bluebell-pressed)]",

@@ -15,7 +15,14 @@ const items: NavItem[] = [
 export default function StaffLayout({ children }: LayoutProps<"/staff">) {
   return (
     <RequireRole role="staff">
-      <RoleShell items={items} bookingHref={(id) => `/staff/schedule/${id}`} largeTargets readAloud>
+      <RoleShell
+        items={items}
+        bookingHref={(id) => `/staff/schedule/${id}`}
+        largeTargets
+        readAloud
+        activeItemClassName="rounded-[10px] bg-wisteria-tint text-wisteria"
+        mainClassName="bg-[var(--color-lavender-bg)]"
+      >
         {children}
       </RoleShell>
     </RequireRole>

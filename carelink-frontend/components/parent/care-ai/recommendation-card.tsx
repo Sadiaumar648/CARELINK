@@ -47,7 +47,7 @@ export function RecommendationCard({
       )}
 
       <div className="flex flex-wrap gap-2 pt-1">
-        <Button variant="accent" onClick={() => onChoose(recommendation.type)}>
+        <Button onClick={() => onChoose(recommendation.type)}>
           Continue with {caregiverTypeLabel(recommendation.type)}
         </Button>
         <Button variant="secondary" onClick={() => onChoose(other)}>

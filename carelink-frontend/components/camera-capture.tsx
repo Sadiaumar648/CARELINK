@@ -110,7 +110,7 @@ export function CameraCapture({
           />
         )}
         {!previewUrl && (
-          <div className="pointer-events-none absolute inset-6 rounded-full border-2 border-dashed border-sage" />
+          <div className="pointer-events-none absolute inset-6 rounded-full border-2 border-dashed border-wisteria" />
         )}
       </div>
 

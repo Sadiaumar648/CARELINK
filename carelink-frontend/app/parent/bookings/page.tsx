@@ -200,7 +200,7 @@ export default function ParentBookingsPage() {
                 onClick={() => setTab(t.key)}
                 className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold ${
                   tab === t.key
-                    ? "bg-sage text-sheet"
+                    ? "bg-wisteria text-sheet"
                     : "bg-sheet text-ink-muted hover:text-ink border border-hairline"
                 }`}
               >
@@ -222,7 +222,7 @@ export default function ParentBookingsPage() {
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search by caregiver or reference"
                   aria-label="Search bookings"
-                  className="w-full rounded-[10px] border border-hairline bg-sheet py-2 pl-9 pr-3 text-[13px] text-ink placeholder:text-ink-muted focus:border-sage focus:outline-none focus:ring-4 focus:ring-sage/15"
+                  className="w-full rounded-[10px] border border-hairline bg-sheet py-2 pl-9 pr-3 text-[13px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
                 />
               </div>
               {query && (
@@ -261,7 +261,7 @@ export default function ParentBookingsPage() {
             <div className="flex flex-col gap-4">
               {filtered.map((b) => (
                 <Link key={b.id} href={`/parent/bookings/${b.id}`}>
-                  <div className="flex flex-col gap-3 rounded-[18px] border border-hairline bg-sheet p-5 hover:border-sage/50">
+                  <div className="flex flex-col gap-3 rounded-[18px] border border-hairline bg-sheet p-5 hover:border-wisteria/50">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
                         <Avatar

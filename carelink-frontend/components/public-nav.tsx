@@ -19,20 +19,23 @@ export function PublicNav() {
   return (
     <header className="sticky top-0 z-20 border-b border-hairline bg-sheet/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <a href="#top" className="text-[19px] font-semibold font-heading text-sage-pressed">
+        <a href="#top" className="text-[19px] font-semibold font-heading text-wisteria-pressed">
           CareLink
         </a>
 
         <nav className="hidden items-center gap-7 text-[14px] font-medium text-ink-muted lg:flex">
           {LINKS.map((link) => (
-            <a key={link.href} href={link.href} className="hover:text-sage">
+            <a key={link.href} href={link.href} className="hover:text-wisteria">
               {link.label}
             </a>
           ))}
         </nav>
 
         <div className="hidden items-center gap-3 lg:flex">
-          <Link href="/sign-in" className="px-2 text-[14px] font-semibold text-ink hover:text-sage">
+          <Link
+            href="/sign-in"
+            className="px-2 text-[14px] font-semibold text-ink hover:text-wisteria"
+          >
             Log in
           </Link>
           <LinkButton href="/claim-invitation" variant="secondary" size="default">
@@ -60,7 +63,7 @@ export function PublicNav() {
               key={link.href}
               href={link.href}
               onClick={() => setOpen(false)}
-              className="rounded-[10px] px-2 py-3 text-[15px] font-medium text-ink hover:bg-sage-tint"
+              className="rounded-[10px] px-2 py-3 text-[15px] font-medium text-ink hover:bg-wisteria-tint"
             >
               {link.label}
             </a>

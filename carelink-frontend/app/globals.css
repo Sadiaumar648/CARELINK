@@ -1,31 +1,28 @@
 @import "tailwindcss";
 
-/* CareLink design system v4 — the approved seven-colour brand palette
-   (Fern / Pistachio / Fennel / Cherry Blossom / Peony / Bluebell /
-   Honey), applied with real hierarchy rather than equal weight: Fern
-   carries the brand, Fennel is the warm page ground, Pistachio is the
-   secondary/supporting tone, and the other four are sparing accents.
-   Token *names* are kept from the previous palette (sage/peach/gold)
-   so every component that already reads them updates automatically —
-   only the values change. Where a literal palette colour is too light
-   to carry text at AA contrast, the token holds a deepened tone from
-   the same colour family instead (the brief's own allowance: "use the
-   darker Fern colour... when necessary"), with the literal, lighter
-   colour reserved for tints/backgrounds. */
+/* CareLink design system v5 — Wisteria (purple) is the app's one real
+   primary, used everywhere: Parent, Caregiver, Admin, and the public
+   marketing/auth pages, since they all share the same Button/Sheet/
+   Badge/etc. component library. This retires the previous "Fern"
+   (sage) primary and the earlier note that Wisteria was a Parent-Home-
+   only exception — that scoping is gone; Wisteria and the lavender
+   neutrals below are now the whole app's default. Pistachio/Cherry
+   Blossom/Honey/Bluebell remain as sparing secondary accents, unrelated
+   to this change. Where a literal palette colour is too light to carry
+   text at AA contrast, the token holds a deepened tone from the same
+   colour family instead, with the literal, lighter colour reserved for
+   tints/backgrounds. */
 
 @theme {
-  /* Fennel — warm page background. White sheets sit on top of it. */
-  --color-paper: #ebdec0;
+  /* Paper — the app's page background and secondary/recessed surface
+     (a chat bubble, an unread-row highlight, a nested panel inside a
+     card) — one shade of light lavender-grey, visibly distinct from
+     the pure-white --color-sheet cards that sit on top of it. */
+  --color-paper: #f2eef8;
   --color-sheet: #ffffff;
   --color-ink: #252a27;
   --color-ink-muted: #5c5947;
-  --color-hairline: #d9c9a4;
-
-  /* Primary — Fern, deepened for reliable white-on-colour contrast. */
-  --color-sage: #5a7360;
-  --color-sage-hover: #4c6152;
-  --color-sage-pressed: #3d4e42;
-  --color-sage-tint: #e5eae4;
+  --color-hairline: #e2dbef;
 
   /* Secondary — Pistachio. Tags, secondary surfaces, subtle borders. */
   --color-pistachio: #ccc09c;
@@ -41,23 +38,15 @@
   --color-bluebell-tint: #eef3f7;
   --color-bluebell-pressed: #4c6c82;
 
-  /* Wisteria — an eighth, additive accent (not part of the original
-     seven-colour palette above). Used only by the parent Home page and
-     its Nanny/Babysitter request flow, matching a purple/indigo
-     reference design for that page specifically — the app-wide primary
-     stays Fern (sage) everywhere else. Values match the reference
-     design's own stated hex palette (#6d3fef primary, #f3eeff tint). */
+  /* Primary — Wisteria. */
   --color-wisteria: #6d3fef;
   --color-wisteria-hover: #5c2fe0;
   --color-wisteria-pressed: #4a23b8;
   --color-wisteria-tint: #f3eeff;
 
-  /* Lavender neutrals — also scoped to the parent Home page only, for
-     its near-white page background and light card borders, matching
-     the reference design's own stated hex values. Distinct from
-     --color-paper/--color-hairline (the app-wide warm neutrals used
-     everywhere else) so this page can differ without repainting the
-     rest of the app. */
+  /* Lavender neutrals — the near-white page wash used by every role's
+     RoleShell main content area (Parent, Caregiver, Admin alike; no
+     longer a Parent-only exception), plus its matching light border. */
   --color-lavender-bg: #fafafc;
   --color-lavender-border: #eaeaea;
 

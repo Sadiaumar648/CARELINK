@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Tray } from "@phosphor-icons/react";
+import { CalendarBlank, ChatCircle, ShieldWarning, Tray } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
+import { useAuth } from "@/lib/auth/auth-context";
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
@@ -112,7 +113,7 @@ function RequestCard({ booking, onRespond }: { booking: Booking; onRespond: () =
         <div>
           <Link
             href={`/staff/schedule/${booking.id}`}
-            className="text-[17px] font-semibold font-heading hover:text-sage"
+            className="text-[17px] font-semibold font-heading hover:text-wisteria"
           >
             {formatRange(booking.starts_at, booking.ends_at)}
           </Link>
@@ -141,7 +142,7 @@ function RequestCard({ booking, onRespond }: { booking: Booking; onRespond: () =
             Decline
           </Button>
           <Link href={`/staff/schedule/${booking.id}`} className="ml-auto self-center">
-            <span className="text-[13px] font-semibold text-sage hover:text-sage-hover">
+            <span className="text-[13px] font-semibold text-wisteria hover:text-wisteria-hover">
               View Request
             </span>
           </Link>
@@ -182,7 +183,7 @@ function RequestCard({ booking, onRespond }: { booking: Booking; onRespond: () =
               rows={2}
               value={declineReason}
               onChange={(e) => setDeclineReason(e.target.value)}
-              className="rounded-[10px] border border-hairline bg-sheet px-3 py-2 text-[14px] text-ink placeholder:text-ink-muted focus:border-sage focus:outline-none focus:ring-4 focus:ring-sage/15"
+              className="rounded-[10px] border border-hairline bg-sheet px-3 py-2 text-[14px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
               placeholder="e.g. Not available that day"
             />
           </label>
@@ -206,6 +207,102 @@ function RequestCard({ booking, onRespond }: { booking: Booking; onRespond: () =
   );
 }
 
+function greeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+// A short, additive summary above the existing request list below —
+// it never replaces Schedule/Messages/Safety as the real destinations,
+// it just surfaces a quick glance at them. "Today" reuses the same
+// GET /api/bookings the Schedule page already calls; no new endpoint.
+function DashboardSummary({ pendingCount }: { pendingCount: number | null }) {
+  const { user } = useAuth();
+  const firstName = ((user?.user_metadata?.full_name as string | undefined) ?? "").split(" ")[0];
+  const [todaysBooking, setTodaysBooking] = useState<Booking | null | undefined>(undefined);
+
+  useEffect(() => {
+    apiFetch<{ bookings: Booking[] }>("/api/bookings")
+      .then((res) => {
+        const today = new Date().toISOString().slice(0, 10);
+        const match = res.bookings
+          .filter(
+            (b) =>
+              ["accepted", "paid", "active"].includes(b.status) &&
+              b.starts_at.slice(0, 10) === today,
+          )
+          .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())[0];
+        setTodaysBooking(match ?? null);
+      })
+      .catch(() => setTodaysBooking(null));
+  }, []);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-[24px] font-semibold font-heading">
+          {greeting()}
+          {firstName ? `, ${firstName}` : ""} 👋
+        </h1>
+        <p className="text-[14px] text-ink-muted">
+          Here&apos;s what&apos;s happening with your care today.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Sheet className="flex flex-col gap-1.5">
+          <Tray size={18} className="text-wisteria" />
+          <span className="text-[20px] font-semibold tabular-nums">{pendingCount ?? "…"}</span>
+          <span className="text-[12px] text-ink-muted">
+            {pendingCount === 1 ? "request waiting" : "requests waiting"}
+          </span>
+        </Sheet>
+
+        <Sheet className="flex flex-col gap-1.5">
+          <CalendarBlank size={18} className="text-wisteria" />
+          {todaysBooking === undefined ? (
+            <span className="text-[13px] text-ink-muted">…</span>
+          ) : todaysBooking ? (
+            <>
+              <span className="text-[15px] font-semibold text-ink">
+                {formatTime(todaysBooking.starts_at)}
+              </span>
+              <Link
+                href={`/staff/schedule/${todaysBooking.id}`}
+                className="text-[12px] font-semibold text-wisteria hover:text-wisteria-hover"
+              >
+                Today&apos;s booking
+              </Link>
+            </>
+          ) : (
+            <span className="text-[12px] text-ink-muted">No care scheduled today</span>
+          )}
+        </Sheet>
+
+        <Link href="/staff/messages">
+          <Sheet className="flex flex-col gap-1.5 hover:border-wisteria/50">
+            <ChatCircle size={18} className="text-wisteria" />
+            <span className="text-[13px] font-semibold text-ink">Messages</span>
+          </Sheet>
+        </Link>
+
+        <Link href="/staff/safety">
+          <Sheet className="flex flex-col gap-1.5 hover:border-wisteria/50">
+            <ShieldWarning size={18} className="text-error" />
+            <span className="text-[13px] font-semibold text-ink">Safety</span>
+          </Sheet>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 export default function StaffRequestsPage() {
   const [bookings, setBookings] = useState<Booking[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -218,9 +315,11 @@ export default function StaffRequestsPage() {
   }, [retryKey]);
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
+    <div className="mx-auto flex max-w-3xl flex-col gap-8 p-6">
+      <DashboardSummary pendingCount={bookings?.length ?? null} />
+
       <div className="flex flex-col gap-1">
-        <h1 className="text-[26px] font-semibold font-heading">Care Requests</h1>
+        <h2 className="text-[20px] font-semibold font-heading">Care Requests</h2>
         <p className="text-[14px] text-ink-muted">
           Families who&apos;d like to book you are shown here.
         </p>

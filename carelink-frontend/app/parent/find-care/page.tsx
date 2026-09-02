@@ -345,7 +345,7 @@ function FindCarePage() {
         <p className="text-[15px] text-ink-muted">
           Tell us what you need and we&apos;ll help you explore available caregivers.
         </p>
-        <p className="flex items-center gap-1.5 text-[13px] font-medium text-sage">
+        <p className="flex items-center gap-1.5 text-[13px] font-medium text-wisteria">
           <ShieldCheck size={16} weight="fill" /> Every caregiver shown here has passed
           CareLink&apos;s identity verification.
         </p>
@@ -382,7 +382,7 @@ function FindCarePage() {
                 key={chip.caregiverType ? "caregiverType" : chip.keys.join("-")}
                 type="button"
                 onClick={() => removeChip(chip)}
-                className="flex items-center gap-1.5 rounded-full bg-sage-tint px-3 py-1.5 text-[12.5px] font-medium text-sage-pressed hover:bg-sage/20"
+                className="flex items-center gap-1.5 rounded-full bg-wisteria-tint px-3 py-1.5 text-[12.5px] font-medium text-wisteria-pressed hover:bg-wisteria/20"
               >
                 {chip.label}
                 <X size={12} weight="bold" />
@@ -415,7 +415,7 @@ function FindCarePage() {
             description={validationError}
             action={
               <div className="flex flex-wrap items-center justify-center gap-3">
-                <LinkButton href="/parent/care-ai" variant="accent">
+                <LinkButton href="/parent/care-ai">
                   <Sparkle size={16} weight="fill" /> Ask CareLink AI
                 </LinkButton>
                 <LinkButton href="/parent" variant="secondary">
@@ -473,7 +473,7 @@ function FindCarePage() {
                   type="button"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="flex items-center gap-1.5 rounded-[10px] border border-hairline px-3 py-2 text-[13px] font-semibold text-ink hover:border-sage hover:text-sage disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-hairline disabled:hover:text-ink"
+                  className="flex items-center gap-1.5 rounded-[10px] border border-hairline px-3 py-2 text-[13px] font-semibold text-ink hover:border-wisteria hover:text-wisteria disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-hairline disabled:hover:text-ink"
                 >
                   <ArrowLeft size={15} /> Previous
                 </button>
@@ -484,7 +484,7 @@ function FindCarePage() {
                   type="button"
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="flex items-center gap-1.5 rounded-[10px] border border-hairline px-3 py-2 text-[13px] font-semibold text-ink hover:border-sage hover:text-sage disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-hairline disabled:hover:text-ink"
+                  className="flex items-center gap-1.5 rounded-[10px] border border-hairline px-3 py-2 text-[13px] font-semibold text-ink hover:border-wisteria hover:text-wisteria disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-hairline disabled:hover:text-ink"
                 >
                   Next <ArrowRight size={15} />
                 </button>
@@ -500,7 +500,7 @@ function FindCarePage() {
             description="Tell CareLink AI what you need, or go to Home to request a Nanny or Babysitter directly — we'll match you with a verified caregiver nearby."
             action={
               <div className="flex flex-wrap items-center justify-center gap-3">
-                <LinkButton href="/parent/care-ai" variant="accent">
+                <LinkButton href="/parent/care-ai">
                   <Sparkle size={16} weight="fill" /> Ask CareLink AI
                 </LinkButton>
                 <LinkButton href="/parent" variant="secondary">

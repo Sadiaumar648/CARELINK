@@ -15,7 +15,9 @@ export function SelectableCard({
       onClick={onClick}
       aria-pressed={selected}
       className={`flex flex-col gap-1 rounded-[14px] border p-4 text-left transition-colors ${
-        selected ? "border-sage bg-sage-tint" : "border-hairline bg-sheet hover:border-sage/50"
+        selected
+          ? "border-wisteria bg-wisteria-tint"
+          : "border-hairline bg-sheet hover:border-wisteria/50"
       }`}
     >
       <span className="flex items-center justify-between gap-2">
@@ -23,7 +25,7 @@ export function SelectableCard({
         <span
           aria-hidden
           className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 text-[11px] font-bold ${
-            selected ? "border-sage bg-sage text-sheet" : "border-hairline text-transparent"
+            selected ? "border-wisteria bg-wisteria text-sheet" : "border-hairline text-transparent"
           }`}
         >
           ✓
@@ -50,8 +52,8 @@ export function SelectableChip({
       aria-pressed={selected}
       className={`rounded-full border px-4 py-2 text-[13px] font-medium transition-colors ${
         selected
-          ? "border-sage bg-sage text-sheet"
-          : "border-hairline bg-sheet text-ink hover:border-sage/50"
+          ? "border-wisteria bg-wisteria text-sheet"
+          : "border-hairline bg-sheet text-ink hover:border-wisteria/50"
       }`}
     >
       {label}

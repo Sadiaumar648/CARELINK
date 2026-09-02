@@ -25,7 +25,13 @@ const items: NavItem[] = [
 export default function AdminLayout({ children }: LayoutProps<"/admin">) {
   return (
     <RequireRole role="admin">
-      <RoleShell items={items}>{children}</RoleShell>
+      <RoleShell
+        items={items}
+        activeItemClassName="rounded-[10px] bg-wisteria-tint text-wisteria"
+        mainClassName="bg-[var(--color-lavender-bg)]"
+      >
+        {children}
+      </RoleShell>
     </RequireRole>
   );
 }

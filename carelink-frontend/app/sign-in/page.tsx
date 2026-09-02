@@ -85,7 +85,7 @@ function SignInForm() {
           />
           <Link
             href="/forgot-password"
-            className="self-end text-[12.5px] font-semibold text-sage hover:text-sage-hover"
+            className="self-end text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
           >
             Forgot password?
           </Link>
@@ -97,12 +97,15 @@ function SignInForm() {
       </Sheet>
       <p className="text-center text-[13px] text-ink-muted">
         Don&apos;t have an account?{" "}
-        <Link href="/register" className="font-semibold text-sage hover:text-sage-hover">
+        <Link href="/register" className="font-semibold text-wisteria hover:text-wisteria-hover">
           Create one
         </Link>
         {" · "}
         Invited caregiver?{" "}
-        <Link href="/claim-invitation" className="font-semibold text-sage hover:text-sage-hover">
+        <Link
+          href="/claim-invitation"
+          className="font-semibold text-wisteria hover:text-wisteria-hover"
+        >
           Claim your account
         </Link>
       </p>

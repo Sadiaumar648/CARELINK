@@ -84,7 +84,7 @@ function OriginTag({ existingAgencyUser }: { existingAgencyUser: boolean }) {
       className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
         existingAgencyUser
           ? "bg-bluebell-tint text-[var(--color-bluebell-pressed)]"
-          : "bg-sage-tint text-sage-pressed"
+          : "bg-wisteria-tint text-wisteria-pressed"
       }`}
     >
       {existingAgencyUser ? "Existing agency user" : "New user"}
@@ -238,17 +238,17 @@ function AddExistingUserFlow({ onDone }: { onDone: () => void }) {
           <button
             type="button"
             onClick={() => setStep("parent")}
-            className="flex flex-col items-center gap-2 rounded-[14px] border border-hairline p-6 text-center hover:border-sage hover:bg-sage-tint"
+            className="flex flex-col items-center gap-2 rounded-[14px] border border-hairline p-6 text-center hover:border-wisteria hover:bg-wisteria-tint"
           >
-            <UserCircle size={28} className="text-sage" />
+            <UserCircle size={28} className="text-wisteria" />
             <span className="text-[14px] font-semibold text-ink">Parent</span>
           </button>
           <button
             type="button"
             onClick={() => setStep("caregiver")}
-            className="flex flex-col items-center gap-2 rounded-[14px] border border-hairline p-6 text-center hover:border-sage hover:bg-sage-tint"
+            className="flex flex-col items-center gap-2 rounded-[14px] border border-hairline p-6 text-center hover:border-wisteria hover:bg-wisteria-tint"
           >
-            <UsersThree size={28} className="text-sage" />
+            <UsersThree size={28} className="text-wisteria" />
             <span className="text-[14px] font-semibold text-ink">Caregiver</span>
           </button>
         </div>
@@ -433,7 +433,7 @@ export default function AdminUsersPage() {
             onClick={() => setTab(t)}
             className={`rounded-full px-3.5 py-1.5 text-[13px] font-semibold ${
               tab === t
-                ? "bg-sage text-sheet"
+                ? "bg-wisteria text-sheet"
                 : "border border-hairline bg-sheet text-ink-muted hover:text-ink"
             }`}
           >

@@ -70,13 +70,13 @@ export default function RegisterPage() {
   if (checkEmail) {
     return (
       <div className="mx-auto flex w-full max-w-sm flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-        <CheckCircle size={44} weight="fill" className="text-sage" />
+        <CheckCircle size={44} weight="fill" className="text-wisteria" />
         <h1 className="text-[24px] font-semibold font-heading">Check your email</h1>
         <p className="text-[15px] text-ink-muted">
           We sent a confirmation link to <strong className="text-ink">{email}</strong>. Follow it,
           then come back and log in to continue setting up your account.
         </p>
-        <Link href="/sign-in" className="font-semibold text-sage hover:text-sage-hover">
+        <Link href="/sign-in" className="font-semibold text-wisteria hover:text-wisteria-hover">
           Log in
         </Link>
       </div>
@@ -162,7 +162,7 @@ export default function RegisterPage() {
       </Sheet>
       <p className="text-center text-[13px] text-ink-muted">
         Already have an account?{" "}
-        <Link href="/sign-in" className="font-semibold text-sage hover:text-sage-hover">
+        <Link href="/sign-in" className="font-semibold text-wisteria hover:text-wisteria-hover">
           Log in
         </Link>
       </p>

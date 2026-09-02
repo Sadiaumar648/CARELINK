@@ -548,7 +548,6 @@ export function RequestFlowPanel({
           <div className="flex flex-col items-center gap-1.5">
             <Button
               type="submit"
-              variant="accent"
               size="lg"
               disabled={submitting || wards === null || wards.length === 0}
               className="w-full justify-center"

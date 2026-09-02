@@ -36,7 +36,7 @@ function Kpi({
 }) {
   return (
     <Link href={href}>
-      <Sheet className="flex h-full flex-col gap-2 hover:border-sage/50">
+      <Sheet className="flex h-full flex-col gap-2 hover:border-wisteria/50">
         <span className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
           {label}
         </span>

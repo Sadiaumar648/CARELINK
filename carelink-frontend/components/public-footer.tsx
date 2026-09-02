@@ -39,7 +39,9 @@ export function PublicFooter() {
     <footer className="border-t border-hairline bg-sheet">
       <div className="mx-auto grid max-w-6xl grid-cols-2 gap-10 px-6 py-16 sm:grid-cols-3 lg:grid-cols-5">
         <div className="col-span-2 flex flex-col gap-3 lg:col-span-1">
-          <span className="text-[19px] font-semibold font-heading text-sage-pressed">CareLink</span>
+          <span className="text-[19px] font-semibold font-heading text-wisteria-pressed">
+            CareLink
+          </span>
           <p className="text-[13px] leading-relaxed text-ink-muted">
             Trusted care, closer to home.
           </p>
@@ -52,7 +54,7 @@ export function PublicFooter() {
             <ul className="flex flex-col gap-2">
               {col.links.map((link) => (
                 <li key={link.label}>
-                  <Link href={link.href} className="text-[14px] text-ink hover:text-sage">
+                  <Link href={link.href} className="text-[14px] text-ink hover:text-wisteria">
                     {link.label}
                   </Link>
                 </li>

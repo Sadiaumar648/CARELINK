@@ -34,7 +34,7 @@ function EmergencyNumberRow({
       <span className="text-[14px] text-ink">{label}</span>
       <span className="ml-auto text-[13px] font-semibold text-ink">
         {number ? (
-          <a href={`tel:${number}`} className="text-sage hover:text-sage-hover">
+          <a href={`tel:${number}`} className="text-wisteria hover:text-wisteria-hover">
             {number}
           </a>
         ) : (
@@ -92,7 +92,7 @@ export default function StaffSafetyPage() {
       </Sheet>
 
       <Sheet className="flex items-start gap-4">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sage-tint text-sage-pressed">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-wisteria-tint text-wisteria-pressed">
           <Flag size={20} weight="duotone" />
         </span>
         <div className="flex flex-col gap-1">
@@ -107,7 +107,7 @@ export default function StaffSafetyPage() {
       </Sheet>
 
       <Sheet className="flex items-start gap-4">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sage-tint text-sage-pressed">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-wisteria-tint text-wisteria-pressed">
           <IdentificationCard size={20} weight="duotone" />
         </span>
         <div className="flex flex-col gap-1">
@@ -115,7 +115,10 @@ export default function StaffSafetyPage() {
           <p className="text-[13px] leading-relaxed text-ink-muted">
             Shared with a parent only during an active booking, for their safety and yours. Manage
             it from{" "}
-            <Link href="/staff/profile" className="font-semibold text-sage hover:text-sage-hover">
+            <Link
+              href="/staff/profile"
+              className="font-semibold text-wisteria hover:text-wisteria-hover"
+            >
               your profile
             </Link>
             .

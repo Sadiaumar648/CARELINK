@@ -68,7 +68,7 @@ function ProfileCompletion() {
         </p>
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-hairline">
-        <div className="h-full rounded-full bg-sage" style={{ width: `${percent}%` }} />
+        <div className="h-full rounded-full bg-wisteria" style={{ width: `${percent}%` }} />
       </div>
       <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
         {items.map((item) => (
@@ -105,7 +105,7 @@ export default function StaffProfilePage() {
       <ProfileCompletion />
 
       <Link href="/staff/safety">
-        <Sheet className="flex items-center justify-between gap-3 hover:border-sage/50">
+        <Sheet className="flex items-center justify-between gap-3 hover:border-wisteria/50">
           <span className="flex items-center gap-2 text-[14px] font-semibold text-ink">
             <ShieldWarning size={18} className="text-error" />
             Safety & Support

@@ -39,7 +39,7 @@ export default function ParentSafetyPage() {
       </div>
       {ITEMS.map((item) => (
         <Sheet key={item.title} className="flex items-start gap-4">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sage-tint text-sage-pressed">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-wisteria-tint text-wisteria-pressed">
             <item.icon size={20} weight="duotone" />
           </span>
           <div className="flex flex-col gap-1">

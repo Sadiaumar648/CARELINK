@@ -1,21 +1,19 @@
 import { type ButtonHTMLAttributes, type ComponentProps, forwardRef } from "react";
 import Link from "next/link";
 
-type Variant = "primary" | "secondary" | "danger" | "accent";
+type Variant = "primary" | "secondary" | "danger";
 type Size = "default" | "lg";
 
 const base =
   "inline-flex items-center justify-center gap-2 rounded-[10px] font-semibold font-heading " +
   "transition-colors disabled:cursor-not-allowed disabled:opacity-50 " +
-  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage";
+  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wisteria";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-sage text-sheet hover:bg-sage-hover active:bg-sage-pressed",
-  secondary: "bg-pistachio-tint text-ink border border-pistachio hover:border-sage hover:text-sage",
+  primary: "bg-wisteria text-sheet hover:bg-wisteria-hover active:bg-wisteria-pressed",
+  secondary:
+    "bg-pistachio-tint text-ink border border-pistachio hover:border-wisteria hover:text-wisteria",
   danger: "bg-transparent text-error border border-error hover:bg-error hover:text-sheet",
-  // Wisteria — scoped to the parent Home page / request-flow forms only.
-  // Not a replacement for "primary": every other screen keeps sage.
-  accent: "bg-wisteria text-sheet hover:bg-wisteria-hover active:bg-wisteria-pressed",
 };
 
 // "lg" meets the App Flow doc's 52px minimum touch target for

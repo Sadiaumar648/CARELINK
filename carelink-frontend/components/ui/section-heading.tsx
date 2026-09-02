@@ -12,7 +12,7 @@ export function SectionHeading({
   return (
     <div className={`flex flex-col gap-3 ${align === "center" ? "items-center text-center" : ""}`}>
       {eyebrow && (
-        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-sage">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-wisteria">
           {eyebrow}
         </span>
       )}

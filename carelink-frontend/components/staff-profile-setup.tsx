@@ -17,7 +17,7 @@ function skillLabel(skill: string): string {
 
 function Saved({ show }: { show: boolean }) {
   if (!show) return null;
-  return <p className="text-[13px] text-sage-pressed">Saved.</p>;
+  return <p className="text-[13px] text-wisteria-pressed">Saved.</p>;
 }
 
 function PhotoSection() {
@@ -62,7 +62,7 @@ function PhotoSection() {
         size="md"
       />
       <div className="flex flex-col gap-2">
-        <label className="w-fit cursor-pointer text-[13px] font-semibold text-sage">
+        <label className="w-fit cursor-pointer text-[13px] font-semibold text-wisteria">
           {uploading ? "Uploading…" : photoPath ? "Change photo" : "Add a photo"}
           <input
             type="file"
@@ -171,7 +171,7 @@ function ProfileSection() {
               onClick={() => setCaregiverType((c) => (c === t.value ? "" : t.value))}
               className={`rounded border px-3 py-2 text-[13px] font-semibold ${
                 caregiverType === t.value
-                  ? "border-sage bg-sage/10 text-sage-pressed"
+                  ? "border-wisteria bg-wisteria/10 text-wisteria-pressed"
                   : "border-hairline text-ink-muted"
               }`}
             >
@@ -277,7 +277,7 @@ function SkillsSection() {
               onClick={() => toggle(skill)}
               className={`min-h-[52px] rounded border px-3 py-2 text-[13px] font-semibold ${
                 active
-                  ? "border-sage bg-sage/10 text-sage-pressed"
+                  ? "border-wisteria bg-wisteria/10 text-wisteria-pressed"
                   : "border-hairline text-ink-muted"
               }`}
             >
@@ -354,7 +354,9 @@ function AreasSection() {
               type="button"
               onClick={() => setPrimary(a.area)}
               className={`flex-1 rounded border px-3 py-2 text-left text-[15px] ${
-                a.isPrimary ? "border-sage bg-sage/10 text-sage-pressed" : "border-hairline"
+                a.isPrimary
+                  ? "border-wisteria bg-wisteria/10 text-wisteria-pressed"
+                  : "border-hairline"
               }`}
             >
               {a.area} {a.isPrimary && "(primary)"}
@@ -476,7 +478,7 @@ function AvailabilitySection() {
                         onClick={() => toggle(weekday, p.part)}
                         aria-label={`${p.label} ${WEEKDAYS[weekday]}`}
                         className={`h-[52px] w-[52px] rounded border ${
-                          on ? "border-sage bg-sage/20" : "border-hairline"
+                          on ? "border-wisteria bg-wisteria/20" : "border-hairline"
                         }`}
                       />
                     </td>

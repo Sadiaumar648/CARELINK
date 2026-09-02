@@ -52,7 +52,7 @@ function formatRange(startsAt: string, endsAt: string): string {
 function BookingRow({ booking }: { booking: EnrichedBooking }) {
   return (
     <Link href={`/staff/schedule/${booking.id}`}>
-      <Sheet className="flex items-center justify-between gap-4 hover:border-sage/50">
+      <Sheet className="flex items-center justify-between gap-4 hover:border-wisteria/50">
         <div>
           <p className="text-[16px] font-semibold text-ink">
             {formatRange(booking.starts_at, booking.ends_at)}

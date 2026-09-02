@@ -52,12 +52,12 @@ export function CaregiverLocationView({
   return (
     <Sheet className="flex flex-col gap-2">
       <h2 className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-        <MapPinLine size={16} className="text-sage" />
+        <MapPinLine size={16} className="text-wisteria" />
         SafeTrack
       </h2>
       {location ? (
         <>
-          <p className="text-[14px] font-semibold text-sage">Caregiver location sharing: ON</p>
+          <p className="text-[14px] font-semibold text-wisteria">Caregiver location sharing: ON</p>
           <p className="text-[13px] text-ink-muted">
             Last updated: {minutesAgoLabel(location.updated_at)}
           </p>
@@ -65,7 +65,7 @@ export function CaregiverLocationView({
             href={`https://www.google.com/maps?q=${location.latitude},${location.longitude}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-fit text-[13px] font-semibold text-sage hover:text-sage-hover"
+            className="w-fit text-[13px] font-semibold text-wisteria hover:text-wisteria-hover"
           >
             View on map →
           </a>

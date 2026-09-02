@@ -215,7 +215,7 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
             >
               <ChatCircleText size={16} /> Message {status.activeOffer.caregiverName.split(" ")[0]}
             </LinkButton>
-            <LinkButton href={`/parent/bookings/${status.activeOffer.bookingId}`} variant="accent">
+            <LinkButton href={`/parent/bookings/${status.activeOffer.bookingId}`}>
               Continue to Booking
             </LinkButton>
           </div>
@@ -234,9 +234,7 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
             </p>
           </div>
           <div className="flex flex-wrap justify-center gap-3">
-            <LinkButton href="/parent/find-care" variant="accent">
-              Browse Caregivers
-            </LinkButton>
+            <LinkButton href="/parent/find-care">Browse Caregivers</LinkButton>
             <LinkButton href="/parent" variant="secondary">
               Back to Home
             </LinkButton>

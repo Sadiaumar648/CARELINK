@@ -108,7 +108,7 @@ export default function ParentMessagesPage() {
         <div className="flex flex-col gap-3">
           {conversations.map((c) => (
             <Link key={c.booking.id} href={`/parent/messages/${c.booking.id}`}>
-              <div className="flex items-center gap-3 rounded-[18px] border border-hairline bg-sheet p-4 hover:border-sage/50">
+              <div className="flex items-center gap-3 rounded-[18px] border border-hairline bg-sheet p-4 hover:border-wisteria/50">
                 <Avatar
                   photoUrl={caregiverPhotoUrl(c.caregiver?.photo_path)}
                   name={c.caregiver?.full_name ?? "Caregiver"}
@@ -127,7 +127,10 @@ export default function ParentMessagesPage() {
                     {formatMessageTime(c.lastMessage?.created_at ?? c.booking.starts_at)}
                   </p>
                   {c.hasUnread && (
-                    <span className="h-2 w-2 rounded-full bg-sage" aria-label="Unread messages" />
+                    <span
+                      className="h-2 w-2 rounded-full bg-wisteria"
+                      aria-label="Unread messages"
+                    />
                   )}
                 </div>
               </div>

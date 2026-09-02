@@ -105,7 +105,7 @@ export default function StaffMessagesPage() {
         <div className="flex flex-col gap-3">
           {conversations.map((c) => (
             <Link key={c.booking.id} href={`/staff/messages/${c.booking.id}`}>
-              <div className="flex items-center gap-3 rounded-[18px] border border-hairline bg-sheet p-4 hover:border-sage/50">
+              <div className="flex items-center gap-3 rounded-[18px] border border-hairline bg-sheet p-4 hover:border-wisteria/50">
                 <div className="flex min-w-0 flex-1 flex-col">
                   <p className="text-[15px] font-semibold text-ink">
                     {c.ward ? `Care for ${c.ward.display_name}` : c.booking.reference}
@@ -119,7 +119,10 @@ export default function StaffMessagesPage() {
                     {formatMessageTime(c.lastMessage?.created_at ?? c.booking.starts_at)}
                   </p>
                   {c.hasUnread && (
-                    <span className="h-2 w-2 rounded-full bg-sage" aria-label="Unread messages" />
+                    <span
+                      className="h-2 w-2 rounded-full bg-wisteria"
+                      aria-label="Unread messages"
+                    />
                   )}
                 </div>
               </div>

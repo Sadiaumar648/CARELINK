@@ -135,11 +135,7 @@ export default function ParentDashboardPage() {
             </p>
           </div>
         </div>
-        <LinkButton
-          href="/parent/care-ai"
-          variant="accent"
-          className="w-full shrink-0 justify-center sm:w-auto"
-        >
+        <LinkButton href="/parent/care-ai" className="w-full shrink-0 justify-center sm:w-auto">
           Start with CareLink AI
         </LinkButton>
       </Sheet>

@@ -14,7 +14,7 @@ export function Stepper({ steps, current }: { steps: string[]; current: number }
         {steps.map((step, i) => (
           <span
             key={step}
-            className={`h-1.5 flex-1 rounded-full ${i <= current ? "bg-sage" : "bg-hairline"}`}
+            className={`h-1.5 flex-1 rounded-full ${i <= current ? "bg-wisteria" : "bg-hairline"}`}
           />
         ))}
       </div>

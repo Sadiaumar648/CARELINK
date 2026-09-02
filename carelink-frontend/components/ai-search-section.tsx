@@ -29,7 +29,7 @@ export function AiSearchSection() {
 
   return (
     <section id="find-care" className="scroll-mt-20">
-      <div className="rounded-[24px] border border-hairline bg-sage-tint p-8 sm:p-12">
+      <div className="rounded-[24px] border border-hairline bg-wisteria-tint p-8 sm:p-12">
         <SectionHeading
           eyebrow="AI-assisted search"
           title="Just tell CareLink what you need."
@@ -59,7 +59,10 @@ export function AiSearchSection() {
           </p>
           <div className="flex flex-wrap gap-2 text-[13px]">
             {["Babysitter", "East Legon", "Saturday", "9:00 AM – 4:00 PM", "4 years"].map((tag) => (
-              <span key={tag} className="rounded-full bg-sage-tint px-3 py-1 text-sage-pressed">
+              <span
+                key={tag}
+                className="rounded-full bg-wisteria-tint px-3 py-1 text-wisteria-pressed"
+              >
                 {tag}
               </span>
             ))}

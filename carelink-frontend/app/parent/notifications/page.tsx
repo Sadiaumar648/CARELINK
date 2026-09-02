@@ -7,7 +7,8 @@ import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
-import { ErrorState } from "@/components/ui/empty-state";
+import { EmptyState, ErrorState } from "@/components/ui/empty-state";
+import { BookingCardSkeleton } from "@/components/ui/skeleton";
 import { minutesAgoLabel } from "@/lib/relative-time";
 import { KIND_META, DEFAULT_KIND_META } from "@/lib/notification-kind-meta";
 
@@ -44,10 +45,12 @@ function NotificationRowItem({
   const unread = !notification.read_at;
 
   const content = (
-    <Sheet className={`flex items-start gap-3 ${unread ? "border-sage/40 bg-sage-tint" : ""}`}>
+    <Sheet
+      className={`flex items-start gap-3 ${unread ? "border-wisteria/40 bg-wisteria-tint" : ""}`}
+    >
       <span
         className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-          unread ? "bg-sheet text-sage" : "bg-paper text-ink-muted"
+          unread ? "bg-sheet text-wisteria" : "bg-paper text-ink-muted"
         }`}
       >
         <Icon size={20} weight={unread ? "fill" : "regular"} />
@@ -57,7 +60,7 @@ function NotificationRowItem({
           <p className={`text-[14px] font-semibold ${unread ? "text-ink" : "text-ink-muted"}`}>
             {meta.label}
           </p>
-          {unread && <span className="h-2 w-2 shrink-0 rounded-full bg-sage" />}
+          {unread && <span className="h-2 w-2 shrink-0 rounded-full bg-wisteria" />}
         </div>
         <p className="text-[13px] text-ink-muted">{notification.body}</p>
         <p className="text-[11.5px] text-ink-muted">{formatDateTime(notification.created_at)}</p>
@@ -147,16 +150,20 @@ export default function ParentNotificationsPage() {
 
       {error && <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />}
 
-      {!error && notifications === null && <p className="text-[13px] text-ink-muted">Loading…</p>}
+      {!error && notifications === null && (
+        <div className="flex flex-col gap-3">
+          <BookingCardSkeleton />
+          <BookingCardSkeleton />
+          <BookingCardSkeleton />
+        </div>
+      )}
 
       {!error && notifications?.length === 0 && (
-        <Sheet className="flex flex-col items-center gap-3 py-12 text-center">
-          <BellSlash size={32} className="text-ink-muted" />
-          <p className="text-[15px] font-semibold text-ink">No notifications yet</p>
-          <p className="text-[13px] text-ink-muted">
-            Updates on your bookings and account will show up here.
-          </p>
-        </Sheet>
+        <EmptyState
+          icon={BellSlash}
+          title="No notifications yet"
+          description="Updates on your bookings and account will show up here."
+        />
       )}
 
       {!error && notifications && notifications.length > 0 && (

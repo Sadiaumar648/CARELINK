@@ -14,7 +14,7 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center gap-3 rounded-[18px] border border-dashed border-hairline bg-sheet p-8 text-center">
-      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-sage-tint text-sage-pressed">
+      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-wisteria-tint text-wisteria-pressed">
         <IconComponent size={22} weight="duotone" />
       </span>
       <p className="text-[15px] font-semibold text-ink">{title}</p>
@@ -34,7 +34,7 @@ export function ErrorState({ onRetry }: { onRetry: () => void }) {
       <button
         type="button"
         onClick={onRetry}
-        className="rounded-[10px] bg-sage px-4 py-2 text-[13px] font-semibold text-sheet hover:bg-sage-hover"
+        className="rounded-[10px] bg-wisteria px-4 py-2 text-[13px] font-semibold text-sheet hover:bg-wisteria-hover"
       >
         Try Again
       </button>

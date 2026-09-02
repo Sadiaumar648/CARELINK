@@ -38,7 +38,7 @@ function MenuRow({
       }`}
     >
       <span className="flex items-center gap-3 text-[14px] font-medium">
-        <IconComponent size={20} className={disabled ? "text-ink-muted" : "text-sage"} />
+        <IconComponent size={20} className={disabled ? "text-ink-muted" : "text-wisteria"} />
         {label}
       </span>
       {disabled ? (

@@ -97,7 +97,7 @@ export function SafeTrackCaregiverControl({
     return (
       <Sheet className="flex flex-col gap-2">
         <h2 className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-          <MapPinLine size={16} className="text-sage" />
+          <MapPinLine size={16} className="text-wisteria" />
           SafeTrack
         </h2>
         <p className="text-[13px] text-ink-muted">
@@ -110,7 +110,7 @@ export function SafeTrackCaregiverControl({
   return (
     <Sheet className="flex flex-col gap-3">
       <h2 className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-        <MapPinLine size={16} className="text-sage" />
+        <MapPinLine size={16} className="text-wisteria" />
         SafeTrack
       </h2>
       <p className="text-[13px] text-ink-muted">
@@ -130,7 +130,7 @@ export function SafeTrackCaregiverControl({
 
       {status === "sharing" && (
         <div className="flex flex-col gap-2">
-          <p className="flex items-center gap-1.5 text-[13px] font-semibold text-sage">
+          <p className="flex items-center gap-1.5 text-[13px] font-semibold text-wisteria">
             <ShieldCheck size={16} weight="fill" /> Sharing your location
             {lastSentAt && ` — last sent ${minutesAgoLabel(lastSentAt)}`}
           </p>

@@ -64,7 +64,7 @@ export function CaregiverResultCard({
           <div>
             <Link
               href={`/parent/caregivers/${caregiver.staff_profile_id}`}
-              className="text-[15px] font-semibold font-heading hover:text-sage"
+              className="text-[15px] font-semibold font-heading hover:text-wisteria"
             >
               {caregiver.full_name}
             </Link>
@@ -93,7 +93,7 @@ export function CaregiverResultCard({
           {caregiver.skills.slice(0, 3).map((s) => (
             <span
               key={s}
-              className="rounded-full bg-sage-tint px-2.5 py-0.5 text-[11.5px] text-sage-pressed"
+              className="rounded-full bg-wisteria-tint px-2.5 py-0.5 text-[11.5px] text-wisteria-pressed"
             >
               {skillLabel(s)}
             </span>
@@ -107,7 +107,7 @@ export function CaregiverResultCard({
             type="button"
             onClick={() => setExpanded((e) => !e)}
             aria-expanded={expanded}
-            className="flex items-center gap-1.5 text-[12.5px] font-semibold text-sage hover:text-sage-hover"
+            className="flex items-center gap-1.5 text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
           >
             <CaretDown
               size={13}
@@ -130,20 +130,20 @@ export function CaregiverResultCard({
       <div className="mt-auto flex items-center justify-between border-t border-hairline pt-3">
         <div>
           <p className="text-[15px] font-semibold tabular-nums">GH₵{caregiver.hourly_rate}/hr</p>
-          <p className="text-[11.5px] font-semibold text-sage">
+          <p className="text-[11.5px] font-semibold text-wisteria">
             {Math.round(caregiver.matchScore)}% Match
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Link
             href={`/parent/caregivers/${caregiver.staff_profile_id}`}
-            className="rounded-[10px] border border-hairline px-2.5 py-1.5 text-[12.5px] font-semibold text-ink hover:border-sage hover:text-sage"
+            className="rounded-[10px] border border-hairline px-2.5 py-1.5 text-[12.5px] font-semibold text-ink hover:border-wisteria hover:text-wisteria"
           >
             View Profile
           </Link>
           <Link
             href={`/parent/caregivers/${caregiver.staff_profile_id}#request-booking`}
-            className="rounded-[10px] bg-sage px-3 py-1.5 text-[12.5px] font-semibold text-sheet hover:bg-sage-hover"
+            className="rounded-[10px] bg-wisteria px-3 py-1.5 text-[12.5px] font-semibold text-sheet hover:bg-wisteria-hover"
           >
             Request
           </Link>

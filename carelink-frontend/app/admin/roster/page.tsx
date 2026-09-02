@@ -157,7 +157,7 @@ export default function AdminRosterPage() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by name or phone"
             aria-label="Search caregivers"
-            className="w-full rounded-[10px] border border-hairline bg-sheet py-2 pl-9 pr-3 text-[13px] text-ink placeholder:text-ink-muted focus:border-sage focus:outline-none focus:ring-4 focus:ring-sage/15"
+            className="w-full rounded-[10px] border border-hairline bg-sheet py-2 pl-9 pr-3 text-[13px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
           />
         </div>
       )}

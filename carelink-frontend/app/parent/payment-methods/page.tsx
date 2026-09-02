@@ -136,7 +136,7 @@ export default function PaymentMethodsPage() {
           {methods.map((m) => (
             <Sheet key={m.id} className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sage-tint text-sage-pressed">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-wisteria-tint text-wisteria-pressed">
                   <DeviceMobile size={20} weight="duotone" />
                 </span>
                 <div>
@@ -148,14 +148,14 @@ export default function PaymentMethodsPage() {
               </div>
               <div className="flex items-center gap-3">
                 {m.isDefault ? (
-                  <span className="flex items-center gap-1 text-[12px] font-semibold text-sage">
+                  <span className="flex items-center gap-1 text-[12px] font-semibold text-wisteria">
                     <CheckCircle size={14} weight="fill" /> Default
                   </span>
                 ) : (
                   <button
                     type="button"
                     onClick={() => setDefault(m.id)}
-                    className="text-[12.5px] font-semibold text-sage hover:text-sage-hover"
+                    className="text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
                   >
                     Set as default
                   </button>
@@ -192,7 +192,7 @@ export default function PaymentMethodsPage() {
                 <label
                   key={n.value}
                   className={`flex cursor-pointer items-center gap-2 rounded-[10px] border px-3 py-2.5 text-[14px] ${
-                    network === n.value ? "border-sage bg-sage-tint" : "border-hairline"
+                    network === n.value ? "border-wisteria bg-wisteria-tint" : "border-hairline"
                   }`}
                 >
                   <input

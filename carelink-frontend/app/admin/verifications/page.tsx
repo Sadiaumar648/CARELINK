@@ -9,7 +9,7 @@ import { Field } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
-import { BookingCardSkeleton } from "@/components/ui/skeleton";
+import { BookingCardSkeleton, Skeleton } from "@/components/ui/skeleton";
 
 type Submission = {
   id: string;
@@ -78,7 +78,18 @@ function ReviewPanel({ id, onDecided }: { id: string; onDecided: () => void }) {
   }
 
   if (error) return <p className="text-[13px] text-error">{error}</p>;
-  if (!detail) return <p className="text-[13px] text-ink-muted">Loading…</p>;
+  if (!detail) {
+    return (
+      <div className="flex flex-col gap-4 border-t border-hairline pt-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Skeleton className="aspect-[4/3] w-full" />
+          <Skeleton className="aspect-[4/3] w-full" />
+        </div>
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-2/3" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4 border-t border-hairline pt-4">
@@ -201,7 +212,7 @@ export default function AdminVerificationsPage() {
             onClick={() => selectTab(t.key)}
             className={`rounded-full px-3.5 py-1.5 text-[13px] font-semibold ${
               tab === t.key
-                ? "bg-sage text-sheet"
+                ? "bg-wisteria text-sheet"
                 : "border border-hairline bg-sheet text-ink-muted hover:text-ink"
             }`}
           >

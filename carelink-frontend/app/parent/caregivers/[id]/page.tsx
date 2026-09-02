@@ -154,7 +154,7 @@ function BookingRequestForm({ caregiver }: { caregiver: Caregiver }) {
     return (
       <Sheet className="flex flex-col gap-2">
         <p className="text-[15px]">Add a child before requesting a booking.</p>
-        <Link href="/parent/children" className="font-semibold text-sage">
+        <Link href="/parent/children" className="font-semibold text-wisteria">
           Add a child
         </Link>
       </Sheet>
@@ -384,7 +384,7 @@ function BookingRequestForm({ caregiver }: { caregiver: Caregiver }) {
           placeholder="Share helpful information about the care needed…"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          className="rounded-[10px] border border-hairline bg-sheet px-3 py-2 text-[15px] text-ink placeholder:text-ink-muted focus:border-sage focus:outline-none focus:ring-4 focus:ring-sage/15"
+          className="rounded-[10px] border border-hairline bg-sheet px-3 py-2 text-[15px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
         />
       </div>
       {formError && <p className="text-[13px] text-error">{formError}</p>}
@@ -458,7 +458,7 @@ export default function CaregiverProfilePage({ params }: { params: Promise<{ id:
                   <button
                     type="button"
                     onClick={() => setVerificationInfoOpen((o) => !o)}
-                    className="flex items-center gap-1 text-[13px] font-semibold text-sage hover:text-sage-hover"
+                    className="flex items-center gap-1 text-[13px] font-semibold text-wisteria hover:text-wisteria-hover"
                     aria-expanded={verificationInfoOpen}
                   >
                     <VerificationBadge method={caregiver.verification_method} />
@@ -495,7 +495,7 @@ export default function CaregiverProfilePage({ params }: { params: Promise<{ id:
           </div>
           <a
             href="#request-booking"
-            className="rounded-[10px] bg-sage px-4 py-3 text-center text-[14px] font-semibold text-sheet hover:bg-sage-hover"
+            className="rounded-[10px] bg-wisteria px-4 py-3 text-center text-[14px] font-semibold text-sheet hover:bg-wisteria-hover"
           >
             Request Booking →
           </a>
@@ -522,7 +522,7 @@ export default function CaregiverProfilePage({ params }: { params: Promise<{ id:
                 {caregiver.skills.map((s) => (
                   <span
                     key={s}
-                    className="rounded-full bg-sage-tint px-3 py-1 text-[12.5px] font-medium text-sage-pressed"
+                    className="rounded-full bg-wisteria-tint px-3 py-1 text-[12.5px] font-medium text-wisteria-pressed"
                   >
                     {skillLabel(s)}
                   </span>
@@ -574,14 +574,14 @@ export default function CaregiverProfilePage({ params }: { params: Promise<{ id:
           </section>
 
           <p className="flex items-center gap-2 text-[12.5px] text-ink-muted">
-            <ShieldCheck size={15} className="shrink-0 text-sage" />
+            <ShieldCheck size={15} className="shrink-0 text-wisteria" />
             Verified identity, structured Mobile Money payments, and post-booking ratings keep every
             CareLink booking accountable.
           </p>
 
           <section className="flex flex-col gap-3">
             <h2 className="flex items-center gap-2 text-[15px] font-semibold font-heading">
-              <ChatCircleText size={18} className="text-sage" />
+              <ChatCircleText size={18} className="text-wisteria" />
               CareLink Safety
             </h2>
             <p className="text-[13px] leading-relaxed text-ink-muted">

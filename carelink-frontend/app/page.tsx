@@ -168,7 +168,7 @@ export default function Home() {
         <section className="mx-auto w-full max-w-6xl px-6">
           <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-16">
             <div className="flex flex-col gap-5">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-sage">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-wisteria">
                 Trusted childcare, made simple
               </span>
               <h1 className="text-balance text-[38px] font-semibold leading-[1.15] sm:text-[48px]">
@@ -231,7 +231,7 @@ export default function Home() {
           <div className="mx-auto mt-10 grid max-w-5xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {TRUST_FEATURES.map((f) => (
               <Sheet key={f.title} className="flex flex-col gap-3">
-                <f.icon size={26} weight="duotone" className="text-sage" />
+                <f.icon size={26} weight="duotone" className="text-wisteria" />
                 <h3 className="text-[16px] font-semibold font-heading">{f.title}</h3>
                 <p className="text-[14px] text-ink-muted">{f.body}</p>
               </Sheet>
@@ -255,7 +255,7 @@ export default function Home() {
             <div className="flex flex-col gap-6 lg:order-1">
               {STEPS.map((step) => (
                 <div key={step.number} className="flex flex-col gap-2">
-                  <span className="text-[28px] font-semibold font-heading text-sage/40">
+                  <span className="text-[28px] font-semibold font-heading text-wisteria/40">
                     {step.number}
                   </span>
                   <h3 className="text-[17px] font-semibold font-heading">{step.title}</h3>
@@ -337,7 +337,7 @@ export default function Home() {
               <div>
                 <Link
                   href="#faq"
-                  className="text-[14px] font-semibold text-sage hover:text-sage-hover"
+                  className="text-[14px] font-semibold text-wisteria hover:text-wisteria-hover"
                 >
                   Explore our safety approach →
                 </Link>
@@ -449,7 +449,7 @@ export default function Home() {
 
         {/* FINAL CTA */}
         <section className="mx-auto w-full max-w-6xl px-6">
-          <div className="flex flex-col items-center gap-6 rounded-[24px] bg-sage p-12 text-center">
+          <div className="flex flex-col items-center gap-6 rounded-[24px] bg-wisteria p-12 text-center">
             <h2 className="text-balance text-[28px] font-semibold text-sheet sm:text-[34px]">
               Ready to find care you can feel confident about?
             </h2>
@@ -460,7 +460,7 @@ export default function Home() {
                 className="border-none"
                 style={{
                   backgroundColor: "var(--color-sheet)",
-                  color: "var(--color-sage-pressed)",
+                  color: "var(--color-wisteria-pressed)",
                 }}
               >
                 Find a Caregiver →

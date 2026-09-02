@@ -43,7 +43,7 @@ export default function GetStartedPage() {
           {ROLES.map((role) => (
             <Link key={role.href} href={role.href} className="group">
               <Sheet className="flex h-full flex-col gap-4 transition-shadow group-hover:shadow-[var(--shadow-card-hover)]">
-                <span className="flex h-12 w-12 items-center justify-center rounded-[12px] bg-sage-tint text-sage-pressed">
+                <span className="flex h-12 w-12 items-center justify-center rounded-[12px] bg-wisteria-tint text-wisteria-pressed">
                   <role.icon size={24} weight="fill" />
                 </span>
                 <div className="flex flex-col gap-1">
@@ -53,7 +53,7 @@ export default function GetStartedPage() {
                   </p>
                 </div>
                 <p className="flex-1 text-[14px] leading-relaxed text-ink-muted">{role.body}</p>
-                <span className="flex items-center gap-1.5 text-[14px] font-semibold text-sage group-hover:text-sage-hover">
+                <span className="flex items-center gap-1.5 text-[14px] font-semibold text-wisteria group-hover:text-wisteria-hover">
                   {role.cta} <ArrowRight size={16} />
                 </span>
               </Sheet>

@@ -307,9 +307,9 @@ export default function ParentChildrenPage() {
         </p>
       </div>
 
-      <Sheet className="flex items-start gap-3 bg-sage-tint">
-        <LockKey size={20} className="mt-0.5 shrink-0 text-sage-pressed" />
-        <p className="text-[13px] text-sage-pressed">
+      <Sheet className="flex items-start gap-3 bg-wisteria-tint">
+        <LockKey size={20} className="mt-0.5 shrink-0 text-wisteria-pressed" />
+        <p className="text-[13px] text-wisteria-pressed">
           Your Ward Profile is private. Relevant information is shared with an authorized caregiver
           only when needed for a confirmed booking.
         </p>
@@ -362,7 +362,7 @@ export default function ParentChildrenPage() {
                     {parsed.careNeeds.map((need) => (
                       <span
                         key={need}
-                        className="rounded-full bg-sage-tint px-2.5 py-1 text-[11.5px] text-sage-pressed"
+                        className="rounded-full bg-wisteria-tint px-2.5 py-1 text-[11.5px] text-wisteria-pressed"
                       >
                         {need}
                       </span>
@@ -372,7 +372,7 @@ export default function ParentChildrenPage() {
                 <div className="flex gap-4 border-t border-hairline pt-3 text-[13px] font-semibold">
                   <Link
                     href={`/parent/children/${w.id}`}
-                    className="text-sage hover:text-sage-hover"
+                    className="text-wisteria hover:text-wisteria-hover"
                   >
                     View Profile
                   </Link>

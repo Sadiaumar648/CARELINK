@@ -56,7 +56,7 @@ export function CaregiverCard({
         {skills.slice(0, 3).map((s) => (
           <span
             key={s}
-            className="rounded-full bg-sage-tint px-3 py-1 text-[12px] text-sage-pressed"
+            className="rounded-full bg-wisteria-tint px-3 py-1 text-[12px] text-wisteria-pressed"
           >
             {skillLabel(s)}
           </span>
@@ -69,10 +69,15 @@ export function CaregiverCard({
             <p className="text-[17px] font-semibold tabular-nums">GH₵{hourlyRate}/hr</p>
           )}
           {matchScore !== undefined && (
-            <p className="text-[12px] font-semibold text-sage">{Math.round(matchScore)}% Match</p>
+            <p className="text-[12px] font-semibold text-wisteria">
+              {Math.round(matchScore)}% Match
+            </p>
           )}
         </div>
-        <Link href={href} className="text-[14px] font-semibold text-sage hover:text-sage-hover">
+        <Link
+          href={href}
+          className="text-[14px] font-semibold text-wisteria hover:text-wisteria-hover"
+        >
           View Profile →
         </Link>
       </div>

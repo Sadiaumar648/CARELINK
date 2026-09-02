@@ -35,13 +35,13 @@ export default function ForgotPasswordPage() {
   if (sent) {
     return (
       <div className="mx-auto flex w-full max-w-sm flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-        <CheckCircle size={44} weight="fill" className="text-sage" />
+        <CheckCircle size={44} weight="fill" className="text-wisteria" />
         <h1 className="text-[24px] font-semibold font-heading">Check your email</h1>
         <p className="text-[15px] text-ink-muted">
           If an account exists for <strong className="text-ink">{email}</strong>, we&apos;ve sent a
           link to reset your password.
         </p>
-        <Link href="/sign-in" className="font-semibold text-sage hover:text-sage-hover">
+        <Link href="/sign-in" className="font-semibold text-wisteria hover:text-wisteria-hover">
           Back to log in
         </Link>
       </div>
@@ -71,7 +71,7 @@ export default function ForgotPasswordPage() {
         </Button>
       </Sheet>
       <p className="text-center text-[13px] text-ink-muted">
-        <Link href="/sign-in" className="font-semibold text-sage hover:text-sage-hover">
+        <Link href="/sign-in" className="font-semibold text-wisteria hover:text-wisteria-hover">
           Back to log in
         </Link>
       </p>

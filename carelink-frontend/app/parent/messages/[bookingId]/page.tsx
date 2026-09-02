@@ -10,6 +10,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { VerificationBadge } from "@/components/ui/badge";
 import { Sheet } from "@/components/ui/sheet";
 import { ErrorState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ReportForm } from "@/components/report-form";
 import { caregiverPhotoUrl } from "@/lib/photo-url";
 import { formatMessageTime } from "@/lib/message-time";
@@ -171,7 +172,7 @@ export default function ParentConversationPage({
             </div>
             <Link
               href={`/parent/caregivers/${booking.staff_profile_id}`}
-              className="text-[12.5px] font-semibold text-sage hover:text-sage-hover"
+              className="text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
             >
               View Caregiver Profile
             </Link>
@@ -202,7 +203,13 @@ export default function ParentConversationPage({
         </p>
 
         <div className="flex min-h-[280px] flex-col gap-2 overflow-y-auto">
-          {messages === null && <p className="text-[13px] text-ink-muted">Loading…</p>}
+          {messages === null && (
+            <div className="flex flex-col gap-2">
+              <Skeleton className="h-9 w-2/3 self-start rounded-[14px]" />
+              <Skeleton className="h-9 w-1/2 self-end rounded-[14px]" />
+              <Skeleton className="h-9 w-3/5 self-start rounded-[14px]" />
+            </div>
+          )}
 
           {messages?.length === 0 && (
             <div className="flex flex-1 flex-col items-center justify-center gap-1 py-10 text-center">
@@ -217,7 +224,7 @@ export default function ParentConversationPage({
               <div key={m.id} className={`flex flex-col ${mine ? "items-end" : "items-start"}`}>
                 <div
                   className={`max-w-[80%] rounded-[14px] px-3.5 py-2 text-[14px] ${
-                    mine ? "bg-sage text-sheet" : "bg-paper text-ink"
+                    mine ? "bg-wisteria text-sheet" : "bg-paper text-ink"
                   }`}
                 >
                   {m.body}
@@ -239,13 +246,13 @@ export default function ParentConversationPage({
             onChange={(e) => setDraft(e.target.value)}
             placeholder="Write a message…"
             aria-label="Write a message"
-            className="flex-1 rounded-[10px] border border-hairline bg-paper px-3 py-2.5 text-[14px] text-ink placeholder:text-ink-muted focus:border-sage focus:outline-none focus:ring-4 focus:ring-sage/15"
+            className="flex-1 rounded-[10px] border border-hairline bg-paper px-3 py-2.5 text-[14px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
           />
           <button
             type="submit"
             disabled={sending || !draft.trim()}
             aria-label="Send message"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-sage text-sheet hover:bg-sage-hover disabled:opacity-50"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-wisteria text-sheet hover:bg-wisteria-hover disabled:opacity-50"
           >
             <PaperPlaneTilt size={18} weight="fill" />
           </button>
@@ -255,7 +262,7 @@ export default function ParentConversationPage({
       {counterpartyUserId && (
         <Sheet className="flex flex-col gap-2">
           <h2 className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
-            <ShieldCheck size={15} className="text-sage" />
+            <ShieldCheck size={15} className="text-wisteria" />
             CareLink Safety
           </h2>
           <p className="text-[12.5px] text-ink-muted">

@@ -1,7 +1,7 @@
 type Tone = "neutral" | "positive" | "attention" | "info";
 
 const tones: Record<Tone, string> = {
-  neutral: "bg-sage-tint text-sage-pressed",
+  neutral: "bg-wisteria-tint text-wisteria-pressed",
   positive: "bg-success-tint text-[var(--color-success)]",
   attention: "bg-error-tint text-error",
   info: "bg-bluebell-tint text-[var(--color-bluebell-pressed)]",

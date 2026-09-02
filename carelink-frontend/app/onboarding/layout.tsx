@@ -7,7 +7,7 @@ export default function OnboardingLayout({ children }: LayoutProps<"/onboarding"
       <div className="flex min-h-dvh flex-col bg-paper">
         <header className="border-b border-hairline bg-sheet">
           <div className="mx-auto flex max-w-2xl items-center px-6 py-4">
-            <Link href="/" className="text-[17px] font-semibold font-heading text-sage-pressed">
+            <Link href="/" className="text-[17px] font-semibold font-heading text-wisteria-pressed">
               CareLink
             </Link>
           </div>

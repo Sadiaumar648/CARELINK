@@ -97,7 +97,7 @@ export default function ClaimInvitationPage() {
       </Sheet>
       <p className="text-center text-[13px] text-ink-muted">
         Already claimed?{" "}
-        <Link href="/sign-in" className="font-semibold text-sage">
+        <Link href="/sign-in" className="font-semibold text-wisteria">
           Sign in
         </Link>
       </p>
