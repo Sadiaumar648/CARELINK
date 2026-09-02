@@ -56,10 +56,10 @@ export const SCHEDULE_OPTIONS = [
   },
 ] as const;
 
-const DURATION_OPTIONS = [1, 2, 3, 4, 6, 8].map((n) => ({
-  value: String(n),
-  label: `${n} hour${n === 1 ? "" : "s"}`,
-}));
+// No duration field on the form — every request defaults to this
+// length. A named constant, not a magic number, so it's one place to
+// change if that default should differ later.
+const DEFAULT_DURATION_HOURS = 4;
 
 const REPEAT_OPTIONS = [
   { value: "once", label: "Once" },
@@ -176,10 +176,6 @@ export function RequestFlowPanel({
     const matched = SCHEDULE_OPTIONS.find((s) => s.value === initial?.schedule);
     return matched?.startTime ?? "";
   });
-  // initial?.days ("N days a week", a frequency) is a different unit
-  // than duration ("N hours") and is deliberately not reused here — only
-  // a genuine hour count prefills this.
-  const [duration, setDuration] = useState(initial?.hours ?? "4");
   const [repeat, setRepeat] = useState("once");
   const [area, setArea] = useState(initial?.area ?? "");
   const [requirementChips, setRequirementChips] = useState<Set<string>>(new Set());
@@ -253,7 +249,7 @@ export function RequestFlowPanel({
     setSubmitting(true);
 
     try {
-      const endTime = addHours(startTime, Number(duration));
+      const endTime = addHours(startTime, DEFAULT_DURATION_HOURS);
       const filters: SearchFilters = { date: startDate, startTime, endTime, area: area.trim() };
       if (requirementChips.size > 0) filters.skills = Array.from(requirementChips);
 
@@ -440,12 +436,6 @@ export function RequestFlowPanel({
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
                 className="border-[var(--color-lavender-border)] focus:border-wisteria focus:ring-wisteria/15"
-              />
-              <SelectField
-                label="Duration"
-                value={duration}
-                onChange={setDuration}
-                options={DURATION_OPTIONS}
               />
               <SelectField
                 label="Repeat"
