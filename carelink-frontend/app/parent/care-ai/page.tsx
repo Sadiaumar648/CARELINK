@@ -42,6 +42,7 @@ function CareAiPage() {
   const [wards, setWards] = useState<Ward[] | null>(null);
   const [wardId, setWardId] = useState("");
   const [confirming, setConfirming] = useState(false);
+  const [dispatching, setDispatching] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -136,27 +137,33 @@ function CareAiPage() {
     }
   }
 
+  async function createCareRequest(): Promise<{ id: string } | null> {
+    if (!wardId || !effectiveDraft.caregiverType) return null;
+    const res = await apiFetch<{ careRequest: { id: string } }>("/api/care-requests", {
+      method: "POST",
+      body: {
+        wardId,
+        source: "ai",
+        caregiverType: effectiveDraft.caregiverType,
+        date: effectiveDraft.date,
+        startTime: effectiveDraft.startTime,
+        endTime: effectiveDraft.endTime,
+        location: effectiveDraft.location,
+        skills: effectiveDraft.skills,
+        notes: effectiveDraft.notes,
+        aiRecommendation: recommendation?.type,
+        aiRecommendationReason: recommendation?.reason,
+      },
+    });
+    return res.careRequest;
+  }
+
   async function confirm() {
     if (!wardId || !effectiveDraft.caregiverType) return;
     setConfirming(true);
     setConfirmError(null);
     try {
-      await apiFetch("/api/care-requests", {
-        method: "POST",
-        body: {
-          wardId,
-          source: "ai",
-          caregiverType: effectiveDraft.caregiverType,
-          date: effectiveDraft.date,
-          startTime: effectiveDraft.startTime,
-          endTime: effectiveDraft.endTime,
-          location: effectiveDraft.location,
-          skills: effectiveDraft.skills,
-          notes: effectiveDraft.notes,
-          aiRecommendation: recommendation?.type,
-          aiRecommendationReason: recommendation?.reason,
-        },
-      });
+      await createCareRequest();
 
       const params = new URLSearchParams();
       if (effectiveDraft.location) params.set("area", effectiveDraft.location);
@@ -172,6 +179,24 @@ function CareAiPage() {
       setConfirmError(errorMessage(err));
     } finally {
       setConfirming(false);
+    }
+  }
+
+  // The second, additive path: instead of browsing ranked results,
+  // dispatch the request to eligible caregivers one at a time.
+  async function dispatch() {
+    if (!wardId || !effectiveDraft.caregiverType) return;
+    setDispatching(true);
+    setConfirmError(null);
+    try {
+      const careRequest = await createCareRequest();
+      if (!careRequest) return;
+      await apiFetch(`/api/care-requests/${careRequest.id}/dispatch/start`, { method: "POST" });
+      router.push(`/parent/care-requests/${careRequest.id}`);
+    } catch (err) {
+      setConfirmError(errorMessage(err));
+    } finally {
+      setDispatching(false);
     }
   }
 
@@ -257,8 +282,10 @@ function CareAiPage() {
             wardId={wardId}
             onSelectWard={setWardId}
             onConfirm={() => void confirm()}
+            onDispatch={() => void dispatch()}
             onEdit={() => setEditing(true)}
             confirming={confirming}
+            dispatching={dispatching}
           />
         )}
         {confirmError && <p className="text-[13px] text-error">{confirmError}</p>}

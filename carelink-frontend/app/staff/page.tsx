@@ -20,7 +20,45 @@ type Booking = {
   careLocationGeneral?: string | null;
   one_off_notes: string | null;
   status: string;
+  // Only set on a request offered through CareLink's caregiver dispatch
+  // (care_request_id non-null) — null for every direct request, which
+  // shows no countdown at all, unchanged from before.
+  offer_expires_at?: string | null;
 };
+
+// A live countdown derived from a real server timestamp, not a
+// frontend-owned timer — the backend (the parent's own poll of the
+// dispatch status) is what actually expires the offer; this only
+// displays what's already true.
+function useCountdown(expiresAt: string | null | undefined): string | null {
+  const [label, setLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!expiresAt) {
+      void Promise.resolve().then(() => setLabel(null));
+      return;
+    }
+    function tick() {
+      const msLeft = new Date(expiresAt!).getTime() - Date.now();
+      if (msLeft <= 0) {
+        setLabel("Expiring…");
+        return;
+      }
+      const totalSeconds = Math.floor(msLeft / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      setLabel(`${minutes}:${String(seconds).padStart(2, "0")}`);
+    }
+    // The first tick is a synchronous derived read, deferred out of the
+    // effect body itself, same as this codebase's established pattern;
+    // every tick after that runs from the interval's own callback.
+    void Promise.resolve().then(tick);
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [expiresAt]);
+
+  return label;
+}
 
 function formatRange(startsAt: string, endsAt: string): string {
   const start = new Date(startsAt);
@@ -39,6 +77,7 @@ function RequestCard({ booking, onRespond }: { booking: Booking; onRespond: () =
   const [declineReason, setDeclineReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const countdown = useCountdown(booking.offer_expires_at);
 
   async function accept() {
     setSubmitting(true);
@@ -86,6 +125,11 @@ function RequestCard({ booking, onRespond }: { booking: Booking; onRespond: () =
       </div>
       {booking.one_off_notes && (
         <p className="text-[13px] text-ink-muted">{booking.one_off_notes}</p>
+      )}
+      {countdown && (
+        <p className="text-[12.5px] font-semibold text-[var(--color-warning)]">
+          Respond within {countdown} or this request moves to the next caregiver
+        </p>
       )}
 
       {confirming === null && (

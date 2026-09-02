@@ -1,5 +1,6 @@
 "use client";
 
+import { Lightning } from "@phosphor-icons/react";
 import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { caregiverTypeLabel, skillLabel, type Ward } from "@/components/find-care/types";
@@ -16,22 +17,31 @@ function formatDateLong(iso: string): string {
 // A real ward picker sourced from the parent's actual wards — the AI
 // never silently assigns one. Confirming is disabled until a real ward
 // is chosen, even if every other field is ready.
+//
+// Two ways forward from here, both real and both optional: browse
+// ranked results yourself (the existing Find Care flow, unchanged), or
+// let CareLink dispatch the request to eligible caregivers one at a
+// time (new). Neither replaces the other.
 export function ConfirmationCard({
   draft,
   wards,
   wardId,
   onSelectWard,
   onConfirm,
+  onDispatch,
   onEdit,
   confirming,
+  dispatching,
 }: {
   draft: CareRequestDraft;
   wards: Ward[];
   wardId: string;
   onSelectWard: (id: string) => void;
   onConfirm: () => void;
+  onDispatch: () => void;
   onEdit: () => void;
   confirming: boolean;
+  dispatching: boolean;
 }) {
   const canConfirm = Boolean(
     wardId &&
@@ -41,6 +51,7 @@ export function ConfirmationCard({
     draft.endTime &&
     draft.location,
   );
+  const busy = confirming || dispatching;
 
   return (
     <Sheet className="flex flex-col gap-4 border-[var(--color-lavender-border)]">
@@ -117,10 +128,14 @@ export function ConfirmationCard({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button variant="accent" onClick={onConfirm} disabled={!canConfirm || confirming}>
+        <Button variant="accent" onClick={onConfirm} disabled={!canConfirm || busy}>
           {confirming ? "Searching…" : "Looks good — Find Care"}
         </Button>
-        <Button variant="secondary" onClick={onEdit} disabled={confirming}>
+        <Button variant="secondary" onClick={onDispatch} disabled={!canConfirm || busy}>
+          <Lightning size={15} weight="fill" />
+          {dispatching ? "Starting…" : "Let CareLink find someone for you"}
+        </Button>
+        <Button variant="secondary" onClick={onEdit} disabled={busy}>
           Edit
         </Button>
       </div>
