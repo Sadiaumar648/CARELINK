@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { CheckCircle, MagnifyingGlass, MapPin, X } from "@phosphor-icons/react";
+import { ChatCircleText, CheckCircle, MagnifyingGlass, MapPin, X } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Sheet } from "@/components/ui/sheet";
@@ -104,9 +104,10 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
             <MagnifyingGlass size={26} weight="bold" />
           </span>
           <div>
-            <h1 className="text-[19px] font-bold font-heading text-ink">Finding your caregiver</h1>
+            <h1 className="text-[19px] font-bold font-heading text-ink">Hold on a minute…</h1>
             <p className="mt-1 text-[13.5px] text-ink-muted">
-              We&apos;re contacting verified caregivers near your care location.
+              We&apos;re finding the right care for you. This might take a while — we&apos;re
+              contacting verified caregivers near your care location, one at a time.
             </p>
           </div>
           {status.activeOffer && (
@@ -155,15 +156,22 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
           <div>
             <h1 className="text-[19px] font-bold font-heading text-ink">Caregiver found!</h1>
             <p className="mt-1 text-[13.5px] text-ink-muted">
-              {status.activeOffer.caregiverName} accepted your care request.
+              {status.activeOffer.caregiverName} accepted your care request. You can message them
+              directly or continue to the booking.
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap justify-center gap-3">
             <LinkButton
               href={`/parent/caregivers/${status.activeOffer.staffProfileId}`}
               variant="secondary"
             >
               View Caregiver
+            </LinkButton>
+            <LinkButton
+              href={`/parent/messages/${status.activeOffer.bookingId}`}
+              variant="secondary"
+            >
+              <ChatCircleText size={16} /> Message {status.activeOffer.caregiverName.split(" ")[0]}
             </LinkButton>
             <LinkButton href={`/parent/bookings/${status.activeOffer.bookingId}`} variant="accent">
               Continue to Booking
