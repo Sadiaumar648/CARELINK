@@ -690,6 +690,7 @@ export function RequestFlowPanel({
               onChange={setLocation}
               initialQuery={initial?.area}
               helperText="We'll use this location to find suitable nearby caregivers."
+              layout="radio"
             />
           </section>
 
