@@ -7,6 +7,21 @@ import { errorMessage } from "@/lib/error-message";
 import { Sheet } from "@/components/ui/sheet";
 import { Button, LinkButton } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/empty-state";
+import { caregiverTypeLabel } from "@/components/find-care/types";
+
+// The real, locked terms of the one booking dispatch created for this
+// offer — fetched from the existing GET /api/bookings/[id] (the same
+// route booking-detail.tsx already uses), never recomputed here. This
+// is what makes the "Caregiver found!" card's price/date/time real
+// instead of guessed: it's the exact row payment will later charge.
+type OfferBooking = {
+  starts_at: string;
+  ends_at: string;
+  duration_hours: number;
+  hourly_rate: number;
+  total_amount: number;
+  status: string;
+};
 
 type ActiveOffer = {
   bookingId: string;
@@ -55,6 +70,48 @@ function useDispatchPolling(
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run only when the id or active flag changes
   }, [careRequestId, active]);
+}
+
+function formatDateLong(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function formatTimeRange(startsAt: string, endsAt: string): string {
+  const time = (iso: string) =>
+    new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return `${time(startsAt)} – ${time(endsAt)}`;
+}
+
+// Fetches the one real booking this offer created, plus the caregiver's
+// declared type — both from existing routes (GET /api/bookings/[id],
+// already used by booking-detail.tsx; GET /api/caregivers/[id], already
+// used by the caregiver profile page) rather than trusting or
+// recomputing anything on this page.
+function useOfferDetails(bookingId: string | null, staffProfileId: string | null) {
+  const [booking, setBooking] = useState<OfferBooking | null>(null);
+  const [caregiverType, setCaregiverType] = useState<"nanny" | "babysitter" | null>(null);
+
+  useEffect(() => {
+    if (!bookingId) return;
+    apiFetch<{ booking: OfferBooking }>(`/api/bookings/${bookingId}`)
+      .then((res) => setBooking(res.booking))
+      .catch(() => undefined);
+  }, [bookingId]);
+
+  useEffect(() => {
+    if (!staffProfileId) return;
+    apiFetch<{ caregiver: { caregiver_type: "nanny" | "babysitter" | null } }>(
+      `/api/caregivers/${staffProfileId}`,
+    )
+      .then((res) => setCaregiverType(res.caregiver.caregiver_type))
+      .catch(() => undefined);
+  }, [staffProfileId]);
+
+  return { booking, caregiverType };
 }
 
 const TERMINAL = new Set(["accepted", "exhausted", "cancelled"]);
@@ -111,6 +168,12 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
 
   const active = !status || !TERMINAL.has(status.dispatchStatus);
   useDispatchPolling(id, setStatus, setError, active);
+
+  const activeOffer = status?.dispatchStatus === "accepted" ? (status.activeOffer ?? null) : null;
+  const { booking: offerBooking, caregiverType } = useOfferDetails(
+    activeOffer?.bookingId ?? null,
+    activeOffer?.staffProfileId ?? null,
+  );
 
   async function cancel() {
     setCancelling(true);
@@ -198,10 +261,54 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
           <div>
             <h1 className="text-[19px] font-bold font-heading text-ink">Caregiver found!</h1>
             <p className="mt-1 text-[13.5px] text-ink-muted">
-              {status.activeOffer.caregiverName} accepted your care request. You can message them
-              directly or continue to the booking.
+              Your caregiver has accepted this request. Complete payment to confirm your booking.
             </p>
           </div>
+
+          {/* The real, locked terms of this offer — every figure here
+              comes straight from the booking row payment will charge,
+              never recomputed on this page. */}
+          {offerBooking && (
+            <div className="flex w-full max-w-xs flex-col gap-1.5 rounded-[14px] border border-hairline p-4 text-left text-[13px]">
+              <div className="flex justify-between">
+                <span className="text-ink-muted">Caregiver</span>
+                <span className="font-semibold">{status.activeOffer.caregiverName}</span>
+              </div>
+              {caregiverType && (
+                <div className="flex justify-between">
+                  <span className="text-ink-muted">Care type</span>
+                  <span className="font-semibold">{caregiverTypeLabel(caregiverType)}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-ink-muted">Date</span>
+                <span className="font-semibold">{formatDateLong(offerBooking.starts_at)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-ink-muted">Time</span>
+                <span className="font-semibold">
+                  {formatTimeRange(offerBooking.starts_at, offerBooking.ends_at)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-ink-muted">Duration</span>
+                <span className="font-semibold">{offerBooking.duration_hours} hours</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-ink-muted">Rate</span>
+                <span className="font-semibold tabular-nums">
+                  GH₵{offerBooking.hourly_rate}/hour
+                </span>
+              </div>
+              <div className="flex justify-between border-t border-hairline pt-1.5">
+                <span className="text-ink-muted">Total</span>
+                <span className="text-[16px] font-bold tabular-nums text-ink">
+                  GH₵{offerBooking.total_amount}
+                </span>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-wrap justify-center gap-3">
             <LinkButton
               href={`/parent/caregivers/${status.activeOffer.staffProfileId}`}
@@ -216,7 +323,7 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
               <ChatCircleText size={16} /> Message {status.activeOffer.caregiverName.split(" ")[0]}
             </LinkButton>
             <LinkButton href={`/parent/bookings/${status.activeOffer.bookingId}`}>
-              Continue to Booking
+              Pay & Confirm Booking
             </LinkButton>
           </div>
         </Sheet>

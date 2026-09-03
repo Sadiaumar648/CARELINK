@@ -1,17 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  CaretRight,
-  CheckCircle,
-  MapPin,
-  Plus,
-  Sparkle,
-  ShieldCheck,
-} from "@phosphor-icons/react";
+import { ArrowLeft, CaretRight, CheckCircle, Plus } from "@phosphor-icons/react";
 import {
   calculateTotalAmount,
   countOccurrences,
@@ -156,27 +147,23 @@ function addHours(time: string, hours: number): string {
 // Directly from lib/services/dispatch.ts's real stages — never implies
 // every caregiver is contacted at once, and never promises a third
 // expansion round the backend doesn't have (there's no real geographic
-// data in this schema to expand further than one "nearby" round).
+// data in this schema to expand further than one "nearby" round). Purely
+// informational — this component never performs matching itself.
 const DISPATCH_STEPS = [
   {
-    icon: "caregivers" as const,
-    title: "We find caregivers",
-    body: "CareLink checks eligible, verified caregivers near your care location.",
+    number: "01",
+    title: "We check nearby caregivers",
+    body: "We find verified caregivers who are available near your care location.",
   },
   {
-    icon: "offer" as const,
-    title: "Request is offered",
-    body: "Your request is offered to eligible caregivers, one at a time, in priority order.",
+    number: "02",
+    title: "We offer the request",
+    body: "The request is offered to suitable caregivers one at a time, based on priority.",
   },
   {
-    icon: "expand" as const,
-    title: "Search expands if needed",
-    body: "If nobody accepts nearby, CareLink checks the next closest eligible caregivers.",
-  },
-  {
-    icon: "accept" as const,
-    title: "Caregiver accepts",
-    body: "Once a caregiver accepts, you'll be notified immediately.",
+    number: "03",
+    title: "We keep searching",
+    body: "If needed, CareLink expands the search to the next closest eligible caregivers.",
   },
 ];
 
@@ -278,6 +265,10 @@ export function RequestFlowPanel({
     }
     if (!startTime) {
       setFormError("Choose a start time to continue.");
+      return;
+    }
+    if (requirementChips.size === 0 && !(showOther && requirements.trim())) {
+      setFormError("Choose at least one care need.");
       return;
     }
 
@@ -424,6 +415,24 @@ export function RequestFlowPanel({
     priceSessionCount > 0 && priceDurationHours > 0
       ? calculateTotalAmount(type, priceDurationHours, priceSessionCount)
       : null;
+
+  // Find Care stays disabled until every field the backend will actually
+  // require is genuinely filled in — mirrors onSubmit's own checks above,
+  // just surfaced before the click instead of after it.
+  const hasValidSchedule =
+    repeat === "once"
+      ? Boolean(startDate)
+      : repeat === "weekly"
+        ? Boolean(weeklyDay) && Boolean(rangeStart) && Boolean(rangeEnd) && rangeEnd >= rangeStart
+        : customDays.size > 0 && Boolean(rangeStart) && Boolean(rangeEnd) && rangeEnd >= rangeStart;
+  const hasCareNeed = requirementChips.size > 0 || (showOther && Boolean(requirements.trim()));
+  const canSubmit =
+    Boolean(wardId) &&
+    Boolean(startTime) &&
+    Boolean(duration) &&
+    hasValidSchedule &&
+    Boolean(location) &&
+    hasCareNeed;
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
@@ -676,7 +685,12 @@ export function RequestFlowPanel({
               </span>
               Where will care take place?
             </h2>
-            <LocationPicker value={location} onChange={setLocation} initialQuery={initial?.area} />
+            <LocationPicker
+              value={location}
+              onChange={setLocation}
+              initialQuery={initial?.area}
+              helperText="We'll use this location to find suitable nearby caregivers."
+            />
           </section>
 
           {/* 4. WHAT HELP */}
@@ -740,25 +754,33 @@ export function RequestFlowPanel({
             </section>
           )}
 
-          {/* CareLink's fixed rate for this care type — a clear, informational
-              price built from the exact schedule chosen above. The backend
-              recomputes and charges this same figure independently; nothing
-              here is ever trusted as the final amount. */}
+          {/* 5. ESTIMATED COST — informational only, never what actually
+              gets charged. The backend independently recomputes and
+              charges this same figure at booking time; nothing here is
+              ever trusted as the final amount, and submitting this form
+              never charges the parent. */}
           {startTime && priceTotal !== null && (
-            <div className="flex flex-col gap-1 rounded-[12px] border border-[var(--color-lavender-border)] bg-wisteria-tint p-4">
-              <p className="text-[12.5px] text-ink-muted">
-                {priceSessionCount === 1
-                  ? `${priceDurationHours} hour${priceDurationHours === 1 ? "" : "s"} × GH₵${hourlyRateFor(type)}/hour`
-                  : `${priceSessionCount} sessions × ${priceDurationHours} hour${priceDurationHours === 1 ? "" : "s"} × GH₵${hourlyRateFor(type)}/hour`}
-              </p>
-              <p className="text-[19px] font-bold tabular-nums text-ink">Total: GH₵{priceTotal}</p>
-              {priceSessionCount > 1 && (
-                <p className="text-[12px] text-ink-muted">
-                  CareLink bookings are single-session today — this request finds a caregiver for
-                  the first session; you&apos;ll confirm the rest separately.
+            <section className="flex flex-col gap-2 border-t border-[var(--color-lavender-border)] pt-6">
+              <h2 className="text-[13px] font-bold uppercase tracking-[0.08em] text-ink">
+                Estimated cost
+              </h2>
+              <div className="flex flex-col gap-1 rounded-[12px] border border-[var(--color-lavender-border)] bg-wisteria-tint p-4">
+                <p className="text-[12.5px] text-ink-muted">
+                  {priceSessionCount === 1
+                    ? `${priceDurationHours} hour${priceDurationHours === 1 ? "" : "s"} × GH₵${hourlyRateFor(type)}/hour`
+                    : `${priceSessionCount} sessions × ${priceDurationHours} hour${priceDurationHours === 1 ? "" : "s"} × GH₵${hourlyRateFor(type)}/hour`}
                 </p>
-              )}
-            </div>
+                <p className="text-[19px] font-bold tabular-nums text-ink">
+                  Total: GH₵{priceTotal}
+                </p>
+                <p className="text-[12px] text-ink-muted">
+                  This is an estimate only — you won&apos;t be charged now. You&apos;ll pay once a
+                  caregiver accepts your request.
+                  {priceSessionCount > 1 &&
+                    " CareLink bookings are single-session today — this request finds a caregiver for the first session; you'll confirm the rest separately."}
+                </p>
+              </div>
+            </section>
           )}
 
           {formError && <p className="text-[13px] text-error">{formError}</p>}
@@ -767,7 +789,7 @@ export function RequestFlowPanel({
             <Button
               type="submit"
               size="lg"
-              disabled={submitting || wards === null || wards.length === 0}
+              disabled={submitting || wards === null || wards.length === 0 || !canSubmit}
               className="w-full justify-center"
             >
               {submitting ? "Starting your search…" : "Find Care"}
@@ -778,19 +800,18 @@ export function RequestFlowPanel({
           </div>
         </Sheet>
 
-        {/* RIGHT RAIL */}
+        {/* RIGHT RAIL — one compact, informational card. Safety remains
+            fully available via Settings → Safety & Privacy; it's
+            deliberately not duplicated here as a second large panel. */}
         <div className="flex flex-col gap-4">
           <Sheet className="flex flex-col gap-4 border-[var(--color-lavender-border)]">
-            <h2 className="text-[14px] font-semibold text-ink">What happens next?</h2>
+            <h2 className="text-[14px] font-semibold text-ink">
+              How CareLink finds your caregiver
+            </h2>
             <div className="flex flex-col gap-4">
               {DISPATCH_STEPS.map((step) => (
-                <div key={step.title} className="flex items-start gap-3">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-wisteria-tint text-wisteria">
-                    {step.icon === "caregivers" && <ShieldCheck size={16} weight="fill" />}
-                    {step.icon === "offer" && <Sparkle size={16} weight="fill" />}
-                    {step.icon === "expand" && <MapPin size={16} weight="fill" />}
-                    {step.icon === "accept" && <CheckCircle size={16} weight="fill" />}
-                  </span>
+                <div key={step.number} className="flex items-start gap-3">
+                  <span className="text-[12px] font-bold text-wisteria">{step.number}</span>
                   <div>
                     <p className="text-[13px] font-semibold text-ink">{step.title}</p>
                     <p className="text-[12px] leading-relaxed text-ink-muted">{step.body}</p>
@@ -798,33 +819,6 @@ export function RequestFlowPanel({
                 </div>
               ))}
             </div>
-          </Sheet>
-
-          <Sheet className="flex flex-col gap-3 border-[var(--color-lavender-border)]">
-            <div className="flex items-center gap-2">
-              <ShieldCheck size={18} weight="fill" className="text-ink" />
-              <h2 className="text-[14px] font-semibold text-ink">Your safety is our priority</h2>
-            </div>
-            <ul className="flex flex-col gap-1.5 text-[12.5px] text-ink-muted">
-              {[
-                "Caregivers are verified before they can accept a booking",
-                "Availability is checked before any offer is made",
-                "Booking status is tracked at every step",
-                "You can report a concern through CareLink at any time",
-                "You can cancel your search anytime",
-              ].map((line) => (
-                <li key={line} className="flex items-start gap-1.5">
-                  <CheckCircle size={13} weight="fill" className="mt-0.5 shrink-0 text-wisteria" />
-                  {line}
-                </li>
-              ))}
-            </ul>
-            <Link
-              href="/parent/safety"
-              className="text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
-            >
-              Learn more about safety →
-            </Link>
           </Sheet>
         </div>
       </div>

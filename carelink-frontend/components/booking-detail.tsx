@@ -86,13 +86,17 @@ const TONE: Record<string, "neutral" | "positive" | "attention" | "info"> = {
 
 // The backend's real booking_status enum (bookings.sql). UI copy only —
 // the value stored and sent to the API is always the real one.
+// 'accepted' reads as "Awaiting Payment" — the caregiver has committed,
+// but the booking isn't Confirmed/Paid until payment succeeds (task 20's
+// conceptual flow, mapped onto the existing status names rather than
+// renaming the schema).
 const STATUS_LABEL: Record<string, string> = {
   pending: "Awaiting caregiver response",
-  accepted: "Booking accepted",
+  accepted: "Awaiting Payment",
   declined: "Booking unavailable",
   expired: "Request expired",
-  paid: "Paid — awaiting session",
-  active: "Session in progress",
+  paid: "Confirmed/Paid",
+  active: "In Progress",
   completed: "Completed",
   cancelled: "Booking cancelled",
   disputed: "Under review",
@@ -298,9 +302,10 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
       {booking.status === "accepted" && viewerRole === "parent" && (
         <Sheet className="flex flex-col items-center gap-2 bg-wisteria-tint text-center">
           <CheckCircle size={28} weight="fill" className="text-wisteria-pressed" />
-          <p className="text-[16px] font-semibold text-wisteria-pressed">Booking accepted</p>
+          <p className="text-[16px] font-semibold text-wisteria-pressed">Caregiver found!</p>
           <p className="text-[13px] text-wisteria-pressed">
-            {caregiver?.full_name ?? "The caregiver"} has accepted your booking request.
+            {caregiver?.full_name ?? "Your caregiver"} has accepted this request. Complete payment
+            to confirm your booking.
           </p>
         </Sheet>
       )}
@@ -781,7 +786,7 @@ function PaymentForm({
       />
       {error && <p className="text-[13px] text-error">{error}</p>}
       <Button type="submit" disabled={submitting}>
-        {submitting ? "Processing your payment…" : `Pay GH₵${amount}`}
+        {submitting ? "Processing your payment…" : `Pay & Confirm Booking — GH₵${amount}`}
       </Button>
     </Sheet>
   );
