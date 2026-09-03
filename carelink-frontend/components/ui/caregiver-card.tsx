@@ -78,7 +78,7 @@ export function CaregiverCard({
           href={href}
           className="text-[14px] font-semibold text-wisteria hover:text-wisteria-hover"
         >
-          View Profile →
+          View Profile
         </Link>
       </div>
     </Sheet>
