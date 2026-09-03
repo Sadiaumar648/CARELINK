@@ -236,10 +236,12 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
             <MagnifyingGlass size={26} weight="bold" />
           </span>
           <div>
-            <h1 className="text-[19px] font-bold font-heading text-ink">Hold on a minute…</h1>
+            <h1 className="text-[19px] font-bold font-heading text-ink">
+              We&apos;re finding your caregiver
+            </h1>
             <p className="mt-1 text-[13.5px] text-ink-muted">
-              We&apos;re finding the right care for you. This might take a while — we&apos;re
-              contacting verified caregivers near your care location, one at a time.
+              CareLink is checking verified, available caregivers near your care location, one at a
+              time. This might take a while.
             </p>
           </div>
           {status.activeOffer && (
@@ -262,10 +264,12 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
             <MapPin size={26} weight="bold" />
           </span>
           <div>
-            <h1 className="text-[19px] font-bold font-heading text-ink">Expanding your search</h1>
+            <h1 className="text-[19px] font-bold font-heading text-ink">
+              We&apos;re expanding your search
+            </h1>
             <p className="mt-1 text-[13.5px] text-ink-muted">
-              We couldn&apos;t find an available caregiver in the immediate area. CareLink is
-              checking the next closest eligible caregivers.
+              We couldn&apos;t find an available caregiver nearby yet. CareLink is checking the next
+              closest eligible caregivers.
             </p>
           </div>
           {status.activeOffer && (
@@ -371,22 +375,28 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
         </Sheet>
       )}
 
+      {/* The sequential dispatch queue genuinely ran out of eligible
+          caregivers to offer this request to — both vicinity rounds
+          exhausted (lib/services/dispatch.ts), not a frontend guess.
+          CareLink's finalized workflow never falls back to manual
+          caregiver browsing from here — the only ways forward are
+          starting over (a fresh request re-enters the same real
+          sequential dispatch) or going back. */}
       {status.dispatchStatus === "exhausted" && (
         <Sheet className="flex flex-col items-center gap-4 border-[var(--color-lavender-border)] py-10 text-center">
           <div>
             <h1 className="text-[19px] font-bold font-heading text-ink">
-              We&apos;re still looking for a caregiver
+              We&apos;re still looking for the right caregiver
             </h1>
             <p className="mt-1 text-[13.5px] text-ink-muted">
-              Nobody was available to accept this request right now. You can browse caregivers
-              yourself instead, or try again later.
+              We weren&apos;t able to secure an eligible caregiver for this request at this time.
             </p>
           </div>
           <div className="flex flex-wrap justify-center gap-3">
-            <LinkButton href="/parent/find-care">Browse Caregivers</LinkButton>
             <LinkButton href="/parent" variant="secondary">
               Back to Home
             </LinkButton>
+            <LinkButton href="/parent">Request Care Again</LinkButton>
           </div>
         </Sheet>
       )}
