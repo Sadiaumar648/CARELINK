@@ -313,25 +313,6 @@ export function RequestFlowPanel({
         <ArrowLeft size={16} /> Back
       </button>
 
-      {/* CARELINK AI ENTRY — unchanged system, just an entry point */}
-      <Sheet className="flex flex-col gap-3 border-[var(--color-lavender-border)] bg-wisteria-tint sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <Sparkle size={20} weight="fill" className="mt-0.5 shrink-0 text-wisteria" />
-          <div>
-            <p className="text-[14px] font-semibold text-ink">
-              Not sure what type of care you need?
-            </p>
-            <p className="text-[13px] text-ink-muted">
-              Let CareLink AI help you describe what you need and guide you to the right type of
-              care.
-            </p>
-          </div>
-        </div>
-        <LinkButton href="/parent/care-ai" variant="secondary" className="shrink-0">
-          <Sparkle size={14} weight="fill" /> Ask CareLink AI
-        </LinkButton>
-      </Sheet>
-
       {/* TITLE */}
       <div className="flex flex-col gap-2">
         <h1 className="text-[26px] font-bold font-heading text-ink">Request a {copy.heading}</h1>
