@@ -12,6 +12,15 @@ import {
   Sparkle,
   ShieldCheck,
 } from "@phosphor-icons/react";
+import {
+  calculateTotalAmount,
+  countOccurrences,
+  firstMatchingDate,
+  hourlyRateFor,
+  sessionCountFor,
+  type RepeatMode,
+  type Weekday,
+} from "@carelink/shared";
 import { Sheet } from "@/components/ui/sheet";
 import { Field } from "@/components/ui/field";
 import { Button, LinkButton } from "@/components/ui/button";
@@ -65,8 +74,18 @@ const DURATION_OPTIONS = [1, 2, 3, 4, 6, 8].map((n) => ({
 const REPEAT_OPTIONS = [
   { value: "once", label: "Once" },
   { value: "weekly", label: "Weekly" },
-  { value: "custom", label: "Custom" },
+  { value: "custom", label: "Custom schedule" },
 ];
+
+const DAYS = [
+  { value: "monday", label: "Monday" },
+  { value: "tuesday", label: "Tuesday" },
+  { value: "wednesday", label: "Wednesday" },
+  { value: "thursday", label: "Thursday" },
+  { value: "friday", label: "Friday" },
+  { value: "saturday", label: "Saturday" },
+  { value: "sunday", label: "Sunday" },
+] as const;
 
 // The 7 real, existing skill_tag values this app's matching already
 // understands — relabelled for a parent instead of a caregiver's own
@@ -182,6 +201,14 @@ export function RequestFlowPanel({
   // a genuine hour count prefills this.
   const [duration, setDuration] = useState(initial?.hours ?? "4");
   const [repeat, setRepeat] = useState("once");
+  // Weekly: exactly one selected day. Custom: any number of selected
+  // days. Kept as separate state (not shared) so switching between the
+  // two never silently carries a selection over in a way that could
+  // misrepresent what the parent actually chose.
+  const [weeklyDay, setWeeklyDay] = useState("");
+  const [customDays, setCustomDays] = useState<Set<string>>(new Set());
+  const [rangeStart, setRangeStart] = useState("");
+  const [rangeEnd, setRangeEnd] = useState("");
   const [location, setLocation] = useState<ResolvedLocation | null>(null);
   const [requirementChips, setRequirementChips] = useState<Set<string>>(new Set());
   const [showOther, setShowOther] = useState(Boolean(initial?.requirements));
@@ -225,6 +252,15 @@ export function RequestFlowPanel({
     });
   }, [selectedWard]);
 
+  function toggleCustomDay(value: string) {
+    setCustomDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
+      return next;
+    });
+  }
+
   function toggleChip(value: string) {
     setRequirementChips((prev) => {
       const next = new Set(prev);
@@ -240,10 +276,60 @@ export function RequestFlowPanel({
       setFormError("Choose which child this request is for.");
       return;
     }
-    if (!startDate || !startTime) {
-      setFormError("Choose a start date and time to continue.");
+    if (!startTime) {
+      setFormError("Choose a start time to continue.");
       return;
     }
+
+    // Each Repeat mode validates and resolves its own real occurrence
+    // date differently — Once uses the date the parent typed directly;
+    // Weekly/Custom resolve the first real calendar date matching the
+    // chosen day(s) on or after the selected start date. Dispatch and
+    // matching still only ever see one real date/time window per
+    // request (bookings remain single-session — see the notes text
+    // below), exactly as before; what's new is that date is now
+    // actually consistent with the pattern the parent picked, not
+    // arbitrary.
+    let effectiveDate: string;
+    let selectedWeekdays: Weekday[] = [];
+    if (repeat === "once") {
+      if (!startDate) {
+        setFormError("Choose a date to continue.");
+        return;
+      }
+      effectiveDate = startDate;
+    } else if (repeat === "weekly") {
+      if (!weeklyDay) {
+        setFormError("Choose which day of the week you need care.");
+        return;
+      }
+      if (!rangeStart || !rangeEnd) {
+        setFormError("Choose a start date and end date for this weekly schedule.");
+        return;
+      }
+      if (rangeEnd < rangeStart) {
+        setFormError("End date can't be before the start date.");
+        return;
+      }
+      selectedWeekdays = [weeklyDay as Weekday];
+      effectiveDate = firstMatchingDate(rangeStart, selectedWeekdays) ?? rangeStart;
+    } else {
+      if (customDays.size === 0) {
+        setFormError("Choose at least one day you need care.");
+        return;
+      }
+      if (!rangeStart || !rangeEnd) {
+        setFormError("Choose a start date and end date for this schedule.");
+        return;
+      }
+      if (rangeEnd < rangeStart) {
+        setFormError("End date can't be before the start date.");
+        return;
+      }
+      selectedWeekdays = Array.from(customDays) as Weekday[];
+      effectiveDate = firstMatchingDate(rangeStart, selectedWeekdays) ?? rangeStart;
+    }
+
     // CareLink's strict rule: no valid, map-resolved location, no
     // caregiver search — enforced here and again by the backend
     // (POST /api/care-requests requires the real coordinates, not just
@@ -263,15 +349,26 @@ export function RequestFlowPanel({
       // the existing area-string search/dispatch filters, exactly as a
       // typed area name did before.
       const searchArea = location.coarseArea ?? location.formattedAddress;
-      const filters: SearchFilters = { date: startDate, startTime, endTime, area: searchArea };
+      const filters: SearchFilters = { date: effectiveDate, startTime, endTime, area: searchArea };
       if (requirementChips.size > 0) filters.skills = Array.from(requirementChips);
 
       const notesParts: string[] = [];
       if (requirements.trim()) notesParts.push(requirements.trim());
       if (repeat !== "once") {
-        const label = REPEAT_OPTIONS.find((r) => r.value === repeat)?.label ?? repeat;
+        const dayLabels = selectedWeekdays
+          .map((w) => DAYS.find((d) => d.value === w)?.label ?? w)
+          .join(", ");
+        const occurrences = countOccurrences(rangeStart, rangeEnd, selectedWeekdays);
+        const formatRangeDate = (iso: string) =>
+          new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+          });
         notesParts.push(
-          `Repeats: ${label} (CareLink bookings are single-session today — please confirm follow-up sessions separately).`,
+          `Repeats: every ${dayLabels}, ${formatRangeDate(rangeStart)}–${formatRangeDate(rangeEnd)} ` +
+            `(${occurrences} session${occurrences === 1 ? "" : "s"}). ` +
+            `CareLink bookings are single-session today — this request covers the first session ` +
+            `(${formatRangeDate(effectiveDate)}); please confirm the remaining sessions separately.`,
         );
       }
 
@@ -293,6 +390,10 @@ export function RequestFlowPanel({
           locationResolved: true,
           skills: filters.skills,
           notes: notesParts.join(" ") || undefined,
+          repeatMode: repeat as RepeatMode,
+          repeatWeekdays: selectedWeekdays,
+          repeatStartDate: repeat === "once" ? undefined : rangeStart,
+          repeatEndDate: repeat === "once" ? undefined : rangeEnd,
         },
       });
       await apiFetch(`/api/care-requests/${res.careRequest.id}/dispatch/start`, { method: "POST" });
@@ -302,6 +403,27 @@ export function RequestFlowPanel({
       setSubmitting(false);
     }
   }
+
+  // CareLink's finalized fixed-rate model: this is informational only —
+  // exactly the formula the backend independently recomputes and
+  // charges from (POST /api/care-requests, never trusting this figure).
+  // Once = 1 session; Weekly/Custom count real matching calendar dates,
+  // same as the "This will repeat…" preview above. Hidden until there's
+  // a real, positive session count to price.
+  const priceWeekdays = (
+    repeat === "weekly" ? (weeklyDay ? [weeklyDay] : []) : Array.from(customDays)
+  ) as Weekday[];
+  const priceSessionCount = sessionCountFor(
+    repeat as RepeatMode,
+    priceWeekdays,
+    rangeStart,
+    rangeEnd,
+  );
+  const priceDurationHours = Number(duration);
+  const priceTotal =
+    priceSessionCount > 0 && priceDurationHours > 0
+      ? calculateTotalAmount(type, priceDurationHours, priceSessionCount)
+      : null;
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
@@ -424,13 +546,6 @@ export function RequestFlowPanel({
             </h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field
-                label="Date"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="border-[var(--color-lavender-border)] focus:border-wisteria focus:ring-wisteria/15"
-              />
-              <Field
                 label="Start time"
                 type="time"
                 value={startTime}
@@ -443,13 +558,114 @@ export function RequestFlowPanel({
                 onChange={setDuration}
                 options={DURATION_OPTIONS}
               />
-              <SelectField
-                label="Repeat"
-                value={repeat}
-                onChange={setRepeat}
-                options={REPEAT_OPTIONS}
-              />
+              <div className={repeat === "once" ? "" : "sm:col-span-2"}>
+                <SelectField
+                  label="Repeat"
+                  value={repeat}
+                  onChange={setRepeat}
+                  options={REPEAT_OPTIONS}
+                />
+              </div>
+              {repeat === "once" && (
+                <Field
+                  label="Date"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="border-[var(--color-lavender-border)] focus:border-wisteria focus:ring-wisteria/15"
+                />
+              )}
             </div>
+
+            {/* Weekly = exactly one selected day, every week between the
+                two dates. Custom schedule = any number of selected days,
+                same date-range mechanic — the two modes share this range
+                UI but never share which days are selected. */}
+            {(repeat === "weekly" || repeat === "custom") && (
+              <div className="flex flex-col gap-4 rounded-[12px] border border-[var(--color-lavender-border)] bg-paper p-4">
+                <fieldset className="flex flex-col gap-2">
+                  <legend className="text-[13px] font-semibold text-ink">
+                    {repeat === "weekly"
+                      ? "Which day of the week?"
+                      : "Which days do you need care?"}
+                  </legend>
+                  <div className="flex flex-wrap gap-x-4 gap-y-2">
+                    {DAYS.map((day) =>
+                      repeat === "weekly" ? (
+                        <label
+                          key={day.value}
+                          className="flex items-center gap-2 text-[13.5px] text-ink"
+                        >
+                          <input
+                            type="radio"
+                            name="weekly-day"
+                            value={day.value}
+                            checked={weeklyDay === day.value}
+                            onChange={() => setWeeklyDay(day.value)}
+                            className="h-4 w-4 accent-wisteria"
+                          />
+                          {day.label}
+                        </label>
+                      ) : (
+                        <label
+                          key={day.value}
+                          className="flex items-center gap-2 text-[13.5px] text-ink"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={customDays.has(day.value)}
+                            onChange={() => toggleCustomDay(day.value)}
+                            className="h-4 w-4 accent-wisteria"
+                          />
+                          {day.label}
+                        </label>
+                      ),
+                    )}
+                  </div>
+                </fieldset>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field
+                    label="Start date"
+                    type="date"
+                    value={rangeStart}
+                    onChange={(e) => setRangeStart(e.target.value)}
+                    className="border-[var(--color-lavender-border)] bg-sheet focus:border-wisteria focus:ring-wisteria/15"
+                  />
+                  <Field
+                    label="End date"
+                    type="date"
+                    value={rangeEnd}
+                    onChange={(e) => setRangeEnd(e.target.value)}
+                    className="border-[var(--color-lavender-border)] bg-sheet focus:border-wisteria focus:ring-wisteria/15"
+                  />
+                </div>
+
+                {(() => {
+                  const days = (
+                    repeat === "weekly" ? (weeklyDay ? [weeklyDay] : []) : Array.from(customDays)
+                  ) as Weekday[];
+                  const occurrences = countOccurrences(rangeStart, rangeEnd, days);
+                  if (occurrences === 0) return null;
+                  return (
+                    <p className="text-[12.5px] text-ink-muted">
+                      This will repeat {occurrences} time{occurrences === 1 ? "" : "s"} between{" "}
+                      {new Date(`${rangeStart}T00:00:00`).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                      })}{" "}
+                      and{" "}
+                      {new Date(`${rangeEnd}T00:00:00`).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                      . CareLink bookings are single-session today — this request finds a caregiver
+                      for the first session; you&apos;ll confirm the rest separately.
+                    </p>
+                  );
+                })()}
+              </div>
+            )}
           </section>
 
           {/* 3. WHERE */}
@@ -522,6 +738,27 @@ export function RequestFlowPanel({
                 className="ml-7 rounded-[10px] border border-[var(--color-lavender-border)] bg-sheet px-3 py-2.5 text-[14px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
               />
             </section>
+          )}
+
+          {/* CareLink's fixed rate for this care type — a clear, informational
+              price built from the exact schedule chosen above. The backend
+              recomputes and charges this same figure independently; nothing
+              here is ever trusted as the final amount. */}
+          {startTime && priceTotal !== null && (
+            <div className="flex flex-col gap-1 rounded-[12px] border border-[var(--color-lavender-border)] bg-wisteria-tint p-4">
+              <p className="text-[12.5px] text-ink-muted">
+                {priceSessionCount === 1
+                  ? `${priceDurationHours} hour${priceDurationHours === 1 ? "" : "s"} × GH₵${hourlyRateFor(type)}/hour`
+                  : `${priceSessionCount} sessions × ${priceDurationHours} hour${priceDurationHours === 1 ? "" : "s"} × GH₵${hourlyRateFor(type)}/hour`}
+              </p>
+              <p className="text-[19px] font-bold tabular-nums text-ink">Total: GH₵{priceTotal}</p>
+              {priceSessionCount > 1 && (
+                <p className="text-[12px] text-ink-muted">
+                  CareLink bookings are single-session today — this request finds a caregiver for
+                  the first session; you&apos;ll confirm the rest separately.
+                </p>
+              )}
+            </div>
           )}
 
           {formError && <p className="text-[13px] text-error">{formError}</p>}

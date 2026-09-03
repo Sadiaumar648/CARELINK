@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createBookingRequestSchema } from "@carelink/shared";
+import { calculateTotalAmount, createBookingRequestSchema, hourlyRateFor } from "@carelink/shared";
 import { authErrorResponse, requireRole } from "@/lib/auth/require-user";
 import { generateBookingReference } from "@/lib/bookings";
 import { getOwnParentProfileId } from "@/lib/parents";
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
 
     const { data: caregiver, error: caregiverErr } = await supabase
       .from("public_caregivers")
-      .select("staff_profile_id, hourly_rate")
+      .select("staff_profile_id, caregiver_type")
       .eq("staff_profile_id", body.staffProfileId)
       .maybeSingle();
     if (caregiverErr) return NextResponse.json({ error: caregiverErr.message }, { status: 500 });
@@ -64,6 +64,16 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Caregiver not found or not accepting bookings" },
         { status: 404 },
+      );
+    }
+    // CareLink's finalized fixed-rate model: the price comes from the
+    // caregiver's declared type, never a per-caregiver rate they set
+    // themselves. A caregiver with no type on file yet can't be booked
+    // through this direct flow until they set one on their profile.
+    if (!caregiver.caregiver_type) {
+      return NextResponse.json(
+        { error: "This caregiver hasn't set a caregiver type yet" },
+        { status: 400 },
       );
     }
 
@@ -115,7 +125,8 @@ export async function POST(request: Request) {
     }
 
     const durationHours = (endsAt.getTime() - startsAt.getTime()) / (1000 * 60 * 60);
-    const totalAmount = Math.round(caregiver.hourly_rate * durationHours);
+    const fixedRate = hourlyRateFor(caregiver.caregiver_type);
+    const totalAmount = calculateTotalAmount(caregiver.caregiver_type, durationHours);
 
     const { data: booking, error: insertErr } = await supabase
       .from("bookings")
@@ -126,7 +137,7 @@ export async function POST(request: Request) {
         ward_id: body.wardId,
         starts_at: startsAt.toISOString(),
         ends_at: endsAt.toISOString(),
-        hourly_rate: caregiver.hourly_rate,
+        hourly_rate: fixedRate,
         total_amount: totalAmount,
         address: body.address,
         one_off_notes: body.oneOffNotes ?? null,

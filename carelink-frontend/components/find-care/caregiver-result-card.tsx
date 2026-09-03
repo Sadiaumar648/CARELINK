@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { CaretDown } from "@phosphor-icons/react";
+import { hourlyRateFor } from "@carelink/shared";
 import { Sheet } from "@/components/ui/sheet";
 import { Avatar } from "@/components/ui/avatar";
 import { RatingStars } from "@/components/ui/rating-stars";
@@ -129,7 +130,16 @@ export function CaregiverResultCard({
           above it, so every card in the row lines its buttons up. */}
       <div className="mt-auto flex items-center justify-between border-t border-hairline pt-3">
         <div>
-          <p className="text-[15px] font-semibold tabular-nums">GH₵{caregiver.hourly_rate}/hr</p>
+          <p className="text-[15px] font-semibold tabular-nums">
+            {/* CareLink's finalized fixed-rate model: the real charge is
+                the fixed rate for this caregiver's type, not their own
+                legacy hourly_rate field. */}
+            GH₵
+            {caregiver.caregiver_type
+              ? hourlyRateFor(caregiver.caregiver_type)
+              : caregiver.hourly_rate}
+            /hr
+          </p>
           <p className="text-[11.5px] font-semibold text-wisteria">
             {Math.round(caregiver.matchScore)}% Match
           </p>

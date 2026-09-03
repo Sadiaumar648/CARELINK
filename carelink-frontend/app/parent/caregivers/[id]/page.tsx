@@ -12,6 +12,7 @@ import {
   ArrowLeft,
   SealCheck,
 } from "@phosphor-icons/react";
+import { hourlyRateFor } from "@carelink/shared";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,16 @@ function caregiverTypeLabel(type: "nanny" | "babysitter" | null): string | null 
   if (type === "nanny") return "Nanny";
   if (type === "babysitter") return "Babysitter";
   return null;
+}
+
+// CareLink's finalized fixed-rate model: what a booking actually costs
+// is the fixed CareLink rate for this caregiver's type, never their own
+// legacy hourly_rate field — this is informational only, since the real
+// authoritative total is computed server-side in POST /api/bookings.
+// Falls back to hourly_rate only for the rare caregiver with no type on
+// file yet.
+function displayRate(caregiver: Caregiver): number {
+  return caregiver.caregiver_type ? hourlyRateFor(caregiver.caregiver_type) : caregiver.hourly_rate;
 }
 
 type Ward = { id: string; display_name: string; age_years: number };
@@ -104,7 +115,7 @@ function BookingRequestForm({ caregiver }: { caregiver: Caregiver }) {
 
   const selectedWard = wards?.find((w) => w.id === wardId) ?? null;
   const hours = durationHours(date, startTime, endTime);
-  const estimatedTotal = hours ? Math.round(caregiver.hourly_rate * hours) : null;
+  const estimatedTotal = hours ? Math.round(displayRate(caregiver) * hours) : null;
 
   function goReview(e: React.FormEvent) {
     e.preventDefault();
@@ -246,7 +257,7 @@ function BookingRequestForm({ caregiver }: { caregiver: Caregiver }) {
           )}
           <div className="flex justify-between border-b border-hairline pb-2">
             <span className="text-ink-muted">Rate</span>
-            <span className="font-semibold tabular-nums">GH₵{caregiver.hourly_rate}/hr</span>
+            <span className="font-semibold tabular-nums">GH₵{displayRate(caregiver)}/hr</span>
           </div>
           {estimatedTotal !== null && (
             <div className="flex justify-between border-b border-hairline pb-2">
@@ -489,7 +500,7 @@ export default function CaregiverProfilePage({ params }: { params: Promise<{ id:
               {primaryArea ? ` · ${primaryArea}` : ""}
             </p>
             <p className="text-[24px] font-semibold tabular-nums">
-              GH₵{caregiver.hourly_rate}
+              GH₵{displayRate(caregiver)}
               <span className="text-[14px] font-normal text-ink-muted">/hr</span>
             </p>
           </div>

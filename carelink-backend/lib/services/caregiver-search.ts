@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { SearchCaregiversQuery } from "@carelink/shared";
+import { hourlyRateFor, type SearchCaregiversQuery } from "@carelink/shared";
 import { MAX_DISPATCH_LOCATION_AGE_SECONDS } from "@/lib/dispatch-config";
 import {
   checkAvailability,
@@ -297,6 +297,13 @@ export async function findEligibleCaregivers(
       const primary = c.areas.find((a) => a.isPrimary)?.area ?? null;
       const others = c.areas.filter((a) => !a.isPrimary).map((a) => a.area);
       const distanceKm = distanceById.get(c.staff_profile_id);
+      // CareLink's finalized fixed-rate model: budget fit is scored
+      // against the real CareLink rate for this caregiver's type, never
+      // their own staff_profiles.hourly_rate (a stale, no-longer-priced
+      // field for new bookings). A caregiver with no declared type yet
+      // has no fixed rate to score against — falls back to their
+      // legacy hourly_rate so they aren't excluded from matching outright.
+      const effectiveRate = c.caregiver_type ? hourlyRateFor(c.caregiver_type) : c.hourly_rate;
 
       const { score, breakdown } = computeMatchScore(weights, {
         area:
@@ -304,7 +311,7 @@ export async function findEligibleCaregivers(
             ? computeProximityFit(distanceKm)
             : computeAreaFit(query.area ?? null, primary, others),
         skills: computeSkillFit(query.skills ?? [], c.skills ?? []),
-        budget: computeBudgetFit(c.hourly_rate, query.budgetCeiling ?? null),
+        budget: computeBudgetFit(effectiveRate, query.budgetCeiling ?? null),
         ratingExperience: computeRatingExperienceFit(
           c.rating_avg != null ? Number(c.rating_avg) : null,
           c.rating_count,

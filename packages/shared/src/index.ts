@@ -1,4 +1,6 @@
 export * from "./enums";
+export * from "./pricing";
+export * from "./schedule";
 export * from "./schemas/ward";
 export * from "./schemas/staff-invite";
 export * from "./schemas/parent-invite";

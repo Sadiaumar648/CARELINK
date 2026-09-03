@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { skillTagSchema } from "../enums";
+import { repeatModeSchema, weekdaySchema } from "../schedule";
 import { caregiverTypeSchema } from "./staff-profile";
 
 const timeString = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use 24-hour HH:MM time");
@@ -46,6 +47,25 @@ export const createCareRequestSchema = z
     notes: z.string().trim().max(1000).optional(),
     aiRecommendation: caregiverTypeSchema.optional(),
     aiRecommendationReason: z.string().trim().max(500).optional(),
+    // CareLink's finalized fixed-rate model needs a real, structured
+    // recurrence pattern to independently calculate a session count —
+    // "Weekly" and "Custom schedule" are no longer just descriptive text
+    // folded into notes. `date`/`startTime`/`endTime` above still
+    // describe the one real occurrence every care_requests row (and the
+    // one real booking dispatch ever creates) actually has; these
+    // fields describe the wider pattern it's part of, for an honest,
+    // server-computed session count and series total — see
+    // lib/services/pricing.ts (backend) for where that's calculated.
+    repeatMode: repeatModeSchema.default("once"),
+    repeatWeekdays: z.array(weekdaySchema).max(7).default([]),
+    repeatStartDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD")
+      .optional(),
+    repeatEndDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD")
+      .optional(),
   })
   .refine((r) => r.endTime > r.startTime, {
     message: "End time must be after start time",
@@ -54,7 +74,27 @@ export const createCareRequestSchema = z
   .refine((r) => r.locationResolved === true, {
     message: "Add an exact, map-resolved care location before continuing",
     path: ["locationResolved"],
-  });
+  })
+  .refine((r) => r.repeatMode === "once" || r.repeatWeekdays.length > 0, {
+    message: "Choose at least one day of the week for this schedule",
+    path: ["repeatWeekdays"],
+  })
+  .refine((r) => r.repeatMode !== "weekly" || r.repeatWeekdays.length === 1, {
+    message: "A weekly schedule has exactly one selected day",
+    path: ["repeatWeekdays"],
+  })
+  .refine((r) => r.repeatMode === "once" || Boolean(r.repeatStartDate && r.repeatEndDate), {
+    message: "Choose a start date and end date for this schedule",
+    path: ["repeatEndDate"],
+  })
+  .refine(
+    (r) =>
+      r.repeatMode === "once" ||
+      !r.repeatStartDate ||
+      !r.repeatEndDate ||
+      r.repeatEndDate >= r.repeatStartDate,
+    { message: "End date can't be before the start date", path: ["repeatEndDate"] },
+  );
 
 export type CreateCareRequestInput = z.infer<typeof createCareRequestSchema>;
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { skillTagSchema, type SkillTag, type DayPart } from "@carelink/shared";
+import { hourlyRateFor, skillTagSchema, type SkillTag, type DayPart } from "@carelink/shared";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
@@ -104,7 +104,6 @@ function ProfileSection() {
   const [bio, setBio] = useState("");
   const [caregiverType, setCaregiverType] = useState<"nanny" | "babysitter" | "">("");
   const [yearsExperience, setYearsExperience] = useState("");
-  const [hourlyRate, setHourlyRate] = useState("");
   const [languages, setLanguages] = useState("");
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
@@ -121,7 +120,6 @@ function ProfileSection() {
           setBio(res.profile.bio ?? "");
           setCaregiverType(res.profile.caregiver_type ?? "");
           setYearsExperience(String(res.profile.years_experience));
-          setHourlyRate(String(res.profile.hourly_rate));
           setLanguages(res.profile.languages.join(", "));
           setContactName(res.profile.emergency_contact_name);
           setContactPhone(res.profile.emergency_contact_phone);
@@ -160,7 +158,6 @@ function ProfileSection() {
           bio: bio || undefined,
           caregiverType: caregiverType || undefined,
           yearsExperience: Number(yearsExperience),
-          hourlyRate: Number(hourlyRate),
           languages: languages
             .split(",")
             .map((l) => l.trim())
@@ -217,14 +214,23 @@ function ProfileSection() {
           value={yearsExperience}
           onChange={(e) => setYearsExperience(e.target.value)}
         />
-        <Field
-          label="Hourly rate (GH₵)"
-          type="number"
-          min={1}
-          required
-          value={hourlyRate}
-          onChange={(e) => setHourlyRate(e.target.value)}
-        />
+        <div className="flex flex-col gap-2">
+          <span className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+            Hourly rate (GH₵)
+          </span>
+          {caregiverType ? (
+            <p className="rounded-[10px] border border-hairline bg-paper px-3 py-2 text-[15px] font-semibold text-ink">
+              GH₵{hourlyRateFor(caregiverType)}/hr
+            </p>
+          ) : (
+            <p className="rounded-[10px] border border-hairline bg-paper px-3 py-2 text-[13px] text-ink-muted">
+              Choose a caregiver type above to see your rate
+            </p>
+          )}
+          <p className="text-[12px] text-ink-muted">
+            A fixed CareLink rate for your caregiver type — not something you set yourself.
+          </p>
+        </div>
       </div>
       <Field
         label="Languages (comma-separated)"

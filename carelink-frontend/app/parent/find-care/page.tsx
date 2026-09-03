@@ -11,6 +11,7 @@ import {
   Sparkle,
   X,
 } from "@phosphor-icons/react";
+import { hourlyRateFor } from "@carelink/shared";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button, LinkButton } from "@/components/ui/button";
@@ -35,6 +36,13 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "rate", label: "Lowest rate" },
 ];
 
+// CareLink's finalized fixed-rate model: sort by what a booking actually
+// costs (the fixed rate for the caregiver's type), not the legacy
+// per-caregiver hourly_rate field.
+function effectiveRate(c: CaregiverResult): number {
+  return c.caregiver_type ? hourlyRateFor(c.caregiver_type) : c.hourly_rate;
+}
+
 function sortResults(results: CaregiverResult[], sortBy: SortKey): CaregiverResult[] {
   const sorted = [...results];
   switch (sortBy) {
@@ -43,7 +51,7 @@ function sortResults(results: CaregiverResult[], sortBy: SortKey): CaregiverResu
     case "experience":
       return sorted.sort((a, b) => (b.years_experience ?? -1) - (a.years_experience ?? -1));
     case "rate":
-      return sorted.sort((a, b) => a.hourly_rate - b.hourly_rate);
+      return sorted.sort((a, b) => effectiveRate(a) - effectiveRate(b));
     default:
       return sorted.sort((a, b) => b.matchScore - a.matchScore);
   }

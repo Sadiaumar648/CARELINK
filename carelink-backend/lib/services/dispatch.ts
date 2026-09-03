@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { SkillTag } from "@carelink/shared";
+import { calculateTotalAmount, hourlyRateFor, type SkillTag } from "@carelink/shared";
 import { findEligibleCaregivers, loadMatchWeights } from "@/lib/services/caregiver-search";
 import { generateBookingReference } from "@/lib/bookings";
 import { DISPATCH_VICINITY_RADII_KM, MAX_VICINITY_ROUND } from "@/lib/dispatch-config";
@@ -198,7 +198,12 @@ export async function advanceDispatch(
   const startsAt = new Date(`${careRequest.date}T${careRequest.start_time.slice(0, 5)}:00Z`);
   const endsAt = new Date(`${careRequest.date}T${careRequest.end_time.slice(0, 5)}:00Z`);
   const durationHours = (endsAt.getTime() - startsAt.getTime()) / 3_600_000;
-  const totalAmount = Math.round(next.hourly_rate * durationHours);
+  // CareLink's finalized fixed-rate model: every real booking is exactly
+  // one session, priced from the care request's caregiver_type — never
+  // from the offered caregiver's own staff_profiles.hourly_rate (which
+  // no longer prices any new booking). sessionCount defaults to 1.
+  const fixedRate = hourlyRateFor(careRequest.caregiver_type);
+  const totalAmount = calculateTotalAmount(careRequest.caregiver_type, durationHours);
   const expiresAt = new Date(Date.now() + careRequest.response_window_seconds * 1000);
 
   const { data: booking, error: insertErr } = await supabase
@@ -210,7 +215,7 @@ export async function advanceDispatch(
       ward_id: careRequest.ward_id,
       starts_at: startsAt.toISOString(),
       ends_at: endsAt.toISOString(),
-      hourly_rate: next.hourly_rate,
+      hourly_rate: fixedRate,
       total_amount: totalAmount,
       // The general area only, at offer stage — never the parent's
       // exact address before a caregiver has accepted, consistent with

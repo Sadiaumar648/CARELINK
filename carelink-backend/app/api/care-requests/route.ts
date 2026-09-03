@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createCareRequestSchema } from "@carelink/shared";
+import { calculateTotalAmount, createCareRequestSchema, sessionCountFor } from "@carelink/shared";
 import { authErrorResponse, requireRole } from "@/lib/auth/require-user";
 import { getOwnParentProfileId } from "@/lib/parents";
 
@@ -16,6 +16,13 @@ import { getOwnParentProfileId } from "@/lib/parents";
 // request with only a typed area name (no real coordinates) fails
 // validation with 400 here, exactly as it would with no location at
 // all.
+//
+// CareLink's finalized fixed-rate model: session_count and total_amount
+// are always computed here, from the caregiver type and the real
+// recurrence pattern — never accepted from the client. total_amount on
+// this row is the WHOLE series' informational total; the one real
+// booking dispatch later creates from this request is priced
+// separately, for exactly one session (see lib/services/dispatch.ts).
 export async function POST(request: Request) {
   try {
     const { supabase, userId } = await requireRole(request, ["parent"]);
@@ -36,6 +43,29 @@ export async function POST(request: Request) {
       if (wardErr) return NextResponse.json({ error: wardErr.message }, { status: 500 });
       if (!ward) return NextResponse.json({ error: "Ward not found" }, { status: 404 });
     }
+
+    // Duration and session count, both computed from real inputs — never
+    // trusted from the client — feeding the one authoritative price
+    // formula (see packages/shared/src/pricing.ts).
+    const startsAt = new Date(`${body.date}T${body.startTime}:00Z`);
+    const endsAt = new Date(`${body.date}T${body.endTime}:00Z`);
+    const durationHours = (endsAt.getTime() - startsAt.getTime()) / 3_600_000;
+    const sessionCount = sessionCountFor(
+      body.repeatMode,
+      body.repeatWeekdays,
+      body.repeatStartDate ?? null,
+      body.repeatEndDate ?? null,
+    );
+    if (sessionCount < 1) {
+      return NextResponse.json(
+        {
+          error:
+            "The chosen day(s) don't fall within your start and end date — pick a wider range.",
+        },
+        { status: 400 },
+      );
+    }
+    const totalAmount = calculateTotalAmount(body.caregiverType, durationHours, sessionCount);
 
     const { data: careRequest, error: insertErr } = await supabase
       .from("care_requests")
@@ -59,6 +89,12 @@ export async function POST(request: Request) {
         ai_recommendation: body.aiRecommendation ?? null,
         ai_recommendation_reason: body.aiRecommendationReason ?? null,
         confirmed_at: new Date().toISOString(),
+        repeat_mode: body.repeatMode,
+        repeat_weekdays: body.repeatWeekdays,
+        repeat_start_date: body.repeatStartDate ?? null,
+        repeat_end_date: body.repeatEndDate ?? null,
+        session_count: sessionCount,
+        total_amount: totalAmount,
       })
       .select()
       .single();
