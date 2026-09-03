@@ -226,11 +226,7 @@ export default function ParentDashboardPage() {
           <p className="text-[12.5px] leading-relaxed text-ink-muted">
             We verify all caregivers before they can accept a booking.
           </p>
-          <LinkButton
-            href="/parent/safety"
-            variant="secondary"
-            className="justify-center border-[var(--color-lavender-border)]"
-          >
+          <LinkButton href="/parent/safety" className="justify-center">
             Learn about safety
           </LinkButton>
         </Sheet>
