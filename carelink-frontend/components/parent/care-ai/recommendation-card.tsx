@@ -46,9 +46,12 @@ export function RecommendationCard({
         <p className="text-[13px] leading-relaxed text-ink-muted">{recommendation.reason}</p>
       )}
 
+      <p className="text-[13.5px] text-ink">
+        Would you like to request a {caregiverTypeLabel(recommendation.type)}?
+      </p>
       <div className="flex flex-wrap gap-2 pt-1">
         <Button onClick={() => onChoose(recommendation.type)}>
-          Continue with {caregiverTypeLabel(recommendation.type)}
+          Request a {caregiverTypeLabel(recommendation.type)}
         </Button>
         <Button variant="secondary" onClick={() => onChoose(other)}>
           Choose {caregiverTypeLabel(other)} Instead

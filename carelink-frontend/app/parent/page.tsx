@@ -120,18 +120,24 @@ export default function ParentDashboardPage() {
         </p>
       </div>
 
-      {/* CARELINK AI — the primary way to start. Advisory only: it never
-          picks a caregiver itself, it only produces a structured request
-          for the parent to confirm before the existing search runs. */}
+      {/* CARELINK AI — for a parent who isn't sure which service type they
+          need. Advisory only: it never picks, searches for, or books a
+          caregiver — it only recommends Nanny or Babysitter, then hands
+          off to the same structured request flow the direct cards below
+          use. Matching and dispatch happen only after that request. */}
       <Sheet className="flex flex-col gap-4 border-[var(--color-lavender-border)] bg-wisteria-tint sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sheet text-wisteria shadow-[var(--shadow-card)]">
             <Sparkle size={20} weight="fill" />
           </span>
           <div>
-            <p className="text-[17px] font-bold font-heading text-ink">✨ CareLink AI</p>
+            <p className="text-[17px] font-bold font-heading text-ink">CareLink AI</p>
+            <p className="text-[14px] font-semibold text-ink">
+              Not sure what type of care you need?
+            </p>
             <p className="text-[13.5px] text-ink-muted">
-              Tell us what you need and we&apos;ll help you find the right type of care.
+              Tell us about your situation and we&apos;ll help you decide between a Nanny or
+              Babysitter.
             </p>
           </div>
         </div>

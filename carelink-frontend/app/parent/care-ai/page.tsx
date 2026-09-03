@@ -8,22 +8,20 @@ import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
 import { RecommendationCard } from "@/components/parent/care-ai/recommendation-card";
-import { ConfirmationCard } from "@/components/parent/care-ai/confirmation-card";
 import { SCHEDULE_OPTIONS } from "@/components/parent/request-flow-panel";
-import type { Ward } from "@/components/find-care/types";
 import type { CareRequestDraft } from "@carelink/shared";
 
 type ChatTurn = { role: "user" | "assistant"; content: string };
 type Recommendation = { type: "nanny" | "babysitter"; reason: string };
 
 const SUGGESTED_PROMPTS = [
-  "I need a babysitter for my 4-year-old this Saturday from 9am to 3pm in East Legon.",
-  "I need regular weekday care for my toddler while I work.",
+  "I work 8am to 5pm and need someone to care for my 2-year-old while I'm at work.",
+  "I need someone to watch my daughter for four hours while I'm at an event on Saturday.",
   "Not sure what I need — help me decide.",
 ];
 
 const INTRO_MESSAGE =
-  "Hi, I'm CareLink AI 👋 Tell me a bit about the care you need — who it's for, and when — and I'll help you find the right caregiver.";
+  "Hi, I'm CareLink AI 👋 Not sure whether you need a Nanny or a Babysitter? Tell me a bit about your situation — how often you need care, and for how long — and I'll help you decide.";
 
 // The same bucketing suggestedSkillForAge already uses (0 → newborn,
 // 1–2 → infant, 3–4 → toddler, 5+ → school-age), just mapped onto the
@@ -42,19 +40,11 @@ function CareAiPage() {
   const [messages, setMessages] = useState<ChatTurn[]>([]);
   const [draft, setDraft] = useState<CareRequestDraft>({});
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
-  const [readyToConfirm, setReadyToConfirm] = useState(false);
   const [chosenType, setChosenType] = useState<"nanny" | "babysitter" | null>(null);
-  const [editing, setEditing] = useState(false);
 
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const [wards, setWards] = useState<Ward[] | null>(null);
-  const [wardId, setWardId] = useState("");
-  const [confirming, setConfirming] = useState(false);
-  const [dispatching, setDispatching] = useState(false);
-  const [confirmError, setConfirmError] = useState<string | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -86,43 +76,13 @@ function CareAiPage() {
   }, []);
 
   useEffect(() => {
-    apiFetch<{ wards: Ward[] }>("/api/wards")
-      .then((res) => setWards(res.wards))
-      .catch(() => setWards([]));
-  }, []);
-
-  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
-
-  // The parent's explicit choice (from the recommendation card, or
-  // carried over from an earlier direct-flow round trip) always wins
-  // over whatever the model's own draft.caregiverType says.
-  const effectiveDraft: CareRequestDraft = chosenType
-    ? { ...draft, caregiverType: chosenType }
-    : draft;
-  const canShowConfirmation = readyToConfirm && Boolean(effectiveDraft.caregiverType) && !editing;
-
-  // A best-effort ward suggestion by stated age — never auto-picked
-  // without a real ward existing, and the parent can always change it.
-  useEffect(() => {
-    if (!wards || wardId) return;
-    const suggested =
-      wards.length === 1
-        ? wards[0].id
-        : (wards.find((w) => w.age_years === draft.wardAgeYears)?.id ?? null);
-    if (!suggested) return;
-    // A derived default, not a synchronous external read — deferred out
-    // of the effect body the same way this codebase already handles
-    // react-hooks/set-state-in-effect elsewhere.
-    void Promise.resolve().then(() => setWardId(suggested));
-  }, [wards, draft.wardAgeYears, wardId]);
 
   async function send(text: string) {
     const trimmed = text.trim();
     if (!trimmed || loading) return;
     setError(null);
-    setEditing(false);
     setInput("");
     const nextMessages = [...messages, { role: "user" as const, content: trimmed }];
     setMessages(nextMessages);
@@ -132,7 +92,6 @@ function CareAiPage() {
         reply: string;
         draft: CareRequestDraft;
         recommendation: Recommendation | null;
-        readyToConfirm: boolean;
       }>("/api/care-assistant/message", {
         method: "POST",
         body: { messages: nextMessages, draft },
@@ -140,7 +99,6 @@ function CareAiPage() {
       setMessages((m) => [...m, { role: "assistant", content: res.reply }]);
       setDraft(res.draft);
       setRecommendation(res.recommendation);
-      setReadyToConfirm(res.readyToConfirm);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -148,56 +106,14 @@ function CareAiPage() {
     }
   }
 
-  async function createCareRequest(): Promise<{ id: string } | null> {
-    if (!wardId || !effectiveDraft.caregiverType) return null;
-    const res = await apiFetch<{ careRequest: { id: string } }>("/api/care-requests", {
-      method: "POST",
-      body: {
-        wardId,
-        source: "ai",
-        caregiverType: effectiveDraft.caregiverType,
-        date: effectiveDraft.date,
-        startTime: effectiveDraft.startTime,
-        endTime: effectiveDraft.endTime,
-        location: effectiveDraft.location,
-        skills: effectiveDraft.skills,
-        notes: effectiveDraft.notes,
-        aiRecommendation: recommendation?.type,
-        aiRecommendationReason: recommendation?.reason,
-      },
-    });
-    return res.careRequest;
-  }
-
-  async function confirm() {
-    if (!wardId || !effectiveDraft.caregiverType) return;
-    setConfirming(true);
-    setConfirmError(null);
-    try {
-      await createCareRequest();
-
-      const params = new URLSearchParams();
-      if (effectiveDraft.location) params.set("area", effectiveDraft.location);
-      if (effectiveDraft.date) params.set("date", effectiveDraft.date);
-      if (effectiveDraft.startTime) params.set("startTime", effectiveDraft.startTime);
-      if (effectiveDraft.endTime) params.set("endTime", effectiveDraft.endTime);
-      if (effectiveDraft.skills?.length) params.set("skills", effectiveDraft.skills.join(","));
-      params.set("type", effectiveDraft.caregiverType);
-      params.set("panel", effectiveDraft.caregiverType);
-      params.set("source", "ai");
-      router.push(`/parent/find-care?${params.toString()}`);
-    } catch (err) {
-      setConfirmError(errorMessage(err));
-    } finally {
-      setConfirming(false);
-    }
-  }
-
-  // Tapping either recommendation option hands off to the same request
-  // form the direct Nanny/Babysitter cards use, prefilled with whatever
-  // the conversation already established, rather than continuing to
-  // fill in the rest by chat — one form for finishing a request, whether
-  // its type came from CareLink AI's advice or the parent's own pick.
+  // CareLink AI's one real job is done the moment a type is chosen —
+  // per the finalized product flow, it never creates a care request,
+  // searches, or dispatches itself. Tapping either recommendation
+  // option hands off to the same structured request form the direct
+  // Nanny/Babysitter cards use (RequestFlowPanel, on Home), prefilled
+  // with whatever the conversation already established. That form is
+  // what actually creates the request and starts real matching —
+  // exactly as it does for a parent who skipped the AI entirely.
   function chooseType(type: "nanny" | "babysitter") {
     const params = new URLSearchParams();
     params.set("panel", type);
@@ -210,24 +126,6 @@ function CareAiPage() {
     if (draft.wardAgeYears != null) params.set("age", ageOptionFor(draft.wardAgeYears));
     if (draft.notes) params.set("requirements", draft.notes);
     router.push(`/parent?${params.toString()}`);
-  }
-
-  // The second, additive path: instead of browsing ranked results,
-  // dispatch the request to eligible caregivers one at a time.
-  async function dispatch() {
-    if (!wardId || !effectiveDraft.caregiverType) return;
-    setDispatching(true);
-    setConfirmError(null);
-    try {
-      const careRequest = await createCareRequest();
-      if (!careRequest) return;
-      await apiFetch(`/api/care-requests/${careRequest.id}/dispatch/start`, { method: "POST" });
-      router.push(`/parent/care-requests/${careRequest.id}`);
-    } catch (err) {
-      setConfirmError(errorMessage(err));
-    } finally {
-      setDispatching(false);
-    }
   }
 
   return (
@@ -305,44 +203,27 @@ function CareAiPage() {
           <RecommendationCard recommendation={recommendation} onChoose={chooseType} />
         )}
 
-        {canShowConfirmation && (
-          <ConfirmationCard
-            draft={effectiveDraft}
-            wards={wards ?? []}
-            wardId={wardId}
-            onSelectWard={setWardId}
-            onConfirm={() => void confirm()}
-            onDispatch={() => void dispatch()}
-            onEdit={() => setEditing(true)}
-            confirming={confirming}
-            dispatching={dispatching}
-          />
-        )}
-        {confirmError && <p className="text-[13px] text-error">{confirmError}</p>}
-
         <div ref={bottomRef} />
       </div>
 
-      {!canShowConfirmation && (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void send(input);
-          }}
-          className="flex gap-2"
-        >
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Describe the care you need…"
-            disabled={loading}
-            className="flex-1 rounded-[10px] border border-[var(--color-lavender-border)] bg-sheet px-3 py-2.5 text-[14px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
-          />
-          <Button type="submit" disabled={loading || !input.trim()}>
-            <PaperPlaneRight size={16} weight="fill" />
-          </Button>
-        </form>
-      )}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void send(input);
+        }}
+        className="flex gap-2"
+      >
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Describe the care you need…"
+          disabled={loading}
+          className="flex-1 rounded-[10px] border border-[var(--color-lavender-border)] bg-sheet px-3 py-2.5 text-[14px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
+        />
+        <Button type="submit" disabled={loading || !input.trim()}>
+          <PaperPlaneRight size={16} weight="fill" />
+        </Button>
+      </form>
     </div>
   );
 }
