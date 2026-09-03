@@ -10,6 +10,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { Avatar } from "@/components/ui/avatar";
 import { caregiverPhotoUrl } from "@/lib/photo-url";
 import { useAuth } from "@/lib/auth/auth-context";
+import { LocationPicker, type ResolvedLocation } from "@/components/location-picker";
 
 function skillLabel(skill: string): string {
   return skill.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -88,6 +89,10 @@ type Profile = {
   languages: string[];
   emergency_contact_name: string;
   emergency_contact_phone: string;
+  base_address: string | null;
+  base_latitude: number | null;
+  base_longitude: number | null;
+  base_place_id: string | null;
 } | null;
 
 const CAREGIVER_TYPES: { value: "nanny" | "babysitter"; label: string }[] = [
@@ -103,6 +108,7 @@ function ProfileSection() {
   const [languages, setLanguages] = useState("");
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [baseLocation, setBaseLocation] = useState<ResolvedLocation | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -119,6 +125,23 @@ function ProfileSection() {
           setLanguages(res.profile.languages.join(", "));
           setContactName(res.profile.emergency_contact_name);
           setContactPhone(res.profile.emergency_contact_phone);
+          if (
+            res.profile.base_address &&
+            res.profile.base_latitude != null &&
+            res.profile.base_longitude != null
+          ) {
+            setBaseLocation({
+              formattedAddress: res.profile.base_address,
+              latitude: res.profile.base_latitude,
+              longitude: res.profile.base_longitude,
+              placeId: res.profile.base_place_id,
+              coarseArea: null,
+              // Already resolved and saved — the original source (GPS
+              // fix vs typed address) isn't tracked for a base location,
+              // only for a care request's real-time enforcement rule.
+              source: "gps_address",
+            });
+          }
         }
         setLoaded(true);
       })
@@ -144,6 +167,10 @@ function ProfileSection() {
             .filter(Boolean),
           emergencyContactName: contactName,
           emergencyContactPhone: contactPhone,
+          baseAddress: baseLocation?.formattedAddress,
+          baseLatitude: baseLocation?.latitude,
+          baseLongitude: baseLocation?.longitude,
+          basePlaceId: baseLocation?.placeId ?? undefined,
         },
       });
       setSaved(true);
@@ -217,6 +244,23 @@ function ProfileSection() {
         value={contactPhone}
         onChange={(e) => setContactPhone(e.target.value)}
       />
+      <div className="flex flex-col gap-2">
+        <span className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+          Base location (optional)
+        </span>
+        <p className="text-[12.5px] text-ink-muted">
+          Where you normally operate from — not your exact current location. This is separate from
+          your service areas below, and helps CareLink match you with nearby requests.
+        </p>
+        <LocationPicker
+          value={baseLocation}
+          onChange={setBaseLocation}
+          description="Where do you normally operate from? This helps CareLink match you with nearby requests."
+          helperText="Your exact location is never shown to families — only used to find requests near you."
+          addressPlaceholder="Enter your base GPS address"
+          confirmedLabel="Base location confirmed"
+        />
+      </div>
       {error && <p className="text-[13px] text-error">{error}</p>}
       <Saved show={saved} />
       <Button type="submit" disabled={saving}>

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SearchCaregiversQuery } from "@carelink/shared";
+import { MAX_DISPATCH_LOCATION_AGE_SECONDS } from "@/lib/dispatch-config";
 import {
   checkAvailability,
   type AvailabilityException,
@@ -11,6 +12,7 @@ import {
   computeAvailabilityFit,
   computeBudgetFit,
   computeMatchScore,
+  computeProximityFit,
   computeRatingExperienceFit,
   computeSkillFit,
   type MatchBreakdown,
@@ -52,9 +54,21 @@ export type ScoredCaregiver = CaregiverRow & { matchScore: number; matchBreakdow
 type FilterStep = { name: string; message: string; countBefore: number; countAfter: number };
 
 export type CaregiverSearchOptions = {
-  // Dispatch-only: neither param is set by the existing search route.
+  // Dispatch-only: none of these are set by the existing search route.
   caregiverType?: "nanny" | "babysitter";
   excludeStaffProfileIds?: string[];
+  // CareLink location system, Part 4: require the caregiver to have
+  // explicitly gone Available for dispatch, with a location fix recent
+  // enough to trust — never applied to ordinary search, which must keep
+  // showing every accepting_bookings caregiver's profile regardless of
+  // whether they're live right now.
+  requireDispatchAvailable?: boolean;
+  // CareLink location system, Part 7/8: a real distance ring, replacing
+  // the area-string round for a request that has resolved coordinates.
+  // The caller (dispatch.ts) picks one or the other per request, never
+  // both — a request without coordinates keeps using query.area exactly
+  // as before.
+  maxDistanceKm?: number;
 };
 
 export type CaregiverSearchResult = {
@@ -109,6 +123,26 @@ export async function findEligibleCaregivers(
       (c) => !excluded.has(c.staff_profile_id),
     );
   }
+  if (options.requireDispatchAvailable && pool.length > 0) {
+    const ids = pool.map((c) => c.staff_profile_id);
+    const { data: freshness, error: freshnessErr } = await supabase
+      .from("caregiver_dispatch_freshness")
+      .select("staff_profile_id, updated_at")
+      .in("staff_profile_id", ids);
+    if (freshnessErr) throw freshnessErr;
+    const cutoff = Date.now() - MAX_DISPATCH_LOCATION_AGE_SECONDS * 1000;
+    const freshById = new Map(
+      (freshness ?? []).map((f) => [
+        f.staff_profile_id as string,
+        new Date(f.updated_at as string).getTime() >= cutoff,
+      ]),
+    );
+    applyFilter(
+      "dispatchAvailable",
+      "No caregivers are currently available for dispatch nearby.",
+      (c) => Boolean(c.dispatch_available) && freshById.get(c.staff_profile_id) === true,
+    );
+  }
   if (query.minExperience != null) {
     applyFilter(
       "minExperience",
@@ -139,6 +173,62 @@ export async function findEligibleCaregivers(
     const normalized = query.area.trim().toLowerCase();
     applyFilter("area", "Try a nearby area.", (c) =>
       c.areas.some((a) => a.area.trim().toLowerCase() === normalized),
+    );
+  }
+
+  // CareLink location system, Part 7: real distance, when the caller
+  // has resolved coordinates for the request (today: dispatch, from a
+  // care request's service location) — computed once here, reused both
+  // as a hard vicinity-ring filter (options.maxDistanceKm, below) and
+  // for scoring further down. A candidate without a distance (no live
+  // dispatch fix and no base location saved) is simply excluded from a
+  // maxDistanceKm filter but never blocked from ordinary search, where
+  // it keeps scoring on the existing area string-match instead.
+  const distanceById = new Map<string, number>();
+  if (query.latitude != null && query.longitude != null && pool.length > 0) {
+    const { data: distances, error: distanceErr } = await supabase.rpc(
+      "nearby_caregiver_distances",
+      {
+        request_lat: query.latitude,
+        request_lng: query.longitude,
+        staff_ids: pool.map((c) => c.staff_profile_id),
+      },
+    );
+    if (distanceErr) throw distanceErr;
+    for (const row of distances ?? []) {
+      distanceById.set(row.staff_profile_id as string, Number(row.distance_km));
+    }
+  }
+
+  if (options.maxDistanceKm != null) {
+    const maxKm = options.maxDistanceKm;
+    applyFilter(
+      "proximity",
+      "Try expanding your search radius.",
+      (c) => (distanceById.get(c.staff_profile_id) ?? Infinity) <= maxKm,
+    );
+  }
+
+  // A real "on duty right now" hard exclusion (CareLink location system,
+  // Part 5) — independent of whatever window is being requested. The
+  // availability check below already excludes a caregiver whose
+  // *scheduled* booking window overlaps the request, but a session
+  // running long past its stated end time (still status = 'active' in
+  // the database, session_ended_at still null) isn't caught by a
+  // time-range comparison alone. This checks the real, current status.
+  if (pool.length > 0) {
+    const ids = pool.map((c) => c.staff_profile_id);
+    const { data: busyNow, error: busyNowErr } = await supabase
+      .from("caregiver_busy_times")
+      .select("staff_profile_id, status")
+      .in("staff_profile_id", ids)
+      .eq("status", "active");
+    if (busyNowErr) throw busyNowErr;
+    const onDuty = new Set((busyNow ?? []).map((b) => b.staff_profile_id as string));
+    applyFilter(
+      "onDuty",
+      "Every eligible caregiver is currently on an active booking.",
+      (c) => !onDuty.has(c.staff_profile_id),
     );
   }
 
@@ -206,9 +296,13 @@ export async function findEligibleCaregivers(
     .map((c) => {
       const primary = c.areas.find((a) => a.isPrimary)?.area ?? null;
       const others = c.areas.filter((a) => !a.isPrimary).map((a) => a.area);
+      const distanceKm = distanceById.get(c.staff_profile_id);
 
       const { score, breakdown } = computeMatchScore(weights, {
-        area: computeAreaFit(query.area ?? null, primary, others),
+        area:
+          distanceKm != null
+            ? computeProximityFit(distanceKm)
+            : computeAreaFit(query.area ?? null, primary, others),
         skills: computeSkillFit(query.skills ?? [], c.skills ?? []),
         budget: computeBudgetFit(c.hourly_rate, query.budgetCeiling ?? null),
         ratingExperience: computeRatingExperienceFit(
@@ -220,7 +314,11 @@ export async function findEligibleCaregivers(
         availability: computeAvailabilityFit(720),
       });
 
-      return { ...c, matchScore: score, matchBreakdown: breakdown };
+      // Rounded to one decimal — a real, derived number (never a raw
+      // coordinate), safe to show a parent per the location system's
+      // own privacy rule; null when no distance could be computed.
+      const distanceKmRounded = distanceKm != null ? Math.round(distanceKm * 10) / 10 : null;
+      return { ...c, matchScore: score, matchBreakdown: breakdown, distanceKm: distanceKmRounded };
     })
     .sort((a, b) => b.matchScore - a.matchScore);
 

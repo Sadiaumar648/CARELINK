@@ -39,6 +39,10 @@ export function LocationPicker({
   value,
   onChange,
   initialQuery,
+  description = "We need the exact location where your caregiver will provide care.",
+  helperText = "Your location is used to find nearby available caregivers.",
+  addressPlaceholder = "Enter the GPS address where care will take place",
+  confirmedLabel = "Care location confirmed",
 }: {
   value: ResolvedLocation | null;
   onChange: (value: ResolvedLocation | null) => void;
@@ -47,6 +51,15 @@ export function LocationPicker({
   // treated as already resolved. Opens straight into address-entry
   // mode, pre-filled, so the parent only has to confirm it.
   initialQuery?: string;
+  // All three default to the parent/service-location framing (this
+  // component's original context); the caregiver base-location reuse
+  // (staff-profile-setup.tsx) overrides them, since "your caregiver
+  // will provide care" makes no sense read back at a caregiver about
+  // their own base location.
+  description?: string;
+  helperText?: string;
+  addressPlaceholder?: string;
+  confirmedLabel?: string;
 }) {
   const [phase, setPhase] = useState<Phase>(initialQuery ? "address-entry" : "prompt");
   const [query, setQuery] = useState(initialQuery ?? "");
@@ -143,7 +156,7 @@ export function LocationPicker({
     return (
       <div className="flex flex-col gap-2 rounded-[12px] border border-[var(--color-lavender-border)] bg-wisteria-tint p-3.5">
         <p className="flex items-center gap-1.5 text-[13px] font-semibold text-wisteria-pressed">
-          <CheckCircle size={16} weight="fill" /> Care location confirmed
+          <CheckCircle size={16} weight="fill" /> {confirmedLabel}
         </p>
         <p className="text-[14px] text-ink">{value.formattedAddress}</p>
         <button
@@ -161,9 +174,7 @@ export function LocationPicker({
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[12.5px] text-ink-muted">
-        We need the exact location where your caregiver will provide care.
-      </p>
+      <p className="text-[12.5px] text-ink-muted">{description}</p>
 
       <div className="flex flex-wrap gap-2">
         <Button type="button" variant="secondary" onClick={useCurrentLocation} disabled={busy}>
@@ -185,7 +196,7 @@ export function LocationPicker({
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Enter the GPS address where care will take place"
+            placeholder={addressPlaceholder}
             disabled={phase === "resolving"}
             className="w-full rounded-[10px] border border-[var(--color-lavender-border)] bg-sheet px-3 py-2.5 text-[14px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
           />
@@ -202,9 +213,7 @@ export function LocationPicker({
 
       {error && <p className="text-[13px] text-error">{error}</p>}
 
-      <p className="text-[11.5px] text-ink-muted">
-        Your location is used to find nearby available caregivers.
-      </p>
+      <p className="text-[11.5px] text-ink-muted">{helperText}</p>
     </div>
   );
 }

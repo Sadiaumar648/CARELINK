@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { CalendarBlank, ChatCircle, ShieldWarning, Tray } from "@phosphor-icons/react";
+import { CalendarBlank, ChatCircle, MapPin, ShieldWarning, Tray } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { BookingCardSkeleton } from "@/components/ui/skeleton";
+import { minutesAgoLabel } from "@/lib/relative-time";
 
 type Booking = {
   id: string;
@@ -303,6 +304,139 @@ function DashboardSummary({ pendingCount }: { pendingCount: number | null }) {
   );
 }
 
+// How often the location fix is refreshed while Available — well under
+// MAX_DISPATCH_LOCATION_AGE_SECONDS (10 minutes, backend/dispatch-
+// config.ts) so a caregiver who leaves the tab open stays fresh, but
+// nowhere near continuous watchPosition tracking. Only runs at all
+// while dispatch_available is true; stops immediately on Off Duty or
+// leaving the page (Part 4/9's "no 24/7 tracking" rule).
+const LOCATION_REFRESH_INTERVAL_MS = 4 * 60 * 1000;
+
+type DispatchStatus = { available: boolean; updatedAt: string | null };
+
+// CareLink location system, Part 4 — the caregiver's own control for
+// live dispatch eligibility. Location is only ever requested once the
+// caregiver explicitly taps this, same discipline as SafeTrack
+// (components/safe-track.tsx): never on page load, never silently.
+function GoAvailableControl() {
+  const [status, setStatus] = useState<DispatchStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const refreshTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    apiFetch<DispatchStatus>("/api/staff/dispatch-status")
+      .then(setStatus)
+      .catch((err) => setError(errorMessage(err)));
+  }, []);
+
+  function stopRefreshing() {
+    if (refreshTimer.current) {
+      clearInterval(refreshTimer.current);
+      refreshTimer.current = null;
+    }
+  }
+
+  // The one shared step both the initial "Go Available" tap and every
+  // periodic refresh use — a fresh GPS fix, sent up immediately.
+  function captureAndSend(onDone: (result: DispatchStatus | null) => void) {
+    if (!navigator.geolocation) {
+      onDone(null);
+      setError("Your device doesn't support location access.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        apiFetch<{ available: boolean }>("/api/staff/dispatch-status", {
+          method: "POST",
+          body: {
+            available: true,
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          },
+        })
+          .then(() => onDone({ available: true, updatedAt: new Date().toISOString() }))
+          .catch((err) => {
+            setError(errorMessage(err));
+            onDone(null);
+          });
+      },
+      (err) => {
+        setError(
+          err.code === err.PERMISSION_DENIED
+            ? "Location access was denied. Enable it in your browser's site settings to go Available."
+            : "We couldn't get your location right now. Try again in a moment.",
+        );
+        onDone(null);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
+    );
+  }
+
+  function goAvailable() {
+    setError(null);
+    setBusy(true);
+    captureAndSend((result) => {
+      setBusy(false);
+      if (!result) return;
+      setStatus(result);
+      stopRefreshing();
+      refreshTimer.current = setInterval(() => {
+        captureAndSend((refreshed) => {
+          if (refreshed) setStatus(refreshed);
+        });
+      }, LOCATION_REFRESH_INTERVAL_MS);
+    });
+  }
+
+  function goOffDuty() {
+    setError(null);
+    setBusy(true);
+    stopRefreshing();
+    apiFetch<{ available: boolean }>("/api/staff/dispatch-status", {
+      method: "POST",
+      body: { available: false },
+    })
+      .then(() => setStatus({ available: false, updatedAt: null }))
+      .catch((err) => setError(errorMessage(err)))
+      .finally(() => setBusy(false));
+  }
+
+  useEffect(() => stopRefreshing, []);
+
+  if (!status) return null;
+
+  return (
+    <Sheet className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-[14px] font-semibold text-ink">
+          <MapPin size={18} className={status.available ? "text-wisteria" : "text-ink-muted"} />
+          {status.available ? "You're Available for dispatch" : "You're Off Duty"}
+        </h2>
+        <Button
+          size="lg"
+          variant={status.available ? "secondary" : "primary"}
+          onClick={status.available ? goOffDuty : goAvailable}
+          disabled={busy}
+        >
+          {busy ? "Updating…" : status.available ? "Go Off Duty" : "Go Available"}
+        </Button>
+      </div>
+      <p className="text-[12.5px] text-ink-muted">
+        Location access is required while you&apos;re Available so CareLink can match you with
+        nearby care requests. This is separate from being on an active booking — you can turn it off
+        anytime, and CareLink never tracks your location while you&apos;re Off Duty.
+      </p>
+      {status.available && status.updatedAt && (
+        <p className="text-[12px] text-ink-muted">
+          Location last updated {minutesAgoLabel(status.updatedAt)}
+        </p>
+      )}
+      {error && <p className="text-[13px] text-error">{error}</p>}
+    </Sheet>
+  );
+}
+
 export default function StaffRequestsPage() {
   const [bookings, setBookings] = useState<Booking[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -317,6 +451,7 @@ export default function StaffRequestsPage() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8 p-6">
       <DashboardSummary pendingCount={bookings?.length ?? null} />
+      <GoAvailableControl />
 
       <div className="flex flex-col gap-1">
         <h2 className="text-[20px] font-semibold font-heading">Care Requests</h2>

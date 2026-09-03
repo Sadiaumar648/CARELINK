@@ -40,6 +40,10 @@ export async function PATCH(request: Request) {
           languages: body.languages,
           emergency_contact_name: body.emergencyContactName,
           emergency_contact_phone: body.emergencyContactPhone,
+          base_address: body.baseAddress ?? null,
+          base_latitude: body.baseLatitude ?? null,
+          base_longitude: body.baseLongitude ?? null,
+          base_place_id: body.basePlaceId ?? null,
         },
         { onConflict: "user_id" },
       )

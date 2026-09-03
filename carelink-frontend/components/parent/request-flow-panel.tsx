@@ -16,7 +16,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { Field } from "@/components/ui/field";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
-import { LocationPicker, type ResolvedLocation } from "@/components/parent/location-picker";
+import { LocationPicker, type ResolvedLocation } from "@/components/location-picker";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { suggestedSkillForAge, type SearchFilters, type Ward } from "@/components/find-care/types";

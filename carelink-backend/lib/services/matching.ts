@@ -47,6 +47,21 @@ export function computeAreaFit(
   return 0;
 }
 
+// CareLink location system, Part 7: real distance, once both the
+// request and the caregiver have resolved coordinates. Full score at
+// 0km, decaying linearly to 0 at maxRelevantKm — beyond that radius,
+// proximity stops meaningfully differentiating candidates for a
+// city-scale childcare service. Kept as a separate function from
+// computeAreaFit (not a replacement) — see lib/services/
+// caregiver-search.ts for how the two combine: proximity is used in
+// place of the area string-match only for a candidate that actually
+// has a distance computed, so a partially-migrated caregiver roster
+// (some with coordinates, some without) never breaks — everyone else
+// keeps scoring on computeAreaFit exactly as before.
+export function computeProximityFit(distanceKm: number, maxRelevantKm = 20): number {
+  return clamp01(1 - distanceKm / maxRelevantKm);
+}
+
 /** Proportion of the parent's requested skills the caregiver actually has. */
 export function computeSkillFit(requestedSkills: string[], caregiverSkills: string[]): number {
   if (requestedSkills.length === 0) return 1;
