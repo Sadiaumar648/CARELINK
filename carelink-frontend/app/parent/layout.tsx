@@ -10,9 +10,9 @@ import { ParentHeaderProfile } from "@/components/parent/header-profile";
 // a desktop sidebar (RoleShell's rail is hidden via railWidthClassName
 // below) — Find Care/Messages/Notifications live as header icons
 // (ParentHeaderIcons + the existing NotificationsBell), and
-// Help & Support/Settings live in the profile dropdown
-// (ParentHeaderProfile). My Wards, My Bookings, and Payment Methods are
-// all reachable from /parent/account (Settings), same as before.
+// Settings lives in the profile dropdown (ParentHeaderProfile). My
+// Wards, My Bookings, Payment Methods, and Help & Support are all
+// reachable from /parent/account (Settings), same as before.
 //
 // The mobile bottom tab bar is unaffected by any of this — a phone
 // still needs labelled nav, so it keeps its own curated 5 items.
