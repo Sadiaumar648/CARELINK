@@ -10,8 +10,12 @@ import { getOwnParentProfileId } from "@/lib/parents";
 // scores a caregiver itself: the frontend still calls the existing
 // GET /api/search/caregivers with the same filters afterward. The one
 // real rule this route enforces server-side, independent of the
-// frontend or the AI layer: no location, no row — createCareRequestSchema
-// requires it, so a missing location fails validation with 400 here.
+// frontend or the AI layer: no resolved, map-verified service location,
+// no row — createCareRequestSchema requires serviceLatitude/
+// serviceLongitude and locationResolved === true together, so a
+// request with only a typed area name (no real coordinates) fails
+// validation with 400 here, exactly as it would with no location at
+// all.
 export async function POST(request: Request) {
   try {
     const { supabase, userId } = await requireRole(request, ["parent"]);
@@ -44,6 +48,12 @@ export async function POST(request: Request) {
         start_time: body.startTime,
         end_time: body.endTime,
         location: body.location,
+        service_address: body.serviceAddress,
+        service_latitude: body.serviceLatitude,
+        service_longitude: body.serviceLongitude,
+        location_place_id: body.locationPlaceId ?? null,
+        location_source: body.locationSource,
+        location_resolved: body.locationResolved,
         skills: body.skills ?? [],
         notes: body.notes ?? null,
         ai_recommendation: body.aiRecommendation ?? null,

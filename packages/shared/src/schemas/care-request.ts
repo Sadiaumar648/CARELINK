@@ -23,8 +23,25 @@ export const createCareRequestSchema = z
     startTime: timeString,
     endTime: timeString,
     // The enforced rule: no location, no request. Real backend
-    // validation, not a UI-only check.
+    // validation, not a UI-only check. Kept as the coarse area/suburb
+    // string (never a full street address) so it keeps exact-matching
+    // against staff_areas.area exactly as it always has — see
+    // serviceAddress below for what the parent actually sees.
     location: z.string().trim().min(1, "Add a care location before searching"),
+    // CareLink's finalized location system: the actual place WHERE CARE
+    // WILL TAKE PLACE, resolved to a real map point — never just a typed
+    // area name. serviceAddress is the full, precise, human-readable
+    // address shown to and confirmed by the parent (distinct from the
+    // coarse `location` above). locationResolved is checked (below,
+    // .refine) for being the literal `true` — not merely present — so a
+    // client can't claim a location is resolved without also sending
+    // the coordinates that make it so.
+    serviceAddress: z.string().trim().min(1).max(300),
+    serviceLatitude: z.number().min(-90).max(90),
+    serviceLongitude: z.number().min(-180).max(180),
+    locationPlaceId: z.string().trim().max(200).optional(),
+    locationSource: z.enum(["current_location", "gps_address"]),
+    locationResolved: z.boolean(),
     skills: z.array(skillTagSchema).max(10).optional(),
     notes: z.string().trim().max(1000).optional(),
     aiRecommendation: caregiverTypeSchema.optional(),
@@ -33,6 +50,10 @@ export const createCareRequestSchema = z
   .refine((r) => r.endTime > r.startTime, {
     message: "End time must be after start time",
     path: ["endTime"],
+  })
+  .refine((r) => r.locationResolved === true, {
+    message: "Add an exact, map-resolved care location before continuing",
+    path: ["locationResolved"],
   });
 
 export type CreateCareRequestInput = z.infer<typeof createCareRequestSchema>;

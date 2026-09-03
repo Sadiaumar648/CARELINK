@@ -16,6 +16,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { Field } from "@/components/ui/field";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
+import { LocationPicker, type ResolvedLocation } from "@/components/parent/location-picker";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { suggestedSkillForAge, type SearchFilters, type Ward } from "@/components/find-care/types";
@@ -181,7 +182,7 @@ export function RequestFlowPanel({
   // a genuine hour count prefills this.
   const [duration, setDuration] = useState(initial?.hours ?? "4");
   const [repeat, setRepeat] = useState("once");
-  const [area, setArea] = useState(initial?.area ?? "");
+  const [location, setLocation] = useState<ResolvedLocation | null>(null);
   const [requirementChips, setRequirementChips] = useState<Set<string>>(new Set());
   const [showOther, setShowOther] = useState(Boolean(initial?.requirements));
   const [requirements, setRequirements] = useState(initial?.requirements ?? "");
@@ -243,10 +244,14 @@ export function RequestFlowPanel({
       setFormError("Choose a start date and time to continue.");
       return;
     }
-    // CareLink's strict rule: no location, no caregiver search — enforced
-    // here and again by the backend (POST /api/care-requests requires it).
-    if (!area.trim()) {
-      setFormError("Add a care location so we can find caregivers who serve your area.");
+    // CareLink's strict rule: no valid, map-resolved location, no
+    // caregiver search — enforced here and again by the backend
+    // (POST /api/care-requests requires the real coordinates, not just
+    // a non-empty string).
+    if (!location) {
+      setFormError(
+        "Where will care take place? Please provide an exact GPS location so we can find caregivers who can serve you.",
+      );
       return;
     }
     setFormError(null);
@@ -254,7 +259,11 @@ export function RequestFlowPanel({
 
     try {
       const endTime = addHours(startTime, Number(duration));
-      const filters: SearchFilters = { date: startDate, startTime, endTime, area: area.trim() };
+      // The coarse area — never the full address — is what still feeds
+      // the existing area-string search/dispatch filters, exactly as a
+      // typed area name did before.
+      const searchArea = location.coarseArea ?? location.formattedAddress;
+      const filters: SearchFilters = { date: startDate, startTime, endTime, area: searchArea };
       if (requirementChips.size > 0) filters.skills = Array.from(requirementChips);
 
       const notesParts: string[] = [];
@@ -275,7 +284,13 @@ export function RequestFlowPanel({
           date: filters.date,
           startTime: filters.startTime,
           endTime: filters.endTime,
-          location: filters.area,
+          location: searchArea,
+          serviceAddress: location.formattedAddress,
+          serviceLatitude: location.latitude,
+          serviceLongitude: location.longitude,
+          locationPlaceId: location.placeId ?? undefined,
+          locationSource: location.source,
+          locationResolved: true,
           skills: filters.skills,
           notes: notesParts.join(" ") || undefined,
         },
@@ -464,22 +479,7 @@ export function RequestFlowPanel({
               </span>
               Where will care take place?
             </h2>
-            <div className="relative">
-              <MapPin
-                size={17}
-                className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-muted"
-              />
-              <input
-                value={area}
-                onChange={(e) => setArea(e.target.value)}
-                placeholder="Enter your care location"
-                required
-                className="w-full rounded-[10px] border border-[var(--color-lavender-border)] bg-sheet py-2.5 pr-3 pl-9 text-[15px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
-              />
-            </div>
-            <p className="text-[12px] text-ink-muted">
-              Your care location is required so we can find caregivers who serve your area.
-            </p>
+            <LocationPicker value={location} onChange={setLocation} initialQuery={initial?.area} />
           </section>
 
           {/* 4. WHAT HELP */}
