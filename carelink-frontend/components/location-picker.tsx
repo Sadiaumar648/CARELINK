@@ -196,15 +196,17 @@ export function LocationPicker({
   }
 
   if (value) {
-    // Which radio should read as selected in the confirmed state is
-    // exactly what actually produced this value — never separate,
-    // driftable state.
-    const isCurrentLocation = value.source === "current_location";
+    // The radio layout's finalized copy: either method reaching a real,
+    // resolved value reads the same uniform way — "Location confirmed"
+    // — never a different message depending on which of the two
+    // equally-valid methods produced it. The buttons layout (the
+    // caregiver base-location picker) keeps its own, unrelated
+    // confirmedLabel exactly as it always has.
+    const label = layout === "radio" ? "Location confirmed" : confirmedLabel;
     return (
       <div className="flex flex-col gap-2 rounded-[12px] border border-[var(--color-lavender-border)] bg-wisteria-tint p-3.5">
         <p className="flex items-center gap-1.5 text-[13px] font-semibold text-wisteria-pressed">
-          <CheckCircle size={16} weight="fill" />{" "}
-          {isCurrentLocation ? "Location detected" : confirmedLabel}
+          <CheckCircle size={16} weight="fill" /> {label}
         </p>
         <p className="text-[14px] text-ink">{value.formattedAddress}</p>
         <button
@@ -236,7 +238,10 @@ export function LocationPicker({
 
     return (
       <div className="flex flex-col gap-3">
-        <p className="text-[12.5px] text-ink-muted">{description}</p>
+        <div className="flex flex-col gap-0.5">
+          <p className="text-[12.5px] text-ink-muted">{description}</p>
+          <p className="text-[12.5px] font-medium text-ink">Choose one option below.</p>
+        </div>
 
         <div className="flex flex-col gap-2">
           <label
