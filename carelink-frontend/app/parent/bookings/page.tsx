@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarCheck, MagnifyingGlass } from "@phosphor-icons/react";
+import { ArrowLeft, CalendarCheck, MagnifyingGlass } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
@@ -181,6 +181,12 @@ export default function ParentBookingsPage() {
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
+      <Link
+        href="/parent/account"
+        className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-muted hover:text-ink"
+      >
+        <ArrowLeft size={16} /> Back to Settings
+      </Link>
       <div className="flex flex-col gap-1">
         <h1 className="text-[26px] font-semibold font-heading">My Bookings</h1>
         <p className="text-[14px] text-ink-muted">

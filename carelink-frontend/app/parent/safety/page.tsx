@@ -29,7 +29,7 @@ export default function ParentSafetyPage() {
         href="/parent/account"
         className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-muted hover:text-ink"
       >
-        <ArrowLeft size={16} /> Profile
+        <ArrowLeft size={16} /> Back to Settings
       </Link>
       <div className="flex flex-col gap-1">
         <h1 className="text-[26px] font-semibold font-heading">Safety & Privacy</h1>
