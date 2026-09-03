@@ -11,6 +11,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { BookingCardSkeleton } from "@/components/ui/skeleton";
 import { minutesAgoLabel } from "@/lib/relative-time";
+import { useCountdown } from "@/lib/use-countdown";
 
 type Booking = {
   id: string;
@@ -27,40 +28,6 @@ type Booking = {
   // shows no countdown at all, unchanged from before.
   offer_expires_at?: string | null;
 };
-
-// A live countdown derived from a real server timestamp, not a
-// frontend-owned timer — the backend (the parent's own poll of the
-// dispatch status) is what actually expires the offer; this only
-// displays what's already true.
-function useCountdown(expiresAt: string | null | undefined): string | null {
-  const [label, setLabel] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!expiresAt) {
-      void Promise.resolve().then(() => setLabel(null));
-      return;
-    }
-    function tick() {
-      const msLeft = new Date(expiresAt!).getTime() - Date.now();
-      if (msLeft <= 0) {
-        setLabel("Expiring…");
-        return;
-      }
-      const totalSeconds = Math.floor(msLeft / 1000);
-      const minutes = Math.floor(totalSeconds / 60);
-      const seconds = totalSeconds % 60;
-      setLabel(`${minutes}:${String(seconds).padStart(2, "0")}`);
-    }
-    // The first tick is a synchronous derived read, deferred out of the
-    // effect body itself, same as this codebase's established pattern;
-    // every tick after that runs from the interval's own callback.
-    void Promise.resolve().then(tick);
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [expiresAt]);
-
-  return label;
-}
 
 function formatRange(startsAt: string, endsAt: string): string {
   const start = new Date(startsAt);

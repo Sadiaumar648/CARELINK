@@ -1,6 +1,7 @@
 import {
   Bell,
   CheckCircle,
+  Clock,
   Money,
   SealCheck,
   Tray,
@@ -27,6 +28,8 @@ export const KIND_META: Record<
   booking_declined: { icon: WarningCircle, label: "Booking update", tone: "attention" },
   payment_received: { icon: Money, label: "Payment received", tone: "info" },
   booking_completed: { icon: CheckCircle, label: "Booking completed", tone: "verified" },
+  payment_window_expired: { icon: Clock, label: "Payment window expired", tone: "attention" },
+  booking_released: { icon: Clock, label: "Booking released", tone: "neutral" },
   verification_verified: { icon: SealCheck, label: "Verification approved", tone: "verified" },
   verification_rejected: { icon: XCircle, label: "Verification update", tone: "attention" },
 };

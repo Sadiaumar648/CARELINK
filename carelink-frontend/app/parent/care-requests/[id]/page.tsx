@@ -8,6 +8,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { Button, LinkButton } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/empty-state";
 import { caregiverTypeLabel } from "@/components/find-care/types";
+import { useCountdown } from "@/lib/use-countdown";
 
 // The real, locked terms of the one booking dispatch created for this
 // offer — fetched from the existing GET /api/bookings/[id] (the same
@@ -30,6 +31,11 @@ type ActiveOffer = {
   hourlyRate: number;
   expiresAt: string | null;
   status: string;
+  // CareLink's finalized payment workflow, Part 4 — see
+  // lib/services/payment-window.ts (backend) for where these are
+  // actually computed and enforced; never derived on this page.
+  paymentDeadline: string | null;
+  paymentExpired: boolean;
 };
 
 type DispatchStatus = {
@@ -166,13 +172,32 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
 
-  const active = !status || !TERMINAL.has(status.dispatchStatus);
+  // Polling must keep running through the whole "accepted" state, not
+  // just stop the moment a caregiver accepts — the payment window's own
+  // expiry (or a successful payment) only ever becomes visible through
+  // another poll, since dispatch_status itself never changes again once
+  // it reaches 'accepted'. Only actually stops once the underlying
+  // booking has resolved away from 'accepted' (paid, or the payment
+  // window's own lazy sweep cancelled it).
+  const active =
+    !status ||
+    !TERMINAL.has(status.dispatchStatus) ||
+    (status.dispatchStatus === "accepted" && status.activeOffer?.status === "accepted");
   useDispatchPolling(id, setStatus, setError, active);
 
   const activeOffer = status?.dispatchStatus === "accepted" ? (status.activeOffer ?? null) : null;
+  const offerAwaitingPayment = activeOffer?.status === "accepted";
+  const offerPaymentExpired = Boolean(activeOffer?.paymentExpired);
   const { booking: offerBooking, caregiverType } = useOfferDetails(
     activeOffer?.bookingId ?? null,
     activeOffer?.staffProfileId ?? null,
+  );
+  // The real countdown to the payment deadline — only ever ticking while
+  // the offer is genuinely still awaiting payment. The backend
+  // (lib/services/payment-window.ts) is what actually enforces this;
+  // this is a display only.
+  const paymentCountdown = useCountdown(
+    offerAwaitingPayment ? (activeOffer?.paymentDeadline ?? null) : null,
   );
 
   async function cancel() {
@@ -255,7 +280,7 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
         </Sheet>
       )}
 
-      {status.dispatchStatus === "accepted" && status.activeOffer && (
+      {status.dispatchStatus === "accepted" && status.activeOffer && offerAwaitingPayment && (
         <Sheet className="flex flex-col items-center gap-4 border-[var(--color-lavender-border)] py-10 text-center">
           <CheckCircle size={40} weight="fill" className="text-[var(--color-success)]" />
           <div>
@@ -264,6 +289,12 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
               Your caregiver has accepted this request. Complete payment to confirm your booking.
             </p>
           </div>
+
+          {paymentCountdown && (
+            <p className="rounded-full bg-error-tint px-3 py-1 text-[12.5px] font-semibold text-error">
+              Payment required within {paymentCountdown}
+            </p>
+          )}
 
           {/* The real, locked terms of this offer — every figure here
               comes straight from the booking row payment will charge,
@@ -326,6 +357,17 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
               Pay & Confirm Booking
             </LinkButton>
           </div>
+        </Sheet>
+      )}
+
+      {status.dispatchStatus === "accepted" && status.activeOffer && offerPaymentExpired && (
+        <Sheet className="flex flex-col items-center gap-4 border-[var(--color-lavender-border)] py-10 text-center">
+          <h1 className="text-[19px] font-bold font-heading text-ink">Payment window expired</h1>
+          <p className="mt-1 text-[13.5px] text-ink-muted">
+            This caregiver is no longer reserved for this booking. You can request care again when
+            you&apos;re ready.
+          </p>
+          <LinkButton href="/parent">Request Care Again</LinkButton>
         </Sheet>
       )}
 

@@ -26,6 +26,7 @@ import { SosScreen } from "@/components/sos-screen";
 import { SafeTrackCaregiverControl } from "@/components/safe-track";
 import { CaregiverLocationView } from "@/components/caregiver-location-view";
 import { caregiverPhotoUrl } from "@/lib/photo-url";
+import { useCountdown } from "@/lib/use-countdown";
 
 type Booking = {
   id: string;
@@ -167,6 +168,10 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
     "carelink" | "agency" | null
   >(null);
   const [careLocationGeneral, setCareLocationGeneral] = useState<string | null>(null);
+  // CareLink's finalized payment workflow, Part 4 — both computed
+  // server-side (lib/services/payment-window.ts), never derived here.
+  const [paymentDeadline, setPaymentDeadline] = useState<string | null>(null);
+  const [paymentExpired, setPaymentExpired] = useState(false);
   const [events, setEvents] = useState<BookingEvent[]>([]);
   const [caregiver, setCaregiver] = useState<CaregiverBrief | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -178,6 +183,8 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
   function load() {
     apiFetch<{
       booking: Booking;
+      paymentDeadline: string | null;
+      paymentExpired: boolean;
       careLocationGeneral: string | null;
       ward: Ward;
       events: BookingEvent[];
@@ -189,6 +196,8 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
       .then((res) => {
         setError(null);
         setBooking(res.booking);
+        setPaymentDeadline(res.paymentDeadline);
+        setPaymentExpired(res.paymentExpired);
         setCareLocationGeneral(res.careLocationGeneral);
         setWard(res.ward);
         setEvents(res.events);
@@ -201,6 +210,20 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
   }
 
   useEffect(load, [id]);
+
+  // While a booking is genuinely awaiting payment, keep re-checking it —
+  // the payment window's own server-side expiry (or the parent paying
+  // from a different tab/device) only ever becomes visible through a
+  // fresh fetch, same reasoning as the dispatch status page's own poll.
+  const bookingStatus = booking?.status;
+  useEffect(() => {
+    if (bookingStatus !== "accepted") return;
+    const interval = setInterval(load, 5000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load() closes over id via props, re-created each render; only bookingStatus should restart the interval
+  }, [bookingStatus]);
+
+  const paymentCountdown = useCountdown(bookingStatus === "accepted" ? paymentDeadline : null);
 
   const staffProfileId = booking?.staff_profile_id;
   useEffect(() => {
@@ -307,6 +330,27 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
             {caregiver?.full_name ?? "Your caregiver"} has accepted this request. Complete payment
             to confirm your booking.
           </p>
+          {paymentCountdown && (
+            <p className="rounded-full bg-error-tint px-3 py-1 text-[12.5px] font-semibold text-error">
+              Payment required within {paymentCountdown}
+            </p>
+          )}
+        </Sheet>
+      )}
+
+      {booking.status === "cancelled" && paymentExpired && (
+        <Sheet className="flex flex-col items-center gap-2 text-center">
+          <p className="text-[16px] font-semibold text-ink">Payment window expired</p>
+          <p className="text-[13px] text-ink-muted">
+            {viewerRole === "parent"
+              ? "This caregiver is no longer reserved for this booking. You can request care again when you're ready."
+              : "This unpaid booking was automatically released — you're available for new requests."}
+          </p>
+          {viewerRole === "parent" && (
+            <Link href="/parent">
+              <Button variant="secondary">Request Care Again</Button>
+            </Link>
+          )}
         </Sheet>
       )}
 
@@ -427,7 +471,7 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
         </Sheet>
       )}
 
-      {(booking.decline_reason || booking.cancel_reason) && (
+      {(booking.decline_reason || booking.cancel_reason) && !paymentExpired && (
         <p className="text-[13px] text-ink-muted">
           Reason: {booking.decline_reason ?? booking.cancel_reason}
         </p>

@@ -39,7 +39,14 @@ export async function GET(request: Request, ctx: RouteContext<"/api/payments/[id
     if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
 
     if (outcome === "succeeded") {
-      await supabase.from("bookings").update({ status: "paid" }).eq("id", payment.booking_id);
+      // Same race guard as the payments POST route: only lands 'paid'
+      // over a still-'accepted' booking, never over one the payment
+      // window's own lazy sweep already released in the meantime.
+      await supabase
+        .from("bookings")
+        .update({ status: "paid" })
+        .eq("id", payment.booking_id)
+        .eq("status", "accepted");
     }
 
     return NextResponse.json({ payment: updated });

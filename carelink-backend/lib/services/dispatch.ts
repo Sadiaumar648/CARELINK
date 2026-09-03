@@ -3,6 +3,11 @@ import { calculateTotalAmount, hourlyRateFor, type SkillTag } from "@carelink/sh
 import { findEligibleCaregivers, loadMatchWeights } from "@/lib/services/caregiver-search";
 import { generateBookingReference } from "@/lib/bookings";
 import { DISPATCH_VICINITY_RADII_KM, MAX_VICINITY_ROUND } from "@/lib/dispatch-config";
+import {
+  expirePaymentWindowIfPassed,
+  isPaymentExpired,
+  paymentDeadline as computePaymentDeadline,
+} from "@/lib/services/payment-window";
 
 // The sequential dispatch engine. Every function here runs using the
 // CALLING PARENT's own RLS-scoped Supabase client (never service-role) —
@@ -26,6 +31,17 @@ export type ActiveOfferSummary = {
   hourlyRate: number;
   expiresAt: string | null;
   status: string;
+  // CareLink's finalized payment workflow, Part 4: the real deadline
+  // this offer's 10-minute payment window closes at — null once there's
+  // nothing left to count down to (not yet accepted, or already
+  // resolved). A frontend countdown is built from this real timestamp,
+  // never a duration it invents itself.
+  paymentDeadline: string | null;
+  // True only when this offer's booking was cancelled by the payment
+  // window's own lazy sweep — never a parent/staff-initiated cancel —
+  // so the UI can show "Payment window expired" instead of a generic
+  // cancellation message.
+  paymentExpired: boolean;
 };
 
 export type DispatchStatusResult = {
@@ -52,16 +68,20 @@ type CareRequestRow = {
   response_window_seconds: number;
 };
 
+type SummarizedBooking = {
+  id: string;
+  staff_profile_id: string;
+  hourly_rate: number;
+  offer_expires_at: string | null;
+  status: string;
+  terms_locked_at: string | null;
+  cancelled_by: string | null;
+};
+
 async function summarize(
   supabase: SupabaseClient,
   cr: Pick<CareRequestRow, "dispatch_status" | "vicinity_round">,
-  booking?: {
-    id: string;
-    staff_profile_id: string;
-    hourly_rate: number;
-    offer_expires_at: string | null;
-    status: string;
-  } | null,
+  booking?: SummarizedBooking | null,
 ): Promise<DispatchStatusResult> {
   let activeOffer: ActiveOfferSummary | null = null;
   if (booking) {
@@ -77,6 +97,11 @@ async function summarize(
       hourlyRate: booking.hourly_rate,
       expiresAt: booking.offer_expires_at,
       status: booking.status,
+      paymentDeadline:
+        booking.status === "accepted" && booking.terms_locked_at
+          ? computePaymentDeadline(booking.terms_locked_at).toISOString()
+          : null,
+      paymentExpired: isPaymentExpired(booking),
     };
   }
   return { dispatchStatus: cr.dispatch_status, vicinityRound: cr.vicinity_round, activeOffer };
@@ -97,19 +122,34 @@ export async function advanceDispatch(
   const careRequest = cr as CareRequestRow;
 
   if (TERMINAL_STATUSES.has(careRequest.dispatch_status)) {
-    const { data: finalBooking } = await supabase
+    const { data: finalBookingRow } = await supabase
       .from("bookings")
-      .select("id, staff_profile_id, hourly_rate, offer_expires_at, status")
+      .select(
+        "id, staff_profile_id, hourly_rate, offer_expires_at, status, terms_locked_at, cancelled_by",
+      )
       .eq("care_request_id", careRequestId)
-      .in("status", ["pending", "accepted"])
+      // 'cancelled' included so a booking the payment window's own
+      // lazy sweep already released is still visible here as the offer
+      // outcome — not dropped, which would leave a "Caregiver found!"
+      // page polling into silence once its booking expired.
+      .in("status", ["pending", "accepted", "cancelled"])
       .maybeSingle();
+    // The dispatch status page is the screen most likely to be
+    // actively polled while a parent is looking at a live countdown —
+    // this is the primary enforcement point in practice, not just a
+    // backstop.
+    const finalBooking = finalBookingRow
+      ? await expirePaymentWindowIfPassed(supabase, finalBookingRow)
+      : null;
     return summarize(supabase, careRequest, finalBooking);
   }
 
   // The current active offer, if any.
   const { data: activeBooking } = await supabase
     .from("bookings")
-    .select("id, staff_profile_id, hourly_rate, offer_expires_at, status")
+    .select(
+      "id, staff_profile_id, hourly_rate, offer_expires_at, status, terms_locked_at, cancelled_by",
+    )
     .eq("care_request_id", careRequestId)
     .eq("status", "pending")
     .maybeSingle();
@@ -228,7 +268,9 @@ export async function advanceDispatch(
       care_request_id: careRequestId,
       offer_expires_at: expiresAt.toISOString(),
     })
-    .select("id, staff_profile_id, hourly_rate, offer_expires_at, status")
+    .select(
+      "id, staff_profile_id, hourly_rate, offer_expires_at, status, terms_locked_at, cancelled_by",
+    )
     .single();
   if (insertErr) throw insertErr;
 
