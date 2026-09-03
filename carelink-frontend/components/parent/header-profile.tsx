@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { CaretDown, Question, SignOut, UserCircle, Wallet } from "@phosphor-icons/react";
+import { CaretDown, Question, SignOut, UserCircle } from "@phosphor-icons/react";
 import { useAuth } from "@/lib/auth/auth-context";
 
 // Real initials computed from the authenticated parent's own name (first
@@ -15,11 +15,13 @@ function initialsFor(fullName: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-// The header's avatar/name/chevron cluster — opens a small real menu to
-// the pages that no longer have a dedicated sidebar slot (Payments, Help
-// & Support, Settings) plus Sign out, rather than being a dead link.
-// Nothing here is fabricated: every destination is an existing route,
-// and the initials are the real account's, not a placeholder.
+// The header's avatar/name/chevron cluster — opens a small real menu:
+// Settings, Help & Support, and Sign out. Payment Methods deliberately
+// isn't here — it already has a permanent home under Settings
+// (/parent/account's Payment Methods row), so it doesn't need a second
+// entry point. Nothing here is fabricated: every destination is an
+// existing route, and the initials are the real account's, not a
+// placeholder.
 export function ParentHeaderProfile() {
   const { user, signOut } = useAuth();
   const fullName = (user?.user_metadata?.full_name as string | undefined) ?? "Account";
@@ -59,13 +61,6 @@ export function ParentHeaderProfile() {
             className="flex items-center gap-2.5 px-4 py-2 text-[13.5px] text-ink hover:bg-wisteria-tint"
           >
             <UserCircle size={17} /> Settings
-          </Link>
-          <Link
-            href="/parent/payment-methods"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-2.5 px-4 py-2 text-[13.5px] text-ink hover:bg-wisteria-tint"
-          >
-            <Wallet size={17} /> Payments
           </Link>
           <Link
             href="/parent/help"
