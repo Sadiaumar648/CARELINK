@@ -1,6 +1,8 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft, LockKey, ShieldCheck, EyeSlash } from "@phosphor-icons/react";
 import { Sheet } from "@/components/ui/sheet";
 
@@ -22,14 +24,24 @@ const ITEMS = [
   },
 ];
 
-export default function ParentSafetyPage() {
+function ParentSafetyPage() {
+  // Reached from two real entry points — Home's "Learn about safety"
+  // button and Settings' "Safety & Privacy" row — each wants the parent
+  // to return to where they actually came from, not always through
+  // Settings. `?from=home` is only ever set by the Home link below;
+  // absent (including a direct visit or the Settings link) keeps the
+  // existing Back to Settings behaviour.
+  const fromHome = useSearchParams().get("from") === "home";
+  const backHref = fromHome ? "/parent" : "/parent/account";
+  const backLabel = fromHome ? "Back to Home" : "Back to Settings";
+
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
       <Link
-        href="/parent/account"
+        href={backHref}
         className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-muted hover:text-ink"
       >
-        <ArrowLeft size={16} /> Back to Settings
+        <ArrowLeft size={16} /> {backLabel}
       </Link>
       <div className="flex flex-col gap-1">
         <h1 className="text-[26px] font-semibold font-heading">Safety & Privacy</h1>
@@ -49,5 +61,13 @@ export default function ParentSafetyPage() {
         </Sheet>
       ))}
     </div>
+  );
+}
+
+export default function ParentSafetyPageWrapper() {
+  return (
+    <Suspense>
+      <ParentSafetyPage />
+    </Suspense>
   );
 }
