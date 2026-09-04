@@ -5,75 +5,22 @@ import Link from "next/link";
 import {
   ArrowLeft,
   CalendarCheck,
+  ChatCircleText,
   CreditCard,
+  Envelope,
   Flag,
   MagnifyingGlass,
   ShieldWarning,
   UserCircle,
 } from "@phosphor-icons/react";
-import { Accordion } from "@/components/ui/accordion";
 import { Sheet } from "@/components/ui/sheet";
 
-type FaqItem = {
-  question: string;
-  answer: string;
-  category: "booking" | "payment" | "safety" | "account";
-};
-
-// Every answer describes real app behaviour only — nothing here claims
-// a feature (a support phone line, a live-chat widget, a parent-facing
-// SOS button) that doesn't actually exist elsewhere in the app.
-const FAQ_ITEMS: FaqItem[] = [
-  {
-    question: "How do I request a caregiver?",
-    answer:
-      "Go to Find Care, open a caregiver's profile, and use Request Booking. Choose the child, date, time, and address, then review and send the request — it isn't confirmed until the caregiver accepts.",
-    category: "booking",
-  },
-  {
-    question: "How do I cancel a booking?",
-    answer:
-      "Open the booking from My Bookings and choose Cancel Booking. You can cancel while it's pending, accepted, or paid — once a session is active it can only be ended, not cancelled.",
-    category: "booking",
-  },
-  {
-    question: "How do I pay for a booking?",
-    answer:
-      "Once a caregiver accepts your request, open the booking and pay by MTN, Telecel, or AirtelTigo Mobile Money. You'll enter your network and number at the time of payment.",
-    category: "payment",
-  },
-  {
-    question: "How does caregiver verification work?",
-    answer:
-      "Caregivers submit a government ID, a live photo, and a reference contact. An administrator reviews every submission by hand before an account is marked verified — you'll see a Verified badge on their profile once that's done.",
-    category: "account",
-  },
-  {
-    question: "How does SafeTrack work?",
-    answer:
-      'During an active booking, a caregiver can choose to share their live location with you for the duration of that session only. You\'ll see "Caregiver location sharing: ON" and a last-updated time on the booking page — sharing stops automatically the moment the session ends.',
-    category: "safety",
-  },
-  {
-    question: "What happens if I have a problem with a caregiver?",
-    answer:
-      "Open the relevant booking and use the report option in its Safety & Support section. Reports go directly to CareLink administrators for review — the caregiver is never shown who filed it.",
-    category: "safety",
-  },
-  {
-    question: "How do I contact CareLink?",
-    answer:
-      "The most direct way is to report an issue from the specific booking it concerns — that reaches CareLink's admin team immediately. For general safety information, see Safety & Privacy below.",
-    category: "account",
-  },
-  {
-    question: "What should I do in an emergency?",
-    answer:
-      "For immediate danger, contact your local emergency services directly — CareLink is not an emergency-response service. If something feels wrong during a booking, report it from that booking afterward so CareLink can follow up.",
-    category: "safety",
-  },
-];
-
+// General FAQ content lives on the public homepage (app/page.tsx,
+// #faq) — this authenticated page deliberately doesn't duplicate it;
+// see the "View Frequently Asked Questions" section at the bottom,
+// which links there instead. This page focuses on practical support
+// while actually using CareLink: quick links into the real features
+// each topic is about, plus how to reach support directly.
 const QUICK_LINKS = [
   {
     icon: ShieldWarning,
@@ -112,10 +59,10 @@ const QUICK_LINKS = [
 export default function ParentHelpPage() {
   const [query, setQuery] = useState("");
 
-  const filtered = FAQ_ITEMS.filter((item) => {
+  const filtered = QUICK_LINKS.filter((link) => {
     const q = query.trim().toLowerCase();
     if (!q) return true;
-    return item.question.toLowerCase().includes(q) || item.answer.toLowerCase().includes(q);
+    return link.title.toLowerCase().includes(q) || link.description.toLowerCase().includes(q);
   });
 
   return (
@@ -129,7 +76,7 @@ export default function ParentHelpPage() {
       <div className="flex flex-col gap-1">
         <h1 className="text-[26px] font-semibold font-heading">Help & Support</h1>
         <p className="text-[14px] text-ink-muted">
-          Answers, safety information, and how to reach us.
+          Get answers, find helpful resources, or contact our support team.
         </p>
       </div>
 
@@ -147,29 +94,75 @@ export default function ParentHelpPage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {QUICK_LINKS.map((link) => (
-          <Link key={link.title} href={link.href}>
-            <Sheet className="flex h-full items-start gap-3 hover:border-wisteria/50">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-wisteria-tint text-wisteria-pressed">
-                <link.icon size={18} weight="duotone" />
-              </span>
-              <div className="flex flex-col gap-0.5">
-                <p className="text-[14px] font-semibold text-ink">{link.title}</p>
-                <p className="text-[12.5px] leading-relaxed text-ink-muted">{link.description}</p>
-              </div>
-            </Sheet>
-          </Link>
-        ))}
-      </div>
+      {filtered.length === 0 ? (
+        <p className="text-[13px] text-ink-muted">No help topics match &quot;{query}&quot;.</p>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {filtered.map((link) => (
+            <Link key={link.title} href={link.href}>
+              <Sheet className="flex h-full items-start gap-3 hover:border-wisteria/50">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-wisteria-tint text-wisteria-pressed">
+                  <link.icon size={18} weight="duotone" />
+                </span>
+                <div className="flex flex-col gap-0.5">
+                  <p className="text-[14px] font-semibold text-ink">{link.title}</p>
+                  <p className="text-[12.5px] leading-relaxed text-ink-muted">{link.description}</p>
+                </div>
+              </Sheet>
+            </Link>
+          ))}
+        </div>
+      )}
 
-      <div className="flex flex-col gap-3">
-        <h2 className="text-[15px] font-semibold font-heading">Frequently asked questions</h2>
-        {filtered.length === 0 ? (
-          <p className="text-[13px] text-ink-muted">No help topics match &quot;{query}&quot;.</p>
-        ) : (
-          <Accordion items={filtered} />
-        )}
+      {/* Need more help? — restrained, one step up visually from the
+          quick-link cards above, matching this app's existing tinted
+          "highlight" treatment (e.g. the Ward Profiles privacy notice)
+          rather than a new visual language. No real, general (not
+          booking-specific) support contact channel exists anywhere in
+          this project today — the only actual contact mechanism is the
+          per-booking report option already linked above — so this is
+          intentionally a clearly-labelled placeholder, never a
+          fabricated email/phone/response-time claim or a button that
+          would silently do nothing. */}
+      <Sheet className="flex flex-col gap-3 bg-wisteria-tint">
+        <div className="flex items-center gap-2">
+          <ChatCircleText size={18} weight="fill" className="text-wisteria-pressed" />
+          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-wisteria-pressed">
+            Need more help?
+          </span>
+        </div>
+        <div className="flex flex-col gap-1">
+          <p className="text-[16px] font-semibold text-ink">Contact CareLink Support</p>
+          <p className="text-[13px] text-ink-muted">
+            Can&apos;t find what you&apos;re looking for? Our team is here to help.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 rounded-[10px] border border-dashed border-wisteria/40 bg-sheet px-3 py-2.5">
+          <Envelope size={16} className="shrink-0 text-ink-muted" />
+          <span className="text-[13px] text-ink-muted">
+            [Add CareLink&apos;s support email here]
+          </span>
+        </div>
+        <p className="text-[11.5px] text-ink-muted">
+          Placeholder — replace with CareLink&apos;s real support contact once available.
+        </p>
+      </Sheet>
+
+      {/* Compact, secondary — deliberately smaller and quieter than the
+          section above, and never a duplicate of the FAQ content
+          itself, which stays on the public homepage only. */}
+      <div className="flex flex-col gap-2 border-t border-hairline pt-5">
+        <p className="text-[13px] font-semibold text-ink">View Frequently Asked Questions</p>
+        <p className="text-[12.5px] text-ink-muted">
+          Visit the main CareLink website for general FAQs about CareLink, our services, and how it
+          works.
+        </p>
+        <Link
+          href="/#faq"
+          className="self-start text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
+        >
+          Open FAQs →
+        </Link>
       </div>
     </div>
   );
