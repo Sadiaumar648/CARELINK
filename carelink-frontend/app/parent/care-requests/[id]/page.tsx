@@ -144,24 +144,49 @@ function checklistStates(status: DispatchStatus): ("done" | "active" | "pending"
     : ["done", "active", "pending", "pending"];
 }
 
+// Purely a rendering of checklistStates() above — every visual state
+// here (which step is filled, which is highlighted, which is still
+// outlined) is a direct function of the real polled dispatchStatus/
+// vicinityRound, never a separate animation or timer of its own.
 function ProgressChecklist({ status }: { status: DispatchStatus }) {
   const states = checklistStates(status);
   return (
-    <div className="flex flex-col gap-1.5 text-[12.5px]">
-      {CHECKLIST_LABELS.map((label, i) => (
-        <p
-          key={label}
-          className={
-            states[i] === "done"
-              ? "text-[var(--color-success)]"
-              : states[i] === "active"
-                ? "font-semibold text-wisteria"
-                : "text-ink-muted"
-          }
-        >
-          {states[i] === "done" ? "✓" : states[i] === "active" ? "●" : "○"} {label}
-        </p>
-      ))}
+    <div className="flex w-full flex-col gap-3 rounded-[14px] border border-hairline bg-paper p-4 text-left">
+      {CHECKLIST_LABELS.map((label, i) => {
+        const state = states[i];
+        return (
+          <div key={label} className="flex items-center gap-3">
+            <span
+              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
+                state === "done"
+                  ? "bg-[var(--color-success)] text-white"
+                  : state === "active"
+                    ? "bg-wisteria text-white"
+                    : "border border-hairline bg-sheet"
+              }`}
+            >
+              {state === "done" ? (
+                <CheckCircle size={13} weight="fill" />
+              ) : state === "active" ? (
+                <span className="h-2 w-2 rounded-full bg-white" />
+              ) : (
+                <span className="h-1.5 w-1.5 rounded-full bg-ink-muted/40" />
+              )}
+            </span>
+            <span
+              className={`text-[13px] ${
+                state === "pending"
+                  ? "text-ink-muted"
+                  : state === "active"
+                    ? "font-semibold text-ink"
+                    : "text-ink"
+              }`}
+            >
+              {label}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -231,27 +256,29 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6 p-6">
       {(status.dispatchStatus === "not_started" || status.dispatchStatus === "searching") && (
-        <Sheet className="flex flex-col items-center gap-4 border-[var(--color-lavender-border)] py-10 text-center">
+        <Sheet className="flex flex-col items-center gap-5 border-[var(--color-lavender-border)] px-6 py-12 text-center">
           <span className="flex h-14 w-14 items-center justify-center rounded-full bg-wisteria-tint text-wisteria">
             <MagnifyingGlass size={26} weight="bold" />
           </span>
-          <div>
+          <div className="flex flex-col gap-1.5">
             <h1 className="text-[19px] font-bold font-heading text-ink">
               We&apos;re finding your caregiver
             </h1>
-            <p className="mt-1 text-[13.5px] text-ink-muted">
+            <p className="text-[13.5px] leading-relaxed text-ink-muted">
               CareLink is checking verified, available caregivers near your care location, one at a
-              time. This might take a while.
+              time. We&apos;ll update you as soon as we find a match.
             </p>
           </div>
           {status.activeOffer && (
-            <p className="flex items-center gap-1.5 text-[13px] font-semibold text-ink">
-              <MapPin size={15} className="text-wisteria" /> Contacting{" "}
-              {status.activeOffer.caregiverName}…
+            <p className="flex items-center gap-1.5 rounded-full bg-wisteria-tint px-3.5 py-1.5 text-[13px] font-semibold text-wisteria-pressed">
+              <MapPin size={14} weight="fill" /> Contacting {status.activeOffer.caregiverName}…
             </p>
           )}
           <ProgressChecklist status={status} />
-          <p className="text-[12px] text-ink-muted">Please stay on this screen while we search.</p>
+          <p className="text-[12px] text-ink-muted">
+            You can stay on this page while we search. We&apos;ll update you as soon as we find a
+            caregiver.
+          </p>
           <Button variant="secondary" onClick={() => void cancel()} disabled={cancelling}>
             <X size={15} /> Cancel Search
           </Button>
@@ -259,22 +286,22 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
       )}
 
       {status.dispatchStatus === "expanding" && (
-        <Sheet className="flex flex-col items-center gap-4 border-[var(--color-lavender-border)] py-10 text-center">
+        <Sheet className="flex flex-col items-center gap-5 border-[var(--color-lavender-border)] px-6 py-12 text-center">
           <span className="flex h-14 w-14 items-center justify-center rounded-full bg-wisteria-tint text-wisteria">
             <MapPin size={26} weight="bold" />
           </span>
-          <div>
+          <div className="flex flex-col gap-1.5">
             <h1 className="text-[19px] font-bold font-heading text-ink">
               We&apos;re expanding your search
             </h1>
-            <p className="mt-1 text-[13.5px] text-ink-muted">
+            <p className="text-[13.5px] leading-relaxed text-ink-muted">
               We couldn&apos;t find an available caregiver nearby yet. CareLink is checking the next
               closest eligible caregivers.
             </p>
           </div>
           {status.activeOffer && (
-            <p className="text-[13px] font-semibold text-ink">
-              Contacting {status.activeOffer.caregiverName}…
+            <p className="flex items-center gap-1.5 rounded-full bg-wisteria-tint px-3.5 py-1.5 text-[13px] font-semibold text-wisteria-pressed">
+              <MapPin size={14} weight="fill" /> Contacting {status.activeOffer.caregiverName}…
             </p>
           )}
           <ProgressChecklist status={status} />
