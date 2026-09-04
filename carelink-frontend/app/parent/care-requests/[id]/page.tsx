@@ -377,27 +377,29 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
 
       {/* The sequential dispatch queue genuinely ran out of eligible
           caregivers to offer this request to — both vicinity rounds
-          exhausted (lib/services/dispatch.ts), not a frontend guess.
-          CareLink's finalized workflow never falls back to manual
-          caregiver browsing from here — the only ways forward are
-          starting over (a fresh request re-enters the same real
-          sequential dispatch) or going back. */}
+          exhausted (lib/services/dispatch.ts), not a frontend guess, so
+          the copy says so plainly rather than "still looking." CareLink's
+          finalized workflow never falls back to manual caregiver
+          browsing from here, and never sends the parent back to a blank
+          Home to start over — Request Care Again reopens the real,
+          saved request (via ?retryCareRequestId, read from GET
+          /api/care-requests/[id] — see app/parent/page.tsx), fully
+          editable, with Find Care still the one action that starts a
+          new search. Opening/refreshing/revisiting this link only ever
+          reads that record; nothing is created until the parent submits
+          the restored form. */}
       {status.dispatchStatus === "exhausted" && (
         <Sheet className="flex flex-col items-center gap-4 border-[var(--color-lavender-border)] py-10 text-center">
           <div>
             <h1 className="text-[19px] font-bold font-heading text-ink">
-              We&apos;re still looking for the right caregiver
+              We couldn&apos;t find the right caregiver this time
             </h1>
             <p className="mt-1 text-[13.5px] text-ink-muted">
-              We weren&apos;t able to secure an eligible caregiver for this request at this time.
+              We couldn&apos;t secure an eligible caregiver for this request right now. Your request
+              details are saved, so you can review them and try again.
             </p>
           </div>
-          <div className="flex flex-wrap justify-center gap-3">
-            <LinkButton href="/parent" variant="secondary">
-              Back to Home
-            </LinkButton>
-            <LinkButton href="/parent">Request Care Again</LinkButton>
-          </div>
+          <LinkButton href={`/parent?retryCareRequestId=${id}`}>Request Care Again</LinkButton>
         </Sheet>
       )}
 

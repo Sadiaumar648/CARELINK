@@ -10,7 +10,11 @@ import { Sheet } from "@/components/ui/sheet";
 import { LinkButton } from "@/components/ui/button";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { CareTypeCard } from "@/components/parent/care-type-card";
-import { RequestFlowPanel, type RequestFlowInitial } from "@/components/parent/request-flow-panel";
+import {
+  RequestFlowPanel,
+  type RequestFlowInitial,
+  type RequestFlowRestore,
+} from "@/components/parent/request-flow-panel";
 import { KIND_META, DEFAULT_KIND_META, TONE_CLASSES } from "@/lib/notification-kind-meta";
 import { minutesAgoLabel } from "@/lib/relative-time";
 
@@ -23,6 +27,49 @@ type Notification = {
 };
 
 type CaregiverType = "nanny" | "babysitter";
+
+// The real, saved shape GET /api/care-requests/[id] returns — the
+// "Request Care Again" retry flow's one authoritative source, never
+// reconstructed from frontend-only state.
+type CareRequestRecord = {
+  ward_id: string | null;
+  date: string;
+  start_time: string;
+  end_time: string;
+  location: string;
+  service_address: string;
+  service_latitude: number;
+  service_longitude: number;
+  location_place_id: string | null;
+  location_source: "current_location" | "gps_address";
+  skills: string[] | null;
+  notes: string | null;
+  repeat_mode: "once" | "weekly" | "custom";
+  repeat_weekdays: string[];
+  repeat_start_date: string | null;
+  repeat_end_date: string | null;
+};
+
+function toRestore(cr: CareRequestRecord): RequestFlowRestore {
+  return {
+    wardId: cr.ward_id,
+    date: cr.date,
+    startTime: cr.start_time,
+    endTime: cr.end_time,
+    location: cr.location,
+    serviceAddress: cr.service_address,
+    serviceLatitude: cr.service_latitude,
+    serviceLongitude: cr.service_longitude,
+    locationPlaceId: cr.location_place_id,
+    locationSource: cr.location_source,
+    skills: cr.skills,
+    notes: cr.notes,
+    repeatMode: cr.repeat_mode,
+    repeatWeekdays: cr.repeat_weekdays,
+    repeatStartDate: cr.repeat_start_date,
+    repeatEndDate: cr.repeat_end_date,
+  };
+}
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -40,6 +87,8 @@ export default function ParentDashboardPage() {
   const [retryKey, setRetryKey] = useState(0);
   const [activePanel, setActivePanel] = useState<CaregiverType | null>(null);
   const [panelInitial, setPanelInitial] = useState<RequestFlowInitial | undefined>(undefined);
+  const [panelRestore, setPanelRestore] = useState<RequestFlowRestore | undefined>(undefined);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,8 +131,39 @@ export default function ParentDashboardPage() {
     });
   }, []);
 
+  // "Request Care Again" from the exhausted-dispatch screen arrives here
+  // as ?retryCareRequestId=<id> — the care request itself, never a
+  // panel type or field values in the URL, so the restored form always
+  // reflects the real saved row (works after a refresh, a fresh visit
+  // to the same link, or navigating away and back) rather than
+  // something that could go stale or be tampered with in the address
+  // bar. Opening this link only ever reads the record — nothing is
+  // created until the parent submits the form with Find Care.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const retryId = params.get("retryCareRequestId");
+    if (!retryId) return;
+    apiFetch<{ careRequest: CareRequestRecord & { caregiver_type: CaregiverType } }>(
+      `/api/care-requests/${retryId}`,
+    )
+      .then((res) => {
+        setPanelInitial(undefined);
+        setPanelRestore(toRestore(res.careRequest));
+        setActivePanel(res.careRequest.caregiver_type);
+      })
+      .catch((err) => {
+        // Handled gracefully, not silently: the parent stays on the
+        // normal Home view (never a blank or half-filled form standing
+        // in for the real request) with a clear note that this specific
+        // restore didn't work — they can still start a fresh request
+        // from the cards below.
+        setRestoreError(errorMessage(err));
+      });
+  }, []);
+
   function openPanel(type: CaregiverType) {
     setPanelInitial(undefined);
+    setPanelRestore(undefined);
     setActivePanel(type);
   }
 
@@ -101,6 +181,7 @@ export default function ParentDashboardPage() {
         <RequestFlowPanel
           type={activePanel}
           initial={panelInitial}
+          restoreFrom={panelRestore}
           onBack={() => setActivePanel(null)}
         />
       </div>
@@ -119,6 +200,13 @@ export default function ParentDashboardPage() {
           Let&apos;s find the right care for your family.
         </p>
       </div>
+
+      {restoreError && (
+        <p className="rounded-[10px] border border-error/30 bg-error-tint px-3.5 py-2.5 text-[13px] text-error">
+          We couldn&apos;t restore your previous request details ({restoreError}). Start a new
+          request below instead.
+        </p>
+      )}
 
       {/* CARELINK AI — for a parent who isn't sure which service type they
           need. Advisory only: it never picks, searches for, or books a

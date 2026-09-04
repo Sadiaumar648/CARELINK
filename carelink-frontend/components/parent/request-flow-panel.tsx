@@ -33,6 +33,57 @@ export type RequestFlowInitial = {
   requirements?: string;
 };
 
+// "Request Care Again" (the exhausted-dispatch retry flow): the exact
+// shape of a real care_requests row (GET /api/care-requests/[id]) — the
+// authoritative source for restoring every field, never fragile
+// frontend-only state, so it survives a refresh or a fresh visit to
+// the same retry link. Deliberately distinct from RequestFlowInitial
+// above, which only ever carries the CareLink AI/find-care round trip's
+// looser vocabulary (a coarse area string, no real coordinates) — this
+// is the real, structured record.
+export type RequestFlowRestore = {
+  wardId: string | null;
+  date: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+  serviceAddress: string;
+  serviceLatitude: number;
+  serviceLongitude: number;
+  locationPlaceId: string | null;
+  locationSource: "current_location" | "gps_address";
+  skills: string[] | null;
+  notes: string | null;
+  repeatMode: "once" | "weekly" | "custom";
+  repeatWeekdays: string[];
+  repeatStartDate: string | null;
+  repeatEndDate: string | null;
+};
+
+// Every real occurrence's notes field is the parent's own free text
+// plus, for Weekly/Custom, this exact auto-generated schedule summary
+// appended after it (see onSubmit below) — restoring the free-text
+// "Anything else" field strips that summary back off deterministically
+// (never a guess: this is reversing this component's own, fixed
+// concatenation), since the restored form already reconstructs the
+// real schedule from repeatMode/repeatWeekdays/repeatStartDate/
+// repeatEndDate directly.
+const AUTO_SCHEDULE_NOTE_MARKER = "Repeats: every";
+function extractFreeTextNotes(notes: string | null | undefined): string {
+  if (!notes) return "";
+  const idx = notes.indexOf(AUTO_SCHEDULE_NOTE_MARKER);
+  return (idx === -1 ? notes : notes.slice(0, idx)).trim();
+}
+
+// The restored duration is derived from the two real timestamps rather
+// than stored separately — rounded defensively, though every duration
+// this form itself ever sends is already a whole number of hours.
+function hoursBetween(startTime: string, endTime: string): number {
+  const [sh, sm] = startTime.slice(0, 5).split(":").map(Number);
+  const [eh, em] = endTime.slice(0, 5).split(":").map(Number);
+  return Math.round((eh * 60 + em - (sh * 60 + sm)) / 60);
+}
+
 const COPY: Record<CaregiverType, { heading: string }> = {
   nanny: { heading: "Nanny" },
   babysitter: { heading: "Babysitter" },
@@ -171,37 +222,72 @@ export function RequestFlowPanel({
   type,
   onBack,
   initial,
+  restoreFrom,
 }: {
   type: CaregiverType;
   onBack: () => void;
   initial?: RequestFlowInitial;
+  // "Request Care Again": present only on the exhausted-dispatch retry
+  // path, restoring every field from the real, saved care_requests row
+  // — mutually exclusive with `initial` in practice (a panel opens via
+  // exactly one entry point), so wherever both could apply below,
+  // restoreFrom takes precedence.
+  restoreFrom?: RequestFlowRestore;
 }) {
   const router = useRouter();
   const copy = COPY[type];
-  const [startDate, setStartDate] = useState(initial?.startDate ?? "");
+  const [startDate, setStartDate] = useState(() => {
+    if (restoreFrom) return restoreFrom.repeatMode === "once" ? restoreFrom.date : "";
+    return initial?.startDate ?? "";
+  });
   const [startTime, setStartTime] = useState(() => {
+    if (restoreFrom) return restoreFrom.startTime.slice(0, 5);
     const matched = SCHEDULE_OPTIONS.find((s) => s.value === initial?.schedule);
     return matched?.startTime ?? "";
   });
   // initial?.days ("N days a week", a frequency) is a different unit
   // than duration ("N hours") and is deliberately not reused here — only
   // a genuine hour count prefills this.
-  const [duration, setDuration] = useState(initial?.hours ?? "4");
-  const [repeat, setRepeat] = useState("once");
+  const [duration, setDuration] = useState(() => {
+    if (restoreFrom) return String(hoursBetween(restoreFrom.startTime, restoreFrom.endTime));
+    return initial?.hours ?? "4";
+  });
+  const [repeat, setRepeat] = useState<string>(() => restoreFrom?.repeatMode ?? "once");
   // Weekly: exactly one selected day. Custom: any number of selected
   // days. Kept as separate state (not shared) so switching between the
   // two never silently carries a selection over in a way that could
   // misrepresent what the parent actually chose.
-  const [weeklyDay, setWeeklyDay] = useState("");
-  const [customDays, setCustomDays] = useState<Set<string>>(new Set());
-  const [rangeStart, setRangeStart] = useState("");
-  const [rangeEnd, setRangeEnd] = useState("");
-  const [location, setLocation] = useState<ResolvedLocation | null>(null);
-  const [requirementChips, setRequirementChips] = useState<Set<string>>(new Set());
-  const [showOther, setShowOther] = useState(Boolean(initial?.requirements));
-  const [requirements, setRequirements] = useState(initial?.requirements ?? "");
+  const [weeklyDay, setWeeklyDay] = useState(() =>
+    restoreFrom?.repeatMode === "weekly" ? (restoreFrom.repeatWeekdays[0] ?? "") : "",
+  );
+  const [customDays, setCustomDays] = useState<Set<string>>(
+    () => new Set(restoreFrom?.repeatMode === "custom" ? restoreFrom.repeatWeekdays : []),
+  );
+  const [rangeStart, setRangeStart] = useState(() => restoreFrom?.repeatStartDate ?? "");
+  const [rangeEnd, setRangeEnd] = useState(() => restoreFrom?.repeatEndDate ?? "");
+  const [location, setLocation] = useState<ResolvedLocation | null>(() =>
+    restoreFrom
+      ? {
+          formattedAddress: restoreFrom.serviceAddress,
+          latitude: restoreFrom.serviceLatitude,
+          longitude: restoreFrom.serviceLongitude,
+          placeId: restoreFrom.locationPlaceId,
+          coarseArea: restoreFrom.location,
+          source: restoreFrom.locationSource,
+        }
+      : null,
+  );
+  const [requirementChips, setRequirementChips] = useState<Set<string>>(
+    () => new Set(restoreFrom?.skills ?? []),
+  );
+  const [showOther, setShowOther] = useState(() =>
+    restoreFrom ? Boolean(extractFreeTextNotes(restoreFrom.notes)) : Boolean(initial?.requirements),
+  );
+  const [requirements, setRequirements] = useState(() =>
+    restoreFrom ? extractFreeTextNotes(restoreFrom.notes) : (initial?.requirements ?? ""),
+  );
   const [wards, setWards] = useState<Ward[] | null>(null);
-  const [wardId, setWardId] = useState("");
+  const [wardId, setWardId] = useState(() => restoreFrom?.wardId ?? "");
   const [changingWard, setChangingWard] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
