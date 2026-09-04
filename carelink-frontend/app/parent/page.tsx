@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ShieldCheck, Sparkle } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
@@ -80,6 +80,7 @@ function greeting(): string {
 }
 
 function ParentDashboard() {
+  const router = useRouter();
   const { user } = useAuth();
   const firstName = (user?.user_metadata?.full_name as string | undefined)?.split(" ")[0] ?? "";
 
@@ -161,6 +162,18 @@ function ParentDashboard() {
         setPanelInitial(undefined);
         setPanelRestore(toRestore(res.careRequest));
         setActivePanel(res.careRequest.caregiver_type);
+        // The retry id has done its one job (fetching the record) —
+        // strip it from the address bar now that the form is showing,
+        // replacing (not pushing) this history entry so it reads as a
+        // normal, clean /parent visit rather than "still retrying
+        // request X". This is what makes the form's own Back to Home
+        // (onBack below, unchanged) land on the real Home view instead
+        // of re-triggering — or getting stuck re-triggering, since the
+        // fetch effect above only ever runs once per id — this same
+        // restoring state: with the id gone, retryCareRequestId reads
+        // null on the next render, so restoringRetry is false and
+        // setActivePanel(null) alone is enough.
+        router.replace("/parent");
       })
       .catch((err) => {
         // Handled gracefully, not silently: the parent stays on the
@@ -170,7 +183,7 @@ function ParentDashboard() {
         // from the cards below.
         setRestoreError(errorMessage(err));
       });
-  }, [retryCareRequestId]);
+  }, [retryCareRequestId, router]);
 
   // True for exactly the window between the retry link landing here and
   // that fetch settling — real Home content (the greeting, the AI card,
