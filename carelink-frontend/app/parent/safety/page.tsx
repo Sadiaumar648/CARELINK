@@ -10,17 +10,17 @@ const ITEMS = [
   {
     icon: LockKey,
     title: "Your Ward Profile is private",
-    body: "Only you can see your children's full care profiles. A caregiver only sees the details of a booking they're confirmed for — never your full family information.",
+    body: "Only you can see your children's full care profiles. Caregivers only see the information needed to review and provide care for a request or confirmed booking.",
   },
   {
     icon: ShieldCheck,
     title: "Caregivers are verified before they can accept bookings",
-    body: "Every caregiver you see on CareLink has been through identity verification and is approved before they can appear in search or accept a booking.",
+    body: "Every caregiver eligible for CareLink requests has completed identity verification and been approved by the agency before they can receive or accept a booking.",
   },
   {
     icon: EyeSlash,
     title: "What we don't share",
-    body: "Your exact home address, your child's medical information, and your emergency contacts are never shown publicly. A confirmed caregiver only sees what's needed to safely provide care for that booking.",
+    body: "Your exact home address, your child's medical information, and your emergency contacts are never shown publicly. Caregivers only receive the information needed to safely provide care.",
   },
 ];
 
