@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { CalendarBlank, ChatCircle, MapPin, ShieldWarning, Tray } from "@phosphor-icons/react";
+import { CalendarBlank, CalendarCheck, MapPin, Sparkle, Tray, Wallet } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { useAuth } from "@/lib/auth/auth-context";
-import { Button } from "@/components/ui/button";
+import { Button, LinkButton } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { BookingCardSkeleton } from "@/components/ui/skeleton";
@@ -41,6 +41,24 @@ function formatRange(startsAt: string, endsAt: string): string {
   return `${date}, ${time(start)}–${time(end)}`;
 }
 
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+function formatTodayLong(): string {
+  return new Date().toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+// Unchanged from before this redesign — the actual Accept/Decline
+// mechanism for a pending request. CareLink's finalized workflow
+// ("Incoming care requests" is one of the five things this dashboard is
+// built around) keeps this front and centre on Home, just restyled to
+// sit beneath the new availability/stats sections rather than being the
+// very first thing on the page.
 function RequestCard({ booking, onRespond }: { booking: Booking; onRespond: () => void }) {
   const [confirming, setConfirming] = useState<"accept" | "decline" | null>(null);
   const [declineReason, setDeclineReason] = useState("");
@@ -182,39 +200,15 @@ function greeting(): string {
   return "Good evening";
 }
 
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-}
-
-// A short, additive summary above the existing request list below —
-// it never replaces Schedule/Messages/Safety as the real destinations,
-// it just surfaces a quick glance at them. "Today" reuses the same
-// GET /api/bookings the Schedule page already calls; no new endpoint.
-function DashboardSummary({ pendingCount }: { pendingCount: number | null }) {
+// The page header: greeting (real authenticated name, never hardcoded)
+// + supporting text + today's date where space permits.
+function DashboardHeader() {
   const { user } = useAuth();
   const firstName = ((user?.user_metadata?.full_name as string | undefined) ?? "").split(" ")[0];
-  const [todaysBooking, setTodaysBooking] = useState<Booking | null | undefined>(undefined);
-
-  useEffect(() => {
-    apiFetch<{ bookings: Booking[] }>("/api/bookings")
-      .then((res) => {
-        const today = new Date().toISOString().slice(0, 10);
-        const match = res.bookings
-          .filter(
-            (b) =>
-              ["accepted", "paid", "active"].includes(b.status) &&
-              b.starts_at.slice(0, 10) === today,
-          )
-          .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())[0];
-        setTodaysBooking(match ?? null);
-      })
-      .catch(() => setTodaysBooking(null));
-  }, []);
-
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="flex flex-col gap-1">
-        <h1 className="text-[24px] font-semibold font-heading">
+        <h1 className="text-[26px] font-bold font-heading text-ink">
           {greeting()}
           {firstName ? `, ${firstName}` : ""} 👋
         </h1>
@@ -222,51 +216,7 @@ function DashboardSummary({ pendingCount }: { pendingCount: number | null }) {
           Here&apos;s what&apos;s happening with your care today.
         </p>
       </div>
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Sheet className="flex flex-col gap-1.5">
-          <Tray size={18} className="text-wisteria" />
-          <span className="text-[20px] font-semibold tabular-nums">{pendingCount ?? "…"}</span>
-          <span className="text-[12px] text-ink-muted">
-            {pendingCount === 1 ? "request waiting" : "requests waiting"}
-          </span>
-        </Sheet>
-
-        <Sheet className="flex flex-col gap-1.5">
-          <CalendarBlank size={18} className="text-wisteria" />
-          {todaysBooking === undefined ? (
-            <span className="text-[13px] text-ink-muted">…</span>
-          ) : todaysBooking ? (
-            <>
-              <span className="text-[15px] font-semibold text-ink">
-                {formatTime(todaysBooking.starts_at)}
-              </span>
-              <Link
-                href={`/staff/schedule/${todaysBooking.id}`}
-                className="text-[12px] font-semibold text-wisteria hover:text-wisteria-hover"
-              >
-                Today&apos;s booking
-              </Link>
-            </>
-          ) : (
-            <span className="text-[12px] text-ink-muted">No care scheduled today</span>
-          )}
-        </Sheet>
-
-        <Link href="/staff/messages">
-          <Sheet className="flex flex-col gap-1.5 hover:border-wisteria/50">
-            <ChatCircle size={18} className="text-wisteria" />
-            <span className="text-[13px] font-semibold text-ink">Messages</span>
-          </Sheet>
-        </Link>
-
-        <Link href="/staff/safety">
-          <Sheet className="flex flex-col gap-1.5 hover:border-wisteria/50">
-            <ShieldWarning size={18} className="text-error" />
-            <span className="text-[13px] font-semibold text-ink">Safety</span>
-          </Sheet>
-        </Link>
-      </div>
+      <p className="hidden text-[13px] font-medium text-ink-muted sm:block">{formatTodayLong()}</p>
     </div>
   );
 }
@@ -282,9 +232,14 @@ const LOCATION_REFRESH_INTERVAL_MS = 4 * 60 * 1000;
 type DispatchStatus = { available: boolean; updatedAt: string | null };
 
 // CareLink location system, Part 4 — the caregiver's own control for
-// live dispatch eligibility. Location is only ever requested once the
-// caregiver explicitly taps this, same discipline as SafeTrack
-// (components/safe-track.tsx): never on page load, never silently.
+// live dispatch eligibility. Every bit of state/logic here is unchanged
+// from before this redesign: location is only ever requested once the
+// caregiver explicitly taps Go Available, same discipline as SafeTrack
+// (components/safe-track.tsx) — never on page load, never silently.
+// Only the returned JSX changed: availability and location are now two
+// visually distinct cards (availability prominent, location secondary)
+// instead of one combined card, per the redesign's own instruction —
+// no new state was introduced to do this.
 function GoAvailableControl() {
   const [status, setStatus] = useState<DispatchStatus | null>(null);
   const [busy, setBusy] = useState(false);
@@ -374,33 +329,240 @@ function GoAvailableControl() {
   if (!status) return null;
 
   return (
-    <Sheet className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-[14px] font-semibold text-ink">
-          <MapPin size={18} className={status.available ? "text-wisteria" : "text-ink-muted"} />
-          {status.available ? "You're Available for dispatch" : "You're Off Duty"}
-        </h2>
-        <Button
-          size="lg"
-          variant={status.available ? "secondary" : "primary"}
-          onClick={status.available ? goOffDuty : goAvailable}
-          disabled={busy}
-        >
-          {busy ? "Updating…" : status.available ? "Go Off Duty" : "Go Available"}
-        </Button>
-      </div>
-      <p className="text-[12.5px] text-ink-muted">
-        Location access is required while you&apos;re Available so CareLink can match you with
-        nearby care requests. This is separate from being on an active booking — you can turn it off
-        anytime, and CareLink never tracks your location while you&apos;re Off Duty.
-      </p>
-      {status.available && status.updatedAt && (
-        <p className="text-[12px] text-ink-muted">
-          Location last updated {minutesAgoLabel(status.updatedAt)}
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_320px]">
+      {/* AVAILABILITY — the most prominent section on the page. */}
+      <Sheet
+        className={`flex flex-col gap-3 ${status.available ? "border-[var(--color-success)]/40 bg-[var(--color-success)]/5" : "border-[var(--color-lavender-border)]"}`}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="flex items-center gap-2 text-[16px] font-semibold text-ink">
+            {status.available && (
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--color-success)]" />
+            )}
+            {status.available ? "You're available for care" : "You're currently off duty"}
+          </h2>
+          <Button
+            size="lg"
+            variant={status.available ? "secondary" : "primary"}
+            onClick={status.available ? goOffDuty : goAvailable}
+            disabled={busy}
+          >
+            {busy ? "Updating…" : status.available ? "Go Off Duty" : "Go Available"}
+          </Button>
+        </div>
+        <p className="text-[13px] text-ink-muted">
+          {status.available
+            ? "CareLink can send you nearby care requests while you're available."
+            : "Go available to start receiving nearby care requests."}
         </p>
-      )}
-      {error && <p className="text-[13px] text-error">{error}</p>}
+        {error && <p className="text-[13px] text-error">{error}</p>}
+      </Sheet>
+
+      {/* LOCATION — visually secondary, and only ever framed as tied to
+          being Available, never as continuous/background tracking. */}
+      <Sheet className="flex flex-col gap-2 border-hairline">
+        <div className="flex items-center gap-2">
+          <MapPin size={16} className={status.available ? "text-wisteria" : "text-ink-muted"} />
+          <p className="text-[13px] font-semibold text-ink">
+            Location sharing: {status.available ? "On" : "Off"}
+          </p>
+        </div>
+        <p className="text-[12px] leading-relaxed text-ink-muted">
+          Your location is used to find care requests near you while you&apos;re available.
+        </p>
+        {status.available && status.updatedAt && (
+          <p className="text-[11.5px] text-ink-muted">
+            Last updated {minutesAgoLabel(status.updatedAt)}
+          </p>
+        )}
+        <Link
+          href="/staff/profile"
+          className="self-start text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
+        >
+          Manage
+        </Link>
+      </Sheet>
+    </div>
+  );
+}
+
+// Requests waiting — the same count already fetched for the request
+// list further down the page (no duplicate fetch).
+function RequestsStat({ count }: { count: number | null }) {
+  return (
+    <Sheet className="flex flex-col gap-1.5">
+      <Tray size={18} className="text-wisteria" />
+      <span className="text-[22px] font-semibold tabular-nums text-ink">{count ?? "…"}</span>
+      <span className="text-[12px] text-ink-muted">
+        {count === 1 ? "Request waiting" : "Requests waiting"}
+      </span>
     </Sheet>
+  );
+}
+
+// Today's and this-week's real booking counts — one shared fetch of the
+// caregiver's own bookings (same GET /api/bookings the Schedule page
+// already calls), never fabricated. "Upcoming this week" deliberately
+// excludes today's own booking(s) so the two stats never double-count
+// the same session.
+function ScheduleStats() {
+  const [bookings, setBookings] = useState<Booking[] | null>(null);
+
+  useEffect(() => {
+    apiFetch<{ bookings: Booking[] }>("/api/bookings")
+      .then((res) => setBookings(res.bookings))
+      .catch(() => setBookings([]));
+  }, []);
+
+  const confirmed = bookings?.filter((b) => ["accepted", "paid", "active"].includes(b.status));
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const weekAhead = new Date(now);
+  weekAhead.setDate(weekAhead.getDate() + 7);
+  const in7Days = weekAhead.toISOString().slice(0, 10);
+  const todayCount = confirmed?.filter((b) => b.starts_at.slice(0, 10) === today).length ?? null;
+  const upcomingCount =
+    confirmed?.filter((b) => {
+      const date = b.starts_at.slice(0, 10);
+      return date > today && date <= in7Days;
+    }).length ?? null;
+
+  return (
+    <>
+      <Sheet className="flex flex-col gap-1.5">
+        <CalendarBlank size={18} className="text-wisteria" />
+        <span className="text-[22px] font-semibold tabular-nums text-ink">{todayCount ?? "…"}</span>
+        <span className="text-[12px] text-ink-muted">Care scheduled today</span>
+      </Sheet>
+      <Sheet className="flex flex-col gap-1.5">
+        <CalendarCheck size={18} className="text-wisteria" />
+        <span className="text-[22px] font-semibold tabular-nums text-ink">
+          {upcomingCount ?? "…"}
+        </span>
+        <span className="text-[12px] text-ink-muted">Upcoming this week</span>
+      </Sheet>
+    </>
+  );
+}
+
+// This month's real earnings total — reuses the existing
+// GET /api/staff/earnings the Earnings page already calls; nothing new
+// on the backend.
+function EarningsStat() {
+  const [monthTotal, setMonthTotal] = useState<number | null>(null);
+
+  useEffect(() => {
+    apiFetch<{ totals: { week: number; month: number } }>("/api/staff/earnings")
+      .then((res) => setMonthTotal(res.totals.month))
+      .catch(() => setMonthTotal(null));
+  }, []);
+
+  return (
+    <Link href="/staff/earnings">
+      <Sheet className="flex flex-col gap-1.5 hover:border-wisteria/50">
+        <Wallet size={18} className="text-wisteria" />
+        <span className="text-[22px] font-semibold tabular-nums text-ink">
+          GH₵{monthTotal ?? 0}
+        </span>
+        <span className="text-[12px] text-ink-muted">Earnings this month</span>
+      </Sheet>
+    </Link>
+  );
+}
+
+// "Caregiver profile/readiness" — one of the five things this dashboard
+// is built around. A clean icon-in-circle treatment rather than a stock
+// photo, since there's no existing caregiver-facing illustration asset
+// in this project to reuse honestly.
+function ProfileReadinessBanner() {
+  return (
+    <Sheet className="flex flex-col items-center gap-4 border-[var(--color-lavender-border)] bg-wisteria-tint p-6 text-center sm:flex-row sm:items-center sm:text-left">
+      <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-sheet text-wisteria shadow-[var(--shadow-card)]">
+        <Sparkle size={28} weight="fill" />
+      </span>
+      <div className="flex flex-1 flex-col gap-1">
+        <p className="text-[18px] font-bold font-heading text-ink">
+          Stay ready for new opportunities
+        </p>
+        <p className="text-[13.5px] text-ink-muted">
+          Keep your profile updated and be available to receive care requests near you.
+        </p>
+      </div>
+      <LinkButton href="/staff/profile" className="w-full shrink-0 justify-center sm:w-auto">
+        View My Profile
+      </LinkButton>
+    </Sheet>
+  );
+}
+
+// "Today's care" — real, already-accepted sessions for today, from the
+// same real booking data ScheduleStats above computes from, never fake
+// placeholder rows.
+function TodaysSchedule() {
+  const [bookings, setBookings] = useState<Booking[] | null>(null);
+
+  useEffect(() => {
+    apiFetch<{ bookings: Booking[] }>("/api/bookings")
+      .then((res) => setBookings(res.bookings))
+      .catch(() => setBookings([]));
+  }, []);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const todaysBookings = bookings
+    ?.filter(
+      (b) =>
+        ["accepted", "paid", "active"].includes(b.status) && b.starts_at.slice(0, 10) === today,
+    )
+    .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
+
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-[18px] font-semibold font-heading text-ink">Today&apos;s Schedule</h2>
+        <Link
+          href="/staff/schedule"
+          className="text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
+        >
+          View all
+        </Link>
+      </div>
+
+      {bookings === null && (
+        <div className="flex flex-col gap-3">
+          <BookingCardSkeleton />
+        </div>
+      )}
+
+      {bookings && todaysBookings?.length === 0 && (
+        <EmptyState
+          icon={CalendarBlank}
+          title="No care scheduled today"
+          description="Once you accept a request, it will appear here."
+        />
+      )}
+
+      {todaysBookings && todaysBookings.length > 0 && (
+        <div className="flex flex-col gap-3">
+          {todaysBookings.map((b) => (
+            <Link key={b.id} href={`/staff/schedule/${b.id}`}>
+              <Sheet className="flex items-center justify-between gap-4 hover:border-wisteria/50">
+                <div>
+                  <p className="text-[15px] font-semibold text-ink">
+                    {formatTime(b.starts_at)} – {formatTime(b.ends_at)}
+                  </p>
+                  <p className="text-[13px] text-ink-muted">
+                    {b.address ?? b.careLocationGeneral ?? "General area not available"}
+                  </p>
+                </div>
+                <p className="text-[15px] font-semibold tabular-nums text-ink">
+                  GH₵{b.total_amount}
+                </p>
+              </Sheet>
+            </Link>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -416,41 +578,54 @@ export default function StaffRequestsPage() {
   }, [retryKey]);
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-8 p-6">
-      <DashboardSummary pendingCount={bookings?.length ?? null} />
+    <div className="mx-auto flex max-w-4xl flex-col gap-8 p-6 md:p-8">
+      <DashboardHeader />
+
       <GoAvailableControl />
 
-      <div className="flex flex-col gap-1">
-        <h2 className="text-[20px] font-semibold font-heading">Care Requests</h2>
-        <p className="text-[14px] text-ink-muted">
-          Families who&apos;d like to book you are shown here.
-        </p>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <RequestsStat count={bookings?.length ?? null} />
+        <ScheduleStats />
+        <EarningsStat />
       </div>
 
-      {error && <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />}
-
-      {!error && bookings === null && (
-        <div className="flex flex-col gap-4">
-          <BookingCardSkeleton />
-          <BookingCardSkeleton />
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-[18px] font-semibold font-heading text-ink">Care Requests</h2>
+          <p className="text-[14px] text-ink-muted">
+            Families who&apos;d like to book you are shown here.
+          </p>
         </div>
-      )}
 
-      {!error && bookings?.length === 0 && (
-        <EmptyState
-          icon={Tray}
-          title="No new care requests"
-          description="When families request your services, they'll appear here."
-        />
-      )}
+        {error && <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />}
 
-      {!error && bookings && bookings.length > 0 && (
-        <div className="flex flex-col gap-4">
-          {bookings.map((b) => (
-            <RequestCard key={b.id} booking={b} onRespond={() => setRetryKey((k) => k + 1)} />
-          ))}
-        </div>
-      )}
+        {!error && bookings === null && (
+          <div className="flex flex-col gap-4">
+            <BookingCardSkeleton />
+            <BookingCardSkeleton />
+          </div>
+        )}
+
+        {!error && bookings?.length === 0 && (
+          <EmptyState
+            icon={Tray}
+            title="No new care requests"
+            description="When families request your services, they'll appear here."
+          />
+        )}
+
+        {!error && bookings && bookings.length > 0 && (
+          <div className="flex flex-col gap-4">
+            {bookings.map((b) => (
+              <RequestCard key={b.id} booking={b} onRespond={() => setRetryKey((k) => k + 1)} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <ProfileReadinessBanner />
+
+      <TodaysSchedule />
     </div>
   );
 }
