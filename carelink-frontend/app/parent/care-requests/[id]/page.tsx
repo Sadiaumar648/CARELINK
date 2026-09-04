@@ -148,6 +148,59 @@ function checklistStates(status: DispatchStatus): ("done" | "active" | "pending"
 // here (which step is filled, which is highlighted, which is still
 // outlined) is a direct function of the real polled dispatchStatus/
 // vicinityRound, never a separate animation or timer of its own.
+// Shown for the not_started/searching states, AND before the very
+// first poll has resolved at all — genuinely the same real state from
+// the parent's perspective (CareLink is actively searching), so there
+// is no separate "loading" screen distinct from "We're finding your
+// caregiver": this renders identically whether real status hasn't
+// arrived yet or the backend has confirmed it's still searching.
+function SearchingCard({
+  status,
+  cancelling,
+  onCancel,
+}: {
+  status: DispatchStatus | null;
+  cancelling: boolean;
+  onCancel: () => void;
+}) {
+  return (
+    <Sheet className="flex flex-col items-center gap-5 border-[var(--color-lavender-border)] px-6 py-12 text-center">
+      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-wisteria-tint text-wisteria">
+        <MagnifyingGlass size={26} weight="bold" />
+      </span>
+      <div className="flex flex-col gap-1.5">
+        <h1 className="text-[19px] font-bold font-heading text-ink">
+          We&apos;re finding your caregiver
+        </h1>
+        <p className="text-[13.5px] leading-relaxed text-ink-muted">
+          CareLink is checking available caregivers near your care location, one at a time.
+          We&apos;ll update you as soon as we find a match.
+        </p>
+      </div>
+      {status?.activeOffer && (
+        <p className="flex items-center gap-1.5 rounded-full bg-wisteria-tint px-3.5 py-1.5 text-[13px] font-semibold text-wisteria-pressed">
+          <MapPin size={14} weight="fill" /> Contacting {status.activeOffer.caregiverName}…
+        </p>
+      )}
+      <ProgressChecklist
+        status={status ?? { dispatchStatus: "not_started", vicinityRound: 0, activeOffer: null }}
+      />
+      <p className="text-[12px] text-ink-muted">
+        You can stay on this page while we search. We&apos;ll update you as soon as we find a
+        caregiver.
+      </p>
+      <Button
+        variant="secondary"
+        onClick={onCancel}
+        disabled={cancelling}
+        className="border-wisteria bg-sheet text-wisteria hover:bg-wisteria-tint hover:text-wisteria-pressed"
+      >
+        <X size={15} /> Cancel Search
+      </Button>
+    </Sheet>
+  );
+}
+
 function ProgressChecklist({ status }: { status: DispatchStatus }) {
   const states = checklistStates(status);
   return (
@@ -247,8 +300,8 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
 
   if (!status) {
     return (
-      <div className="mx-auto flex max-w-xl flex-col items-center gap-4 p-6 text-center">
-        <p className="text-[14px] text-ink-muted">Starting your search…</p>
+      <div className="mx-auto flex max-w-xl flex-col gap-6 p-6">
+        <SearchingCard status={null} cancelling={cancelling} onCancel={() => void cancel()} />
       </div>
     );
   }
@@ -256,33 +309,7 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6 p-6">
       {(status.dispatchStatus === "not_started" || status.dispatchStatus === "searching") && (
-        <Sheet className="flex flex-col items-center gap-5 border-[var(--color-lavender-border)] px-6 py-12 text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-wisteria-tint text-wisteria">
-            <MagnifyingGlass size={26} weight="bold" />
-          </span>
-          <div className="flex flex-col gap-1.5">
-            <h1 className="text-[19px] font-bold font-heading text-ink">
-              We&apos;re finding your caregiver
-            </h1>
-            <p className="text-[13.5px] leading-relaxed text-ink-muted">
-              CareLink is checking verified, available caregivers near your care location, one at a
-              time. We&apos;ll update you as soon as we find a match.
-            </p>
-          </div>
-          {status.activeOffer && (
-            <p className="flex items-center gap-1.5 rounded-full bg-wisteria-tint px-3.5 py-1.5 text-[13px] font-semibold text-wisteria-pressed">
-              <MapPin size={14} weight="fill" /> Contacting {status.activeOffer.caregiverName}…
-            </p>
-          )}
-          <ProgressChecklist status={status} />
-          <p className="text-[12px] text-ink-muted">
-            You can stay on this page while we search. We&apos;ll update you as soon as we find a
-            caregiver.
-          </p>
-          <Button variant="secondary" onClick={() => void cancel()} disabled={cancelling}>
-            <X size={15} /> Cancel Search
-          </Button>
-        </Sheet>
+        <SearchingCard status={status} cancelling={cancelling} onCancel={() => void cancel()} />
       )}
 
       {status.dispatchStatus === "expanding" && (
@@ -305,7 +332,12 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
             </p>
           )}
           <ProgressChecklist status={status} />
-          <Button variant="secondary" onClick={() => void cancel()} disabled={cancelling}>
+          <Button
+            variant="secondary"
+            onClick={() => void cancel()}
+            disabled={cancelling}
+            className="border-wisteria bg-sheet text-wisteria hover:bg-wisteria-tint hover:text-wisteria-pressed"
+          >
             <X size={15} /> Cancel Search
           </Button>
         </Sheet>
