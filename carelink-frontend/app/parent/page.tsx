@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ShieldCheck, Sparkle } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
@@ -78,7 +79,7 @@ function greeting(): string {
   return "Good evening";
 }
 
-export default function ParentDashboardPage() {
+function ParentDashboard() {
   const { user } = useAuth();
   const firstName = (user?.user_metadata?.full_name as string | undefined)?.split(" ")[0] ?? "";
 
@@ -139,12 +140,22 @@ export default function ParentDashboardPage() {
   // something that could go stale or be tampered with in the address
   // bar. Opening this link only ever reads the record — nothing is
   // created until the parent submits the form with Find Care.
+  //
+  // Read via useSearchParams (synchronous once mounted, under the
+  // Suspense boundary below) rather than the window.location.search
+  // parse the older ?panel= round trip below still uses — that
+  // distinction matters here specifically: it's what lets the render
+  // gate below show a loading state instead of ever painting real Home
+  // content first. The ?panel= flow has no such requirement, so it's
+  // deliberately left as it was rather than changed for consistency's
+  // own sake.
+  const searchParams = useSearchParams();
+  const retryCareRequestId = searchParams.get("retryCareRequestId");
+
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const retryId = params.get("retryCareRequestId");
-    if (!retryId) return;
+    if (!retryCareRequestId) return;
     apiFetch<{ careRequest: CareRequestRecord & { caregiver_type: CaregiverType } }>(
-      `/api/care-requests/${retryId}`,
+      `/api/care-requests/${retryCareRequestId}`,
     )
       .then((res) => {
         setPanelInitial(undefined);
@@ -159,7 +170,14 @@ export default function ParentDashboardPage() {
         // from the cards below.
         setRestoreError(errorMessage(err));
       });
-  }, []);
+  }, [retryCareRequestId]);
+
+  // True for exactly the window between the retry link landing here and
+  // that fetch settling — real Home content (the greeting, the AI card,
+  // Recent Activity) must never paint during it, only this loading
+  // state, so "Request Care Again" reads as going straight to the form,
+  // never through Home first.
+  const restoringRetry = Boolean(retryCareRequestId) && !activePanel && !restoreError;
 
   function openPanel(type: CaregiverType) {
     setPanelInitial(undefined);
@@ -184,6 +202,15 @@ export default function ParentDashboardPage() {
           restoreFrom={panelRestore}
           onBack={() => setActivePanel(null)}
         />
+      </div>
+    );
+  }
+
+  if (restoringRetry) {
+    return (
+      <div className="mx-auto flex max-w-xl flex-col items-center gap-3 p-6 pt-24 text-center">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-wisteria border-t-transparent" />
+        <p className="text-[14px] text-ink-muted">Restoring your request…</p>
       </div>
     );
   }
@@ -320,5 +347,15 @@ export default function ParentDashboardPage() {
         </Sheet>
       </div>
     </div>
+  );
+}
+
+// useSearchParams requires a Suspense boundary — same pattern already
+// used by /parent/safety for the same reason.
+export default function ParentDashboardPage() {
+  return (
+    <Suspense>
+      <ParentDashboard />
+    </Suspense>
   );
 }
