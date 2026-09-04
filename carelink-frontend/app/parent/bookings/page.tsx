@@ -22,6 +22,13 @@ type Booking = {
   ends_at: string;
   total_amount: number;
   status: string;
+  // Set only by a human cancelling (app/api/bookings/[id]/cancel) —
+  // never by the payment window's own lazy/cron expiry
+  // (lib/services/payment-window.ts), which leaves this null on
+  // purpose. That's the real, structural signal used below to show
+  // "Payment Expired" instead of a generic "Cancelled" for that one
+  // specific case — never a guess from cancel_reason text.
+  cancelled_by: string | null;
 };
 
 type CaregiverBrief = {
@@ -49,41 +56,65 @@ const TONE: Record<string, "neutral" | "positive" | "attention" | "info"> = {
   disputed: "attention",
 };
 
+// Parent-facing labels — kept consistent with booking-detail.tsx's own
+// STATUS_LABEL for the same real booking_status enum. 'accepted' reads
+// as "Awaiting Payment" (the caregiver has committed, but the booking
+// isn't Confirmed/Paid until payment succeeds — CareLink's finalized
+// payment-after-acceptance workflow, mapped onto the existing status
+// names rather than renaming the schema). "Payment Expired" isn't a
+// distinct status here either — see statusLabel() below for how a
+// 'cancelled' row becomes that specific label.
 const STATUS_LABEL: Record<string, string> = {
   pending: "Awaiting caregiver response",
-  accepted: "Booking confirmed",
+  accepted: "Awaiting Payment",
   declined: "Booking unavailable",
   expired: "Request expired",
-  paid: "Confirmed · Paid",
-  active: "Care in progress",
+  paid: "Confirmed/Paid",
+  active: "In Progress",
   completed: "Completed",
   cancelled: "Cancelled",
   disputed: "Under review",
 };
 
-type TabKey = "all" | "pending" | "upcoming" | "active" | "completed" | "cancelled";
+// The one place a 'cancelled' row's real cause decides its label — a
+// human explicitly cancelling (cancelled_by set) always reads
+// "Cancelled"; the payment window's own lazy/cron expiry (cancelled_by
+// left null on purpose, see lib/services/payment-window.ts) reads
+// "Payment Expired" instead. Never a separate tab or status — both
+// stay under 'cancelled' in the database and under the All tab here.
+function statusLabel(b: Pick<Booking, "status" | "cancelled_by">): string {
+  if (b.status === "cancelled" && b.cancelled_by === null) return "Payment Expired";
+  return STATUS_LABEL[b.status] ?? b.status;
+}
+
+// CareLink's finalized tab structure: no separate Pending or Cancelled
+// tab — every status (awaiting caregiver response, awaiting payment,
+// cancelled, payment-expired, declined, disputed, and any other
+// non-upcoming/active/completed state) is still a real, visible row,
+// just only ever under All. Nothing about the underlying booking or
+// its data changes because a tab was removed.
+type TabKey = "all" | "upcoming" | "active" | "completed";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "all", label: "All" },
-  { key: "pending", label: "Pending" },
   { key: "upcoming", label: "Upcoming" },
   { key: "active", label: "Active" },
   { key: "completed", label: "Completed" },
-  { key: "cancelled", label: "Cancelled" },
 ];
 
 function matchesTab(status: string, tab: TabKey): boolean {
   switch (tab) {
-    case "pending":
-      return status === "pending";
+    // A 'paid' booking is, by the state machine itself, one that
+    // hasn't started yet — the moment it does, staff moves it to
+    // 'active' (bookings.sql's own paid -> active transition), which
+    // is what the Active tab shows instead. No separate date check
+    // needed on top of the status the backend already maintains.
     case "upcoming":
-      return status === "accepted" || status === "paid";
+      return status === "paid";
     case "active":
       return status === "active";
     case "completed":
       return status === "completed";
-    case "cancelled":
-      return status === "cancelled" || status === "declined" || status === "expired";
     default:
       return true;
   }
@@ -106,10 +137,6 @@ const EMPTY_TAB_COPY: Record<TabKey, { title: string; description: string }> = {
     title: "No bookings yet",
     description: "Your care requests and confirmed bookings will appear here.",
   },
-  pending: {
-    title: "No pending requests",
-    description: "Booking requests awaiting a caregiver's response will appear here.",
-  },
   upcoming: {
     title: "No upcoming bookings",
     description: "You don't have any confirmed upcoming care.",
@@ -121,10 +148,6 @@ const EMPTY_TAB_COPY: Record<TabKey, { title: string; description: string }> = {
   completed: {
     title: "No completed bookings yet",
     description: "Bookings you've completed with a caregiver will appear here.",
-  },
-  cancelled: {
-    title: "No cancelled bookings",
-    description: "Bookings that were cancelled, declined, or expired will appear here.",
   },
 };
 
@@ -217,29 +240,34 @@ export default function ParentBookingsPage() {
           </div>
 
           {bookings && bookings.length > 0 && (
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <MagnifyingGlass
-                  size={16}
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted"
-                />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search by caregiver or reference"
-                  aria-label="Search bookings"
-                  className="w-full rounded-[10px] border border-hairline bg-sheet py-2 pl-9 pr-3 text-[13px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
-                />
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <MagnifyingGlass
+                    size={16}
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted"
+                  />
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search your bookings"
+                    aria-label="Search your bookings"
+                    className="w-full rounded-[10px] border border-hairline bg-sheet py-2 pl-9 pr-3 text-[13px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
+                  />
+                </div>
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => setQuery("")}
+                    className="text-[12.5px] font-semibold text-ink-muted hover:text-ink"
+                  >
+                    Clear filters
+                  </button>
+                )}
               </div>
-              {query && (
-                <button
-                  type="button"
-                  onClick={() => setQuery("")}
-                  className="text-[12.5px] font-semibold text-ink-muted hover:text-ink"
-                >
-                  Clear filters
-                </button>
-              )}
+              <p className="pl-1 text-[11.5px] text-ink-muted">
+                Search by caregiver name or booking reference.
+              </p>
             </div>
           )}
 
@@ -291,10 +319,7 @@ export default function ParentBookingsPage() {
                           )}
                         </div>
                       </div>
-                      <StatusBadge
-                        label={STATUS_LABEL[b.status] ?? b.status}
-                        tone={TONE[b.status] ?? "neutral"}
-                      />
+                      <StatusBadge label={statusLabel(b)} tone={TONE[b.status] ?? "neutral"} />
                     </div>
                     <div className="flex items-center justify-between border-t border-hairline pt-3">
                       <div>
