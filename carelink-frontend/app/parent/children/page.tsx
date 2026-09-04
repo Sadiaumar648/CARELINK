@@ -162,7 +162,11 @@ function AddWardForm({ onAdded }: { onAdded: (w: Ward) => void }) {
 
   if (!open) {
     return (
-      <Button variant="secondary" onClick={() => setOpen(true)}>
+      <Button
+        variant="secondary"
+        onClick={() => setOpen(true)}
+        className="w-full justify-center border-dashed py-3"
+      >
         <Plus size={16} /> Add Ward Profile
       </Button>
     );
@@ -315,10 +319,15 @@ export default function ParentChildrenPage() {
 
       <Sheet className="flex items-start gap-3 bg-wisteria-tint">
         <LockKey size={20} className="mt-0.5 shrink-0 text-wisteria-pressed" />
-        <p className="text-[13px] text-wisteria-pressed">
-          Your Ward Profile is private. Relevant information is shared with an authorized caregiver
-          only when needed for a confirmed booking.
-        </p>
+        <div className="flex flex-col gap-0.5">
+          <p className="text-[13px] font-semibold text-wisteria-pressed">
+            Your Ward Profile is private
+          </p>
+          <p className="text-[13px] text-wisteria-pressed">
+            Relevant information is shared only with an authorized caregiver when needed for a
+            confirmed booking.
+          </p>
+        </div>
       </Sheet>
 
       {error && <ErrorState onRetry={retry} />}
@@ -354,10 +363,12 @@ export default function ParentChildrenPage() {
               ? (CARE_STAGE_LABELS[parsed.careStage] ?? parsed.careStage)
               : null;
             return (
-              <Sheet key={w.id} className="flex flex-col gap-3">
+              <Sheet key={w.id} className="flex flex-col gap-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[17px] font-semibold font-heading">{w.display_name}</p>
+                  <div className="flex flex-col gap-0.5">
+                    <p className="text-[18px] font-semibold font-heading text-ink">
+                      {w.display_name}
+                    </p>
                     <p className="text-[13px] text-ink-muted">
                       {w.age_years} years old{stageLabel ? ` · ${stageLabel}` : ""}
                     </p>
@@ -375,7 +386,7 @@ export default function ParentChildrenPage() {
                     ))}
                   </div>
                 )}
-                <div className="flex gap-4 border-t border-hairline pt-3 text-[13px] font-semibold">
+                <div className="flex items-center gap-5 border-t border-hairline pt-3.5 text-[13px] font-semibold">
                   <Link
                     href={`/parent/children/${w.id}`}
                     className="text-wisteria hover:text-wisteria-hover"
