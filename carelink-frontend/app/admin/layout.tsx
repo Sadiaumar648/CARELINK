@@ -1,50 +1,39 @@
 "use client";
 
-import {
-  SquaresFour,
-  UsersFour,
-  UsersThree,
-  CalendarCheck,
-  Flag,
-  GearSix,
-} from "@phosphor-icons/react";
+import { House, UsersThree, Baby, CalendarCheck, Star } from "@phosphor-icons/react";
 import { RequireRole } from "@/components/require-role";
 import { RoleShell, type NavItem } from "@/components/role-shell";
 import { AdminHeaderLogo } from "@/components/admin/header-nav";
 import { AdminHeaderProfile } from "@/components/admin/header-profile";
 
-// CareLink's final business model: agency-controlled, not an open
-// marketplace caregivers verify themselves into. "Verifications" is
-// removed as a primary nav destination — caregiver onboarding now
-// belongs inside Caregivers (the existing /admin/roster page; no
-// separate /admin/caregivers route exists to move it to, so this
-// reuses the real existing page rather than inventing a new URL).
-// Admin keeps its desktop sidebar, unlike Parent/Staff — this stays an
-// information-dense operations dashboard — with a new header (logo +
-// profile dropdown) layered on top of it via RoleShell's headerLeft/
-// headerExtra slots, same mechanism already proven for Parent/Staff.
-const items: NavItem[] = [
-  { href: "/admin", label: "Overview", icon: SquaresFour },
-  { href: "/admin/users", label: "Users", icon: UsersFour },
+// Final CareLink Admin dashboard: header-only navigation, the same
+// pattern already used by Parent and Staff (RoleShell's desktop rail
+// hidden via railWidthClassName, headerLeft/headerExtra carry the logo
+// and profile dropdown). No left sidebar, and nothing replaces it — the
+// six operational destinations live as Quick Action cards on /admin
+// itself, and every subpage below only needs this curated set for the
+// mobile bottom tab bar (the desktop rail these would otherwise render
+// in is hidden). Settings stays reachable from the profile dropdown, on
+// both desktop and mobile alike.
+const mobileItems: NavItem[] = [
+  { href: "/admin", label: "Home", icon: House },
   { href: "/admin/roster", label: "Caregivers", icon: UsersThree },
+  { href: "/admin/users", label: "Parents", icon: Baby },
   { href: "/admin/bookings", label: "Bookings", icon: CalendarCheck },
-  { href: "/admin/reports", label: "Reports", icon: Flag },
-  { href: "/admin/settings", label: "Settings", icon: GearSix },
+  { href: "/admin/reviews", label: "Reviews", icon: Star },
 ];
 
 export default function AdminLayout({ children }: LayoutProps<"/admin">) {
   return (
     <RequireRole role="admin">
       <RoleShell
-        items={items}
+        items={mobileItems}
+        mobileItems={mobileItems}
         headerLeft={<AdminHeaderLogo />}
         headerExtra={<AdminHeaderProfile />}
-        sidebarFooter={
-          <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-            Admin
-          </p>
-        }
+        hideNotificationsBell
         activeItemClassName="rounded-[10px] bg-wisteria-tint text-wisteria"
+        railWidthClassName="md:hidden"
         mainClassName="bg-[var(--color-lavender-bg)]"
       >
         {children}

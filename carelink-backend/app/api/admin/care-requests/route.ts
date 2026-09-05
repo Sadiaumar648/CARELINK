@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
 import { authErrorResponse, requireRole } from "@/lib/auth/require-user";
 
-// Admin dashboard's "Recent Care Requests" — real care_requests rows,
+// Backs the Admin "View Care Requests" page — real care_requests rows,
 // joined against their one associated bookings row (if a dispatch
 // offer/direct booking exists) to derive the final-workflow status
-// label the Admin dashboard shows. care_requests.dispatch_status alone
-// only tracks the search itself (searching/expanding/accepted/
-// exhausted/cancelled); once dispatch produces an offer, the real,
-// current state (awaiting payment, paid, in progress, completed,
-// payment-expired) lives on the bookings row it created — the same
-// distinction lib/services/dispatch.ts's own summarize() already
-// makes for the parent-facing dispatch-status poll.
-const LIMIT = 15;
+// label shown there. care_requests.dispatch_status alone only tracks
+// the search itself (searching/expanding/accepted/exhausted/cancelled);
+// once dispatch produces an offer, the real, current state (awaiting
+// payment, paid, in progress, completed, payment-expired) lives on the
+// bookings row it created — the same distinction lib/services/
+// dispatch.ts's own summarize() already makes for the parent-facing
+// dispatch-status poll.
+const LIMIT = 50;
 
 type CareRequestRow = {
   id: string;
