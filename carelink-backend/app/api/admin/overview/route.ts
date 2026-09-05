@@ -13,23 +13,33 @@ export async function GET(request: Request) {
       url.searchParams.get("from") ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const to = url.searchParams.get("to") ?? new Date().toISOString();
 
-    const [bookingsRes, paymentsRes, staffRes, verificationsRes, reportsRes] = await Promise.all([
-      supabase.from("bookings").select("status").gte("created_at", from).lte("created_at", to),
-      supabase
-        .from("payments")
-        .select("amount")
-        .eq("status", "succeeded")
-        .gte("settled_at", from)
-        .lte("settled_at", to),
-      supabase.from("staff_profiles").select("id, accepting_bookings, users!inner(account_status)"),
-      supabase
-        .from("verification_submissions")
-        .select("created_at")
-        .eq("status", "pending")
-        .order("created_at", { ascending: true })
-        .limit(1),
-      supabase.from("reports").select("id").in("status", ["open", "investigating"]),
-    ]);
+    const [bookingsRes, paymentsRes, staffRes, verificationsRes, reportsRes, careRequestsRes] =
+      await Promise.all([
+        supabase.from("bookings").select("status").gte("created_at", from).lte("created_at", to),
+        supabase
+          .from("payments")
+          .select("amount")
+          .eq("status", "succeeded")
+          .gte("settled_at", from)
+          .lte("settled_at", to),
+        supabase
+          .from("staff_profiles")
+          .select("id, accepting_bookings, dispatch_available, users!inner(account_status)"),
+        supabase
+          .from("verification_submissions")
+          .select("created_at")
+          .eq("status", "pending")
+          .order("created_at", { ascending: true })
+          .limit(1),
+        supabase.from("reports").select("id").in("status", ["open", "investigating"]),
+        // Current snapshot, not time-windowed — a request's own
+        // dispatch_status is a live state, not something scoped to a
+        // creation-date range the same way a completed booking count is.
+        supabase
+          .from("care_requests")
+          .select("id")
+          .in("dispatch_status", ["searching", "expanding"]),
+      ]);
 
     if (bookingsRes.error)
       return NextResponse.json({ error: bookingsRes.error.message }, { status: 500 });
@@ -56,6 +66,15 @@ export async function GET(request: Request) {
         (s.users as unknown as { account_status: string })?.account_status === "active",
     ).length;
 
+    // "Available Now" — the live Go Available toggle
+    // (staff_profiles.dispatch_available), a real snapshot of who's
+    // actually reachable for dispatch right now, distinct from
+    // accepting_bookings (a caregiver can browse/appear in search
+    // without ever having gone Available).
+    const availableCaregiversNow = (staffRes.data ?? []).filter(
+      (s) => s.dispatch_available === true,
+    ).length;
+
     const oldestPending = verificationsRes.data?.[0]?.created_at ?? null;
 
     return NextResponse.json({
@@ -68,6 +87,8 @@ export async function GET(request: Request) {
       },
       revenue: { total: revenue, averageBookingValue },
       activeStaffCount,
+      availableCaregiversNow,
+      careRequestsSearching: careRequestsRes.data?.length ?? 0,
       verificationQueue: { oldestPendingSince: oldestPending },
       openReports: reportsRes.data?.length ?? 0,
     });

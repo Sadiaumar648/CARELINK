@@ -10,12 +10,37 @@ export async function GET(request: Request) {
     const { data, error } = await supabase
       .from("users")
       .select(
-        "id, full_name, phone, email, account_status, verification_status, verification_method, agency_reference_id, invited_by, created_at, staff_profiles(id, caregiver_type, hourly_rate, years_experience, rating_avg, rating_count, bookings_completed, accepting_bookings)",
+        "id, full_name, phone, email, account_status, verification_status, verification_method, agency_reference_id, invited_by, created_at, staff_profiles(id, caregiver_type, hourly_rate, years_experience, rating_avg, rating_count, bookings_completed, accepting_bookings, dispatch_available)",
       )
       .eq("role", "staff")
       .order("created_at", { ascending: false });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    const staffProfileIds = data
+      .map((row) => {
+        const profile = Array.isArray(row.staff_profiles)
+          ? row.staff_profiles[0]
+          : row.staff_profiles;
+        return profile?.id ?? null;
+      })
+      .filter((id): id is string => id !== null);
+
+    // Additive: the caregiver's primary named area, reused from the
+    // existing staff_areas table (already how a caregiver's public
+    // profile shows their area elsewhere in this app) — never a raw
+    // GPS coordinate, and not the live dispatch fix.
+    const { data: areas } =
+      staffProfileIds.length > 0
+        ? await supabase
+            .from("staff_areas")
+            .select("staff_profile_id, area, is_primary")
+            .in("staff_profile_id", staffProfileIds)
+            .eq("is_primary", true)
+        : { data: [] };
+    const areaByProfileId = new Map(
+      (areas ?? []).map((a) => [a.staff_profile_id, a.area as string]),
+    );
 
     const roster = data.map((row) => {
       const profile = Array.isArray(row.staff_profiles)
@@ -38,6 +63,8 @@ export async function GET(request: Request) {
         ratingAvg: profile?.rating_avg ?? null,
         bookingsCompleted: profile?.bookings_completed ?? 0,
         acceptingBookings: profile?.accepting_bookings ?? false,
+        dispatchAvailable: profile?.dispatch_available ?? false,
+        primaryArea: profile ? (areaByProfileId.get(profile.id) ?? null) : null,
         createdAt: row.created_at,
       };
     });
