@@ -42,6 +42,28 @@ export async function GET(request: Request) {
       (areas ?? []).map((a) => [a.staff_profile_id, a.area as string]),
     );
 
+    // Real completed-care hours, per the Admin Caregivers roster's
+    // requirement to show actual session duration rather than a booking
+    // count. bookings.duration_hours is an existing generated column
+    // (ends_at - starts_at); nothing here recomputes a booking's price
+    // or touches the booking/dispatch pipeline — it's a read-only sum
+    // over already-completed bookings.
+    const { data: completedBookings } =
+      staffProfileIds.length > 0
+        ? await supabase
+            .from("bookings")
+            .select("staff_profile_id, duration_hours")
+            .eq("status", "completed")
+            .in("staff_profile_id", staffProfileIds)
+        : { data: [] as { staff_profile_id: string; duration_hours: number }[] };
+    const hoursByProfileId = new Map<string, number>();
+    for (const b of completedBookings ?? []) {
+      hoursByProfileId.set(
+        b.staff_profile_id,
+        (hoursByProfileId.get(b.staff_profile_id) ?? 0) + Number(b.duration_hours),
+      );
+    }
+
     const roster = data.map((row) => {
       const profile = Array.isArray(row.staff_profiles)
         ? row.staff_profiles[0]
@@ -59,9 +81,11 @@ export async function GET(request: Request) {
         invitationStatus:
           row.invited_by === null ? null : row.account_status === "invited" ? "pending" : "claimed",
         profileComplete: Boolean(profile),
+        staffProfileId: profile?.id ?? null,
         caregiverType: profile?.caregiver_type ?? null,
         ratingAvg: profile?.rating_avg ?? null,
         bookingsCompleted: profile?.bookings_completed ?? 0,
+        completedCareHours: profile ? Math.round(hoursByProfileId.get(profile.id) ?? 0) : 0,
         acceptingBookings: profile?.accepting_bookings ?? false,
         dispatchAvailable: profile?.dispatch_available ?? false,
         primaryArea: profile ? (areaByProfileId.get(profile.id) ?? null) : null,

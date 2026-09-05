@@ -1,34 +1,53 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { MagnifyingGlass, UsersThree } from "@phosphor-icons/react";
+import Link from "next/link";
+import { ArrowLeft, MagnifyingGlass, UsersThree } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { Avatar } from "@/components/ui/avatar";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { BookingCardSkeleton } from "@/components/ui/skeleton";
+
+// Admin → Caregivers, redesigned to the current CareLink visual
+// language: header-only nav (the admin sidebar was already removed
+// project-wide in an earlier pass), a simple roster card per caregiver
+// showing only what an agency operator needs at a glance, and a
+// dedicated detail page (new — none existed before) for everything
+// else. CareLink is an existing agency's platform, not an open
+// marketplace: caregivers are agency-trained/approved, never
+// CareLink-trained, and pricing is fixed (never a caregiver-set rate),
+// so neither appears here.
 
 type RosterEntry = {
   id: string;
   fullName: string;
   phone: string;
-  accountStatus: string;
-  verificationStatus: string;
   profileComplete: boolean;
-  ratingAvg: number | null;
-  bookingsCompleted: number;
-  acceptingBookings: boolean;
+  caregiverType: "nanny" | "babysitter" | null;
+  completedCareHours: number;
+  dispatchAvailable: boolean;
 };
 
-const VERIFICATION_TONE: Record<string, "neutral" | "positive" | "attention" | "info"> = {
-  unverified: "neutral",
-  pending: "info",
-  verified: "positive",
-  rejected: "attention",
+const CAREGIVER_TYPE_LABEL: Record<"nanny" | "babysitter", string> = {
+  nanny: "Nanny",
+  babysitter: "Babysitter",
 };
+
+function AvailabilityDot({ available }: { available: boolean }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-ink">
+      <span
+        className={`h-2 w-2 rounded-full ${available ? "bg-[var(--color-success)]" : "bg-ink-muted/40"}`}
+        aria-hidden
+      />
+      {available ? "Available" : "Off Duty"}
+    </span>
+  );
+}
 
 function InviteForm({ onInvited }: { onInvited: () => void }) {
   const [open, setOpen] = useState(false);
@@ -75,7 +94,7 @@ function InviteForm({ onInvited }: { onInvited: () => void }) {
 
   if (!open) {
     return (
-      <Button variant="secondary" onClick={() => setOpen(true)}>
+      <Button variant="secondary" onClick={() => setOpen(true)} className="self-start">
         Invite a caregiver
       </Button>
     );
@@ -110,6 +129,42 @@ function InviteForm({ onInvited }: { onInvited: () => void }) {
   );
 }
 
+function CaregiverCard({ entry }: { entry: RosterEntry }) {
+  return (
+    <Sheet className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center gap-4">
+        <Avatar photoUrl={null} name={entry.fullName} size="sm" />
+        <div className="flex flex-col gap-1">
+          <p className="text-[16px] font-semibold text-ink">{entry.fullName}</p>
+          <p className="text-[13px] text-ink-muted">{entry.phone}</p>
+          <p className="text-[13px] text-ink-muted">
+            {entry.caregiverType ? CAREGIVER_TYPE_LABEL[entry.caregiverType] : "Agency caregiver"}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 sm:flex-col sm:items-end sm:gap-1.5">
+        <span className="text-[13px] text-ink-muted">
+          Profile:{" "}
+          <span className="font-medium text-ink">
+            {entry.profileComplete ? "Complete" : "Incomplete"}
+          </span>
+        </span>
+        <AvailabilityDot available={entry.dispatchAvailable} />
+        <span className="text-[13px] text-ink-muted">
+          Completed Care:{" "}
+          <span className="font-medium text-ink">{entry.completedCareHours} hours</span>
+        </span>
+        <Link href={`/admin/roster/${entry.id}`} className="w-full sm:w-auto">
+          <Button variant="secondary" className="w-full sm:w-auto">
+            View Details
+          </Button>
+        </Link>
+      </div>
+    </Sheet>
+  );
+}
+
 export default function AdminRosterPage() {
   const [roster, setRoster] = useState<RosterEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -136,10 +191,19 @@ export default function AdminRosterPage() {
   }, [roster, query]);
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
+    <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6 md:p-8">
+      <Link
+        href="/admin"
+        className="flex w-fit items-center gap-1.5 text-[13px] font-semibold text-ink-muted hover:text-wisteria"
+      >
+        <ArrowLeft size={16} /> Back to Admin
+      </Link>
+
       <div className="flex flex-col gap-1">
-        <h1 className="text-[26px] font-semibold font-heading">Caregivers</h1>
-        <p className="text-[14px] text-ink-muted">Every caregiver on the platform.</p>
+        <h1 className="text-[26px] font-semibold font-heading text-ink">Caregivers</h1>
+        <p className="text-[14px] text-ink-muted">
+          Manage agency caregivers, onboarding and availability.
+        </p>
       </div>
 
       {error && <ErrorState onRetry={load} />}
@@ -187,26 +251,7 @@ export default function AdminRosterPage() {
 
       <div className="flex flex-col gap-4">
         {filtered?.map((r) => (
-          <Sheet key={r.id} className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-[17px] font-semibold">{r.fullName}</p>
-              <p className="text-[13px] text-ink-muted">
-                {r.phone} · {r.bookingsCompleted} bookings
-                {r.ratingAvg ? ` · ${r.ratingAvg.toFixed(1)}★` : ""}
-              </p>
-              <p className="text-[12px] text-ink-muted">
-                {r.profileComplete ? "Profile complete" : "Profile incomplete"} ·{" "}
-                {r.acceptingBookings ? "Accepting bookings" : "Not accepting bookings"}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <StatusBadge label={r.accountStatus} />
-              <StatusBadge
-                label={r.verificationStatus}
-                tone={VERIFICATION_TONE[r.verificationStatus] ?? "neutral"}
-              />
-            </div>
-          </Sheet>
+          <CaregiverCard key={r.id} entry={r} />
         ))}
       </div>
     </div>
