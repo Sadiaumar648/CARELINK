@@ -72,7 +72,10 @@ type DispatchStatus = { available: boolean; updatedAt: string | null };
 // — no new state was introduced to do this.
 function GoAvailableControl() {
   const [status, setStatus] = useState<DispatchStatus | null>(null);
-  const [busy, setBusy] = useState(false);
+  // Tracked separately from a plain boolean so the button can show a
+  // distinct "Getting you ready…" label specifically while obtaining a
+  // location for Go Available — not a generic busy state.
+  const [actionInProgress, setActionInProgress] = useState<"available" | "offDuty" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const refreshTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -116,7 +119,7 @@ function GoAvailableControl() {
       (err) => {
         setError(
           err.code === err.PERMISSION_DENIED
-            ? "Location access was denied. Enable it in your browser's site settings to go Available."
+            ? "Location access is required to receive nearby dispatch requests. Enable location for this site in your browser settings, then tap Go Available again."
             : "We couldn't get your location right now. Try again in a moment.",
         );
         onDone(null);
@@ -125,11 +128,16 @@ function GoAvailableControl() {
     );
   }
 
+  // Only ever marks the caregiver Available once a real, current
+  // location has actually been obtained — an Available caregiver must
+  // have a fresh dispatch location, never an assumed one. If location
+  // fails or permission is denied, captureAndSend passes null and the
+  // caregiver simply stays Off Duty, with the reason shown above.
   function goAvailable() {
     setError(null);
-    setBusy(true);
+    setActionInProgress("available");
     captureAndSend((result) => {
-      setBusy(false);
+      setActionInProgress(null);
       if (!result) return;
       setStatus(result);
       stopRefreshing();
@@ -143,7 +151,7 @@ function GoAvailableControl() {
 
   function goOffDuty() {
     setError(null);
-    setBusy(true);
+    setActionInProgress("offDuty");
     stopRefreshing();
     apiFetch<{ available: boolean }>("/api/staff/dispatch-status", {
       method: "POST",
@@ -151,12 +159,14 @@ function GoAvailableControl() {
     })
       .then(() => setStatus({ available: false, updatedAt: null }))
       .catch((err) => setError(errorMessage(err)))
-      .finally(() => setBusy(false));
+      .finally(() => setActionInProgress(null));
   }
 
   useEffect(() => stopRefreshing, []);
 
   if (!status) return null;
+
+  const busy = actionInProgress !== null;
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_320px]">
@@ -165,19 +175,30 @@ function GoAvailableControl() {
         className={`flex flex-col gap-3 ${status.available ? "border-[var(--color-success)]/40 bg-[var(--color-success)]/5" : "border-[var(--color-lavender-border)]"}`}
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="flex items-center gap-2 text-[16px] font-semibold text-ink">
+          <div className="flex flex-col gap-1">
             {status.available && (
-              <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--color-success)]" />
+              <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--color-success)]">
+                <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--color-success)]" />
+                Available
+              </span>
             )}
-            {status.available ? "You're available for care" : "You're currently off duty"}
-          </h2>
+            <h2 className="text-[16px] font-semibold text-ink">
+              {status.available ? "You're available for care" : "You're currently off duty"}
+            </h2>
+          </div>
           <Button
             size="lg"
             variant={status.available ? "secondary" : "primary"}
             onClick={status.available ? goOffDuty : goAvailable}
             disabled={busy}
           >
-            {busy ? "Updating…" : status.available ? "Go Off Duty" : "Go Available"}
+            {actionInProgress === "available"
+              ? "Getting you ready…"
+              : busy
+                ? "Updating…"
+                : status.available
+                  ? "Go Off Duty"
+                  : "Go Available"}
           </Button>
         </div>
         <p className="text-[13px] text-ink-muted">
@@ -198,7 +219,9 @@ function GoAvailableControl() {
           </p>
         </div>
         <p className="text-[12px] leading-relaxed text-ink-muted">
-          Your location is used to find care requests near you while you&apos;re available.
+          {status.available
+            ? "Your current location is being used for nearby care requests while you're available."
+            : "Your location is used to find care requests near you while you're available."}
         </p>
         {status.available && status.updatedAt && (
           <p className="text-[11.5px] text-ink-muted">
@@ -234,9 +257,7 @@ function RequestsStat() {
         <Tray size={18} className="text-wisteria" />
         <span className="text-[22px] font-semibold tabular-nums text-ink">{count ?? "…"}</span>
         <span className="text-[12px] font-semibold text-ink">Requests waiting</span>
-        <span className="text-[11.5px] text-ink-muted">
-          New care requests will appear here when available.
-        </span>
+        <span className="text-[11.5px] font-semibold text-wisteria">View requests</span>
       </Sheet>
     </Link>
   );
@@ -271,9 +292,7 @@ function UpcomingStat() {
         <CalendarCheck size={18} className="text-wisteria" />
         <span className="text-[22px] font-semibold tabular-nums text-ink">{count ?? "…"}</span>
         <span className="text-[12px] font-semibold text-ink">Upcoming this week</span>
-        <span className="text-[11.5px] text-ink-muted">
-          Care sessions you&apos;ve accepted for this week.
-        </span>
+        <span className="text-[11.5px] font-semibold text-wisteria">View schedule</span>
       </Sheet>
     </Link>
   );
@@ -299,7 +318,7 @@ function EarningsStat() {
           GH₵{monthTotal ?? 0}
         </span>
         <span className="text-[12px] font-semibold text-ink">Earnings this month</span>
-        <span className="text-[11.5px] font-semibold text-wisteria">View earnings →</span>
+        <span className="text-[11.5px] font-semibold text-wisteria">View earnings</span>
       </Sheet>
     </Link>
   );
