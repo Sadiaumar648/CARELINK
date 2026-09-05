@@ -8,6 +8,7 @@ import {
   isPaymentExpired,
   paymentDeadline as computePaymentDeadline,
 } from "@/lib/services/payment-window";
+import { notifyCaregiverNewOffer } from "@/lib/services/notify";
 
 // The sequential dispatch engine. Every function here runs using the
 // CALLING PARENT's own RLS-scoped Supabase client (never service-role) —
@@ -71,6 +72,12 @@ type CareRequestRow = {
 type SummarizedBooking = {
   id: string;
   staff_profile_id: string;
+  // Additive: selected alongside the columns this type already carried
+  // so lib/services/payment-window.ts's expiry/reminder notifications
+  // (CareLink's real email notification system) can resolve both
+  // parties from the same row already being fetched here, with no
+  // second query.
+  parent_profile_id: string;
   hourly_rate: number;
   offer_expires_at: string | null;
   status: string;
@@ -125,7 +132,7 @@ export async function advanceDispatch(
     const { data: finalBookingRow } = await supabase
       .from("bookings")
       .select(
-        "id, staff_profile_id, hourly_rate, offer_expires_at, status, terms_locked_at, cancelled_by",
+        "id, staff_profile_id, parent_profile_id, hourly_rate, offer_expires_at, status, terms_locked_at, cancelled_by",
       )
       .eq("care_request_id", careRequestId)
       // 'cancelled' included so a booking the payment window's own
@@ -148,7 +155,7 @@ export async function advanceDispatch(
   const { data: activeBooking } = await supabase
     .from("bookings")
     .select(
-      "id, staff_profile_id, hourly_rate, offer_expires_at, status, terms_locked_at, cancelled_by",
+      "id, staff_profile_id, parent_profile_id, hourly_rate, offer_expires_at, status, terms_locked_at, cancelled_by",
     )
     .eq("care_request_id", careRequestId)
     .eq("status", "pending")
@@ -283,10 +290,21 @@ export async function advanceDispatch(
       offer_expires_at: expiresAt.toISOString(),
     })
     .select(
-      "id, staff_profile_id, hourly_rate, offer_expires_at, status, terms_locked_at, cancelled_by",
+      "id, staff_profile_id, parent_profile_id, hourly_rate, offer_expires_at, status, terms_locked_at, cancelled_by",
     )
     .single();
   if (insertErr) throw insertErr;
+
+  // CareLink's real email notification system: exactly the caregiver
+  // who was actually offered this request, via the one bookings row
+  // just inserted for them — never anyone else in the round, never a
+  // caregiver who was skipped as unavailable/ineligible. Awaited so it
+  // actually runs to completion in a serverless request, but never lets
+  // an email failure affect the dispatch result already computed above.
+  await notifyCaregiverNewOffer({
+    id: booking.id,
+    staff_profile_id: booking.staff_profile_id,
+  }).catch(() => {});
 
   const dispatchStatus = round === 0 ? "searching" : "expanding";
   await supabase

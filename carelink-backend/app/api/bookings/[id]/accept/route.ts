@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authErrorResponse, requireRole } from "@/lib/auth/require-user";
 import { getOwnStaffProfileId } from "@/lib/staff";
 import { createServiceRoleClient } from "@/lib/db/supabase-server";
+import { notifyParentCaregiverAccepted } from "@/lib/services/notify";
 
 // Task 2.12. The pre-check below names the conflicting booking for a
 // good error message; the exclusion constraint on bookings (task 2.10)
@@ -66,6 +67,15 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/bookings/[
       }
       return NextResponse.json({ error: updateErr.message }, { status: 400 });
     }
+
+    // CareLink's real email notification system: the parent finds
+    // out their caregiver accepted and is directed back to CareLink to
+    // pay — this never claims the booking is confirmed/paid, since
+    // payment hasn't happened yet.
+    await notifyParentCaregiverAccepted({
+      id: updated.id,
+      parent_profile_id: updated.parent_profile_id,
+    }).catch(() => {});
 
     // Dispatch-only, additive: if this booking was one caregiver's offer
     // in a sequential dispatch (care_request_id is null for every

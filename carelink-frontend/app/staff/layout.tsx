@@ -17,6 +17,12 @@ import { StaffHeaderProfile } from "@/components/staff/header-profile";
 // /staff/requests page (Section 11 of the redesign: Home only shows a
 // "Requests waiting" summary card, the full list has its own
 // destination) — no functionality was removed, only relocated.
+//
+// CareLink's real phone/SMS notification system: the header's
+// NotificationsBell is hidden here (hideNotificationsBell) now that SMS
+// carries the action-required alerts it used to be the only way to see.
+// The underlying /api/notifications system is untouched — only the
+// header bell is removed.
 const items: NavItem[] = [
   { href: "/staff", label: "Home", icon: House },
   { href: "/staff/requests", label: "Requests", icon: Tray },
@@ -40,6 +46,7 @@ export default function StaffLayout({ children }: LayoutProps<"/staff">) {
         }
         bookingHref={(id) => `/staff/schedule/${id}`}
         largeTargets
+        hideNotificationsBell
         activeItemClassName="rounded-[10px] bg-wisteria-tint text-wisteria"
         railWidthClassName="md:hidden"
         mainClassName="bg-[var(--color-lavender-bg)]"

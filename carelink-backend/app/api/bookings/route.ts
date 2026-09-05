@@ -10,6 +10,7 @@ import {
   type AvailabilityWindow,
   type BusyRange,
 } from "@/lib/services/availability";
+import { notifyCaregiverNewOffer } from "@/lib/services/notify";
 
 const AVAILABILITY_REASON_MESSAGES: Record<string, string> = {
   outside_declared_hours: "This caregiver hasn't declared availability for this time.",
@@ -146,6 +147,15 @@ export async function POST(request: Request) {
       .single();
 
     if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 400 });
+
+    // CareLink's real email notification system: a direct (non-
+    // dispatch) request is still a real "new care request offered" to
+    // exactly the one caregiver the parent picked.
+    await notifyCaregiverNewOffer({
+      id: booking.id,
+      staff_profile_id: booking.staff_profile_id,
+    }).catch(() => {});
+
     return NextResponse.json({ booking }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {

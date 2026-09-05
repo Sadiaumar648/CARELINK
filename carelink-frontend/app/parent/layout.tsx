@@ -8,11 +8,17 @@ import { ParentHeaderProfile } from "@/components/parent/header-profile";
 
 // The reference design puts every destination in the header instead of
 // a desktop sidebar (RoleShell's rail is hidden via railWidthClassName
-// below) — Find Care/Messages/Notifications live as header icons
-// (ParentHeaderIcons + the existing NotificationsBell), and
-// Settings lives in the profile dropdown (ParentHeaderProfile). My
+// below) — Find Care/Messages live as header icons (ParentHeaderIcons),
+// and Settings lives in the profile dropdown (ParentHeaderProfile). My
 // Wards, My Bookings, Payment Methods, and Help & Support are all
 // reachable from /parent/account (Settings), same as before.
+//
+// CareLink's real phone/SMS notification system: the header's
+// NotificationsBell is hidden here (hideNotificationsBell) now that SMS
+// carries the action-required alerts it used to be the only way to see.
+// The underlying /api/notifications system, the dedicated
+// /parent/notifications page, and its bottom-tab entry above are all
+// untouched — only the header bell is removed.
 //
 // The mobile bottom tab bar is unaffected by any of this — a phone
 // still needs labelled nav, so it keeps its own curated 5 items.
@@ -38,6 +44,7 @@ export default function ParentLayout({ children }: LayoutProps<"/parent">) {
           </>
         }
         bookingHref={(id) => `/parent/bookings/${id}`}
+        hideNotificationsBell
         activeItemClassName="rounded-[10px] bg-wisteria-tint text-wisteria"
         railWidthClassName="md:hidden"
         mainClassName="bg-[var(--color-lavender-bg)]"

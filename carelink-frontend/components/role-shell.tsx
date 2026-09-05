@@ -43,6 +43,7 @@ export function RoleShell({
   bookingHref,
   largeTargets = false,
   readAloud = false,
+  hideNotificationsBell = false,
   activeItemClassName = "text-wisteria",
   railWidthClassName = "md:w-56",
   mainClassName = "",
@@ -57,6 +58,12 @@ export function RoleShell({
   bookingHref?: (bookingId: string) => string;
   largeTargets?: boolean;
   readAloud?: boolean;
+  // CareLink's real phone/SMS notification system: SMS now carries the
+  // action-required alerts this in-app bell used to be the only way to
+  // see, so Parent and Staff (the two roles this task scopes) hide it
+  // from their header. Defaults to false — every other role (Admin)
+  // keeps the bell exactly as it already worked, unaffected.
+  hideNotificationsBell?: boolean;
   activeItemClassName?: string;
   railWidthClassName?: string;
   mainClassName?: string;
@@ -133,7 +140,7 @@ export function RoleShell({
           <div className="flex items-center">{headerLeft}</div>
           <div className="flex items-center gap-2">
             {readAloud && <ReadAloudToggle />}
-            <NotificationsBell bookingHref={bookingHref} />
+            {!hideNotificationsBell && <NotificationsBell bookingHref={bookingHref} />}
             {headerExtra}
           </div>
         </div>

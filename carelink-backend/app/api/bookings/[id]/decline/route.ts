@@ -3,6 +3,7 @@ import { z } from "zod";
 import { declineBookingSchema } from "@carelink/shared";
 import { authErrorResponse, requireRole } from "@/lib/auth/require-user";
 import { getOwnStaffProfileId } from "@/lib/staff";
+import { notifyParentDirectBookingDeclined } from "@/lib/services/notify";
 
 export async function PATCH(request: Request, ctx: RouteContext<"/api/bookings/[id]/decline">) {
   try {
@@ -36,6 +37,21 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/bookings/[
       .select()
       .single();
     if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 400 });
+
+    // CareLink's real email notification system: only for a direct
+    // (non-dispatch) booking. A decline during sequential dispatch is
+    // silently absorbed by the next dispatch round — the parent is
+    // already watching a live, polled search screen for that — so
+    // texting on every decline in that sequence would be exactly the
+    // "a notification for every minor UI event" this feature is meant to avoid. A
+    // direct booking has no automatic next step, so the parent
+    // genuinely needs to know here.
+    if (!updated.care_request_id) {
+      await notifyParentDirectBookingDeclined({
+        id: updated.id,
+        parent_profile_id: updated.parent_profile_id,
+      }).catch(() => {});
+    }
 
     return NextResponse.json({ booking: updated });
   } catch (error) {
