@@ -8,6 +8,7 @@ import { errorMessage } from "@/lib/error-message";
 import { useAuth } from "@/lib/auth/auth-context";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 import { minutesAgoLabel } from "@/lib/relative-time";
 
 type Booking = {
@@ -164,7 +165,21 @@ function GoAvailableControl() {
 
   useEffect(() => stopRefreshing, []);
 
-  if (!status) return null;
+  // Same real card shells the loaded state below renders — not a
+  // separate loading screen, just this section's own two cards filling
+  // their already-visible space while their one fetch is in flight.
+  // Never absent: the rest of the page (header, stat cards, profile
+  // banner) is already visible at this point, and this is the one piece
+  // that used to be missing entirely, reading as a different, shorter
+  // page until it popped in.
+  if (!status) {
+    return (
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_320px]">
+        <Skeleton className="h-28 w-full" />
+        <Skeleton className="h-28 w-full" />
+      </div>
+    );
+  }
 
   const busy = actionInProgress !== null;
 
