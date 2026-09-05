@@ -1,109 +1,113 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
-  Fire,
-  FirstAid,
   Flag,
   IdentificationCard,
-  ShieldWarning,
-  Siren,
-} from "@phosphor-icons/react";
-import { apiFetch } from "@/lib/api/client";
+  MapPin,
+  ShieldCheck,
+  Star,
+} from "@phosphor-icons/react/dist/ssr";
 import { Sheet } from "@/components/ui/sheet";
 
-type EmergencyContacts = { police: string | null; fire: string | null; medical: string | null };
-
-const SAFETY_DISCLAIMER =
-  "For immediate danger, contact the appropriate emergency service. CareLink Safety Team alerts are for CareLink follow-up and do not replace emergency services.";
-
-function EmergencyNumberRow({
-  icon: Icon,
-  label,
-  number,
-}: {
-  icon: typeof Siren;
-  label: string;
-  number: string | null | undefined;
-}) {
-  return (
-    <div className="flex items-center gap-3">
-      <Icon size={20} className="shrink-0 text-error" />
-      <span className="text-[14px] text-ink">{label}</span>
-      <span className="ml-auto text-[13px] font-semibold text-ink">
-        {number ? (
-          <a href={`tel:${number}`} className="text-wisteria hover:text-wisteria-hover">
-            {number}
-          </a>
-        ) : (
-          <span className="font-normal text-ink-muted">Not yet configured</span>
-        )}
-      </span>
-    </div>
-  );
-}
-
+// CareLink is agency-controlled: no Emergency SOS, no self-verification
+// content belongs here — a caregiver reaching this page already means
+// the agency has onboarded, trained, and approved them. This page is
+// content/navigation only; it doesn't touch reporting, reviews, Go
+// Available, or dispatch — it just explains and links to them.
 export default function StaffSafetyPage() {
-  const [contacts, setContacts] = useState<EmergencyContacts | null>(null);
-
-  useEffect(() => {
-    apiFetch<EmergencyContacts>("/api/settings/emergency-contacts")
-      .then(setContacts)
-      .catch(() => setContacts({ police: null, fire: null, medical: null }));
-  }, []);
-
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
+    <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6 md:p-8">
       <Link
         href="/staff/profile"
         className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-muted hover:text-ink"
       >
         <ArrowLeft size={16} /> Back to Settings
       </Link>
+
       <div className="flex flex-col gap-1">
-        <h1 className="text-[26px] font-semibold font-heading">Safety &amp; Privacy</h1>
+        <h1 className="text-[26px] font-bold font-heading text-ink">Safety &amp; Privacy</h1>
         <p className="text-[14px] text-ink-muted">
-          Emergency options, reporting, and how CareLink protects your information.
+          Learn how CareLink helps keep you safe and protects your personal information.
         </p>
       </div>
-
-      <Sheet className="flex flex-col gap-3">
-        <h2 className="flex items-center gap-2 text-[15px] font-semibold font-heading">
-          <ShieldWarning size={20} weight="fill" className="text-error" />
-          Emergency SOS
-        </h2>
-        <p className="text-[13px] leading-relaxed text-ink-muted">
-          During a confirmed or active booking, an SOS / Emergency option is available from the
-          booking&apos;s Safety & Support section — it gives you one-tap access to police, fire,
-          medical services, and an option to alert the CareLink Safety Team.
-        </p>
-        <p className="text-[12px] leading-relaxed text-ink-muted">{SAFETY_DISCLAIMER}</p>
-      </Sheet>
-
-      <Sheet className="flex flex-col gap-3">
-        <h2 className="text-[15px] font-semibold font-heading">Emergency services</h2>
-        <div className="flex flex-col gap-2.5">
-          <EmergencyNumberRow icon={Siren} label="Police / Security" number={contacts?.police} />
-          <EmergencyNumberRow icon={Fire} label="Fire & Rescue" number={contacts?.fire} />
-          <EmergencyNumberRow icon={FirstAid} label="Medical" number={contacts?.medical} />
-        </div>
-      </Sheet>
 
       <Sheet className="flex items-start gap-4">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-wisteria-tint text-wisteria-pressed">
           <Flag size={20} weight="duotone" />
         </span>
         <div className="flex flex-col gap-1">
-          <p className="text-[15px] font-semibold text-ink">Report a parent or a booking</p>
+          <p className="text-[15px] font-semibold text-ink">Report a Parent or Booking</p>
           <p className="text-[13px] leading-relaxed text-ink-muted">
-            Open any booking from your Schedule and use the report option in its Safety & Support
-            section — covers unsafe behaviour, harassment, an inappropriate request, incorrect
-            booking information, a payment issue, or another concern. Reports go to CareLink
-            administrators only; the parent never sees who filed it.
+            Have a concern about a parent, booking, payment, inappropriate request, or another
+            issue? You can report it directly to CareLink.
+          </p>
+          <p className="text-[13px] leading-relaxed text-ink-muted">
+            Open the relevant booking from your Schedule and use the Safety &amp; Support section to
+            submit a report.
+          </p>
+          <p className="text-[12px] text-ink-muted">
+            Reports are sent to CareLink administrators for review.
           </p>
         </div>
+      </Sheet>
+
+      <Sheet className="flex items-start gap-4">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-wisteria-tint text-wisteria-pressed">
+          <Star size={20} weight="duotone" />
+        </span>
+        <div className="flex flex-col gap-1">
+          <p className="text-[15px] font-semibold text-ink">Review a Parent</p>
+          <p className="text-[13px] leading-relaxed text-ink-muted">
+            After a completed booking, you can share feedback about your experience with the family.
+          </p>
+          <p className="text-[13px] leading-relaxed text-ink-muted">
+            You can leave a rating and review from the completed booking in your{" "}
+            <Link
+              href="/staff/schedule"
+              className="font-semibold text-wisteria hover:text-wisteria-hover"
+            >
+              Schedule
+            </Link>
+            .
+          </p>
+        </div>
+      </Sheet>
+
+      <Sheet className="flex items-start gap-4">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-wisteria-tint text-wisteria-pressed">
+          <MapPin size={20} weight="duotone" />
+        </span>
+        <div className="flex flex-col gap-1">
+          <p className="text-[15px] font-semibold text-ink">Location Privacy</p>
+          <p className="text-[13px] leading-relaxed text-ink-muted">
+            When you choose Go Available, CareLink uses your current location to help find nearby
+            care requests.
+          </p>
+          <p className="text-[13px] leading-relaxed text-ink-muted">
+            Your location is used for dispatch while you&apos;re Available for Care. It&apos;s not
+            intended as continuous location tracking.
+          </p>
+          <p className="text-[13px] leading-relaxed text-ink-muted">
+            Your exact current location is not publicly shown to families.
+          </p>
+        </div>
+      </Sheet>
+
+      <Sheet className="flex flex-col gap-2">
+        <p className="text-[15px] font-semibold text-ink">Family &amp; Booking Privacy</p>
+        <p className="text-[13px] leading-relaxed text-ink-muted">
+          Family and booking information is private and should only be used for providing care
+          through CareLink.
+        </p>
+        <ul className="flex flex-col gap-1.5 text-[13px] leading-relaxed text-ink-muted">
+          <li>
+            • A family&apos;s exact care address is shared only when appropriate for the confirmed
+            booking.
+          </li>
+          <li>• Family contact information is not publicly displayed.</li>
+          <li>• Booking details are only shared with people who need them for the care service.</li>
+          <li>• Do not share family information outside CareLink unnecessarily.</li>
+        </ul>
       </Sheet>
 
       <Sheet className="flex items-start gap-4">
@@ -111,28 +115,31 @@ export default function StaffSafetyPage() {
           <IdentificationCard size={20} weight="duotone" />
         </span>
         <div className="flex flex-col gap-1">
-          <p className="text-[15px] font-semibold text-ink">Your emergency contact</p>
+          <p className="text-[15px] font-semibold text-ink">Emergency Contact</p>
           <p className="text-[13px] leading-relaxed text-ink-muted">
-            Shared with a parent only during an active booking, for their safety and yours. Manage
-            it from{" "}
-            <Link
-              href="/staff/profile"
-              className="font-semibold text-wisteria hover:text-wisteria-hover"
-            >
-              Settings
-            </Link>
-            .
+            Your emergency contact information is kept private and is used when necessary for your
+            safety.
           </p>
+          <Link
+            href="/staff/profile"
+            className="text-[13px] font-semibold text-wisteria hover:text-wisteria-hover"
+          >
+            Manage in Settings
+          </Link>
         </div>
       </Sheet>
 
-      <Sheet className="flex flex-col gap-1">
-        <p className="text-[15px] font-semibold text-ink">What we don&apos;t share</p>
-        <p className="text-[13px] leading-relaxed text-ink-muted">
-          A family&apos;s exact address is only shared once you&apos;ve accepted their booking. Your
-          identity documents, live verification photo, and emergency contact are never shown
-          publicly.
-        </p>
+      <Sheet className="flex items-start gap-4">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-wisteria-tint text-wisteria-pressed">
+          <ShieldCheck size={20} weight="duotone" />
+        </span>
+        <div className="flex flex-col gap-1">
+          <p className="text-[15px] font-semibold text-ink">Your Privacy</p>
+          <p className="text-[13px] leading-relaxed text-ink-muted">
+            CareLink protects your account information and limits access to information based on
+            your role and booking.
+          </p>
+        </div>
       </Sheet>
     </div>
   );
