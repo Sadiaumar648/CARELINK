@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { hourlyRateFor, skillTagSchema, type SkillTag, type DayPart } from "@carelink/shared";
+import { PencilSimple } from "@phosphor-icons/react";
+import { hourlyRateFor } from "@carelink/shared";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
@@ -12,16 +13,86 @@ import { caregiverPhotoUrl } from "@/lib/photo-url";
 import { useAuth } from "@/lib/auth/auth-context";
 import { LocationPicker, type ResolvedLocation } from "@/components/location-picker";
 
-function skillLabel(skill: string): string {
-  return skill.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
 function Saved({ show }: { show: boolean }) {
   if (!show) return null;
   return <p className="text-[13px] text-wisteria-pressed">Saved.</p>;
 }
 
-function PhotoSection() {
+// CareLink caregiver Settings redesign: the one place a caregiver's
+// staff_profiles row is read from and written back to. Previously one
+// large always-editable form (bio/type/years/languages/emergency
+// contact/base location all together); now several focused, separately
+// toggleable read → Edit sections, each still going through the exact
+// same PATCH /api/staff/profile and staffProfileSchema as before — that
+// schema requires the full set of fields together (years/emergency
+// contact are non-optional), so a section that edits only its own
+// piece still submits the complete current profile, just with its own
+// field(s) changed. No backend change, no new endpoint.
+export type StaffProfile = {
+  bio: string | null;
+  caregiver_type: "nanny" | "babysitter" | null;
+  years_experience: number;
+  hourly_rate: number;
+  languages: string[];
+  emergency_contact_name: string;
+  emergency_contact_phone: string;
+  base_address: string | null;
+  base_latitude: number | null;
+  base_longitude: number | null;
+  base_place_id: string | null;
+};
+
+async function patchProfile(
+  current: StaffProfile,
+  patch: Partial<StaffProfile>,
+): Promise<StaffProfile> {
+  const merged = { ...current, ...patch };
+  const res = await apiFetch<{ profile: StaffProfile }>("/api/staff/profile", {
+    method: "PATCH",
+    body: {
+      bio: merged.bio || undefined,
+      caregiverType: merged.caregiver_type || undefined,
+      yearsExperience: merged.years_experience,
+      languages: merged.languages,
+      emergencyContactName: merged.emergency_contact_name,
+      emergencyContactPhone: merged.emergency_contact_phone,
+      baseAddress: merged.base_address ?? undefined,
+      baseLatitude: merged.base_latitude ?? undefined,
+      baseLongitude: merged.base_longitude ?? undefined,
+      basePlaceId: merged.base_place_id ?? undefined,
+    },
+  });
+  return res.profile;
+}
+
+function useOwnProfile() {
+  const [profile, setProfile] = useState<StaffProfile | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    apiFetch<{ profile: StaffProfile | null }>("/api/staff/profile")
+      .then((res) =>
+        setProfile(
+          res.profile ?? {
+            bio: null,
+            caregiver_type: null,
+            years_experience: 0,
+            hourly_rate: 0,
+            languages: [],
+            emergency_contact_name: "",
+            emergency_contact_phone: "",
+            base_address: null,
+            base_latitude: null,
+            base_longitude: null,
+            base_place_id: null,
+          },
+        ),
+      )
+      .catch((err) => setError(errorMessage(err)));
+  }, []);
+  return { profile, setProfile, error };
+}
+
+export function PhotoSection() {
   const { user } = useAuth();
   const [photoPath, setPhotoPath] = useState<string | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +127,7 @@ function PhotoSection() {
   if (photoPath === undefined) return <p className="text-[13px] text-ink-muted">Loading…</p>;
 
   return (
-    <Sheet className="flex items-center gap-4">
+    <div className="flex items-center gap-4">
       <Avatar
         photoUrl={caregiverPhotoUrl(photoPath)}
         name={(user?.user_metadata?.full_name as string | undefined) ?? "Your photo"}
@@ -74,102 +145,57 @@ function PhotoSection() {
             className="hidden"
           />
         </label>
-        <p className="text-[13px] text-ink-muted">Parents see this next to your name in search.</p>
+        <p className="text-[12.5px] text-ink-muted">Parents see this next to your name.</p>
         {error && <p className="text-[13px] text-error">{error}</p>}
       </div>
-    </Sheet>
+    </div>
   );
 }
-
-type Profile = {
-  bio: string | null;
-  caregiver_type: "nanny" | "babysitter" | null;
-  years_experience: number;
-  hourly_rate: number;
-  languages: string[];
-  emergency_contact_name: string;
-  emergency_contact_phone: string;
-  base_address: string | null;
-  base_latitude: number | null;
-  base_longitude: number | null;
-  base_place_id: string | null;
-} | null;
 
 const CAREGIVER_TYPES: { value: "nanny" | "babysitter"; label: string }[] = [
   { value: "nanny", label: "Nanny" },
   { value: "babysitter", label: "Babysitter" },
 ];
 
-function ProfileSection() {
-  const [bio, setBio] = useState("");
+// Professional Information: caregiver type, years of experience,
+// languages, and the fixed CareLink rate for that type — read-only,
+// never a caregiver-set value (CareLink's finalized fixed-rate model).
+export function ProfessionalInfoSection() {
+  const { profile, setProfile, error: loadError } = useOwnProfile();
+  const [editing, setEditing] = useState(false);
   const [caregiverType, setCaregiverType] = useState<"nanny" | "babysitter" | "">("");
   const [yearsExperience, setYearsExperience] = useState("");
   const [languages, setLanguages] = useState("");
-  const [contactName, setContactName] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
-  const [baseLocation, setBaseLocation] = useState<ResolvedLocation | null>(null);
-  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    apiFetch<{ profile: Profile }>("/api/staff/profile")
-      .then((res) => {
-        if (res.profile) {
-          setBio(res.profile.bio ?? "");
-          setCaregiverType(res.profile.caregiver_type ?? "");
-          setYearsExperience(String(res.profile.years_experience));
-          setLanguages(res.profile.languages.join(", "));
-          setContactName(res.profile.emergency_contact_name);
-          setContactPhone(res.profile.emergency_contact_phone);
-          if (
-            res.profile.base_address &&
-            res.profile.base_latitude != null &&
-            res.profile.base_longitude != null
-          ) {
-            setBaseLocation({
-              formattedAddress: res.profile.base_address,
-              latitude: res.profile.base_latitude,
-              longitude: res.profile.base_longitude,
-              placeId: res.profile.base_place_id,
-              coarseArea: null,
-              // Already resolved and saved — the original source (GPS
-              // fix vs typed address) isn't tracked for a base location,
-              // only for a care request's real-time enforcement rule.
-              source: "gps_address",
-            });
-          }
-        }
-        setLoaded(true);
-      })
-      .catch((err) => setError(errorMessage(err)));
-  }, []);
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
+  function startEditing() {
+    if (!profile) return;
+    setCaregiverType(profile.caregiver_type ?? "");
+    setYearsExperience(String(profile.years_experience));
+    setLanguages(profile.languages.join(", "));
     setError(null);
     setSaved(false);
+    setEditing(true);
+  }
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    if (!profile) return;
+    setSaving(true);
+    setError(null);
     try {
-      await apiFetch("/api/staff/profile", {
-        method: "PATCH",
-        body: {
-          bio: bio || undefined,
-          caregiverType: caregiverType || undefined,
-          yearsExperience: Number(yearsExperience),
-          languages: languages
-            .split(",")
-            .map((l) => l.trim())
-            .filter(Boolean),
-          emergencyContactName: contactName,
-          emergencyContactPhone: contactPhone,
-          baseAddress: baseLocation?.formattedAddress,
-          baseLatitude: baseLocation?.latitude,
-          baseLongitude: baseLocation?.longitude,
-          basePlaceId: baseLocation?.placeId ?? undefined,
-        },
+      const updated = await patchProfile(profile, {
+        caregiver_type: caregiverType || null,
+        years_experience: Number(yearsExperience) || 0,
+        languages: languages
+          .split(",")
+          .map((l) => l.trim())
+          .filter(Boolean),
       });
+      setProfile(updated);
+      setEditing(false);
       setSaved(true);
     } catch (err) {
       setError(errorMessage(err));
@@ -178,34 +204,33 @@ function ProfileSection() {
     }
   }
 
-  if (!loaded) return <p className="text-[13px] text-ink-muted">Loading…</p>;
+  if (loadError) return <p className="text-[13px] text-error">{loadError}</p>;
+  if (!profile) return <p className="text-[13px] text-ink-muted">Loading…</p>;
 
-  return (
-    <Sheet as="form" onSubmit={onSubmit} className="flex flex-col gap-4">
-      <h2 className="text-[19px] font-semibold font-heading">Profile</h2>
-      <div className="flex flex-col gap-2">
-        <span className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-          Caregiver type (optional)
-        </span>
-        <div className="flex gap-2">
-          {CAREGIVER_TYPES.map((t) => (
-            <button
-              key={t.value}
-              type="button"
-              onClick={() => setCaregiverType((c) => (c === t.value ? "" : t.value))}
-              className={`rounded border px-3 py-2 text-[13px] font-semibold ${
-                caregiverType === t.value
-                  ? "border-wisteria bg-wisteria/10 text-wisteria-pressed"
-                  : "border-hairline text-ink-muted"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+  if (editing) {
+    return (
+      <Sheet as="form" onSubmit={save} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <span className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+            Caregiver type
+          </span>
+          <div className="flex gap-2">
+            {CAREGIVER_TYPES.map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => setCaregiverType((c) => (c === t.value ? "" : t.value))}
+                className={`rounded-[10px] border px-4 py-2.5 text-[13px] font-semibold ${
+                  caregiverType === t.value
+                    ? "border-wisteria bg-wisteria/10 text-wisteria-pressed"
+                    : "border-hairline text-ink-muted"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
-      <Field label="Bio (optional)" value={bio} onChange={(e) => setBio(e.target.value)} />
-      <div className="grid grid-cols-2 gap-4">
         <Field
           label="Years of experience"
           type="number"
@@ -214,96 +239,129 @@ function ProfileSection() {
           value={yearsExperience}
           onChange={(e) => setYearsExperience(e.target.value)}
         />
-        <div className="flex flex-col gap-2">
+        <Field
+          label="Languages (comma-separated)"
+          value={languages}
+          onChange={(e) => setLanguages(e.target.value)}
+        />
+        <div className="flex flex-col gap-1">
           <span className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-            Hourly rate (GH₵)
+            Hourly rate
           </span>
-          {caregiverType ? (
-            <p className="rounded-[10px] border border-hairline bg-paper px-3 py-2 text-[15px] font-semibold text-ink">
-              GH₵{hourlyRateFor(caregiverType)}/hr
-            </p>
-          ) : (
-            <p className="rounded-[10px] border border-hairline bg-paper px-3 py-2 text-[13px] text-ink-muted">
-              Choose a caregiver type above to see your rate
-            </p>
-          )}
-          <p className="text-[12px] text-ink-muted">
-            A fixed CareLink rate for your caregiver type — not something you set yourself.
+          <p className="text-[14px] text-ink-muted">
+            {caregiverType
+              ? `GH₵${hourlyRateFor(caregiverType)}/hr — fixed by CareLink for ${
+                  CAREGIVER_TYPES.find((t) => t.value === caregiverType)?.label
+                }s, not something you set yourself.`
+              : "Choose a caregiver type to see your fixed rate."}
           </p>
         </div>
+        {error && <p className="text-[13px] text-error">{error}</p>}
+        <div className="flex gap-3">
+          <Button type="submit" disabled={saving}>
+            {saving ? "Saving…" : "Save"}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={saving}
+            onClick={() => setEditing(false)}
+          >
+            Cancel
+          </Button>
+        </div>
+      </Sheet>
+    );
+  }
+
+  return (
+    <Sheet className="flex flex-col gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
+            Caregiver type
+          </span>
+          <p className="text-[14.5px] text-ink">
+            {CAREGIVER_TYPES.find((t) => t.value === profile.caregiver_type)?.label ?? "Not set"}
+          </p>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
+            Years of experience
+          </span>
+          <p className="text-[14.5px] text-ink">{profile.years_experience}</p>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
+            Languages
+          </span>
+          <p className="text-[14.5px] text-ink">
+            {profile.languages.length > 0 ? profile.languages.join(", ") : "Not set"}
+          </p>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
+            Hourly rate
+          </span>
+          <p className="text-[14.5px] font-semibold text-ink">
+            {profile.caregiver_type ? `GH₵${profile.hourly_rate}/hr` : "Not set"}
+          </p>
+          <p className="text-[11.5px] text-ink-muted">Fixed by CareLink — not caregiver-set.</p>
+        </div>
       </div>
-      <Field
-        label="Languages (comma-separated)"
-        value={languages}
-        onChange={(e) => setLanguages(e.target.value)}
-      />
-      <Field
-        label="Emergency contact name"
-        required
-        value={contactName}
-        onChange={(e) => setContactName(e.target.value)}
-      />
-      <Field
-        label="Emergency contact phone"
-        type="tel"
-        required
-        value={contactPhone}
-        onChange={(e) => setContactPhone(e.target.value)}
-      />
-      <div className="flex flex-col gap-2">
-        <span className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-          Base location (optional)
-        </span>
-        <p className="text-[12.5px] text-ink-muted">
-          Where you normally operate from — not your exact current location. This is separate from
-          your service areas below, and helps CareLink match you with nearby requests.
-        </p>
-        <LocationPicker
-          value={baseLocation}
-          onChange={setBaseLocation}
-          description="Where do you normally operate from? This helps CareLink match you with nearby requests."
-          helperText="Your exact location is never shown to families — only used to find requests near you."
-          addressPlaceholder="Enter your base GPS address"
-          confirmedLabel="Base location confirmed"
-        />
-      </div>
-      {error && <p className="text-[13px] text-error">{error}</p>}
-      <Saved show={saved} />
-      <Button type="submit" disabled={saving}>
-        {saving ? "Saving…" : "Save profile"}
+      {saved && <p className="text-[13px] text-wisteria-pressed">Saved.</p>}
+      <Button variant="secondary" onClick={startEditing} className="self-start">
+        <PencilSimple size={15} /> Edit
       </Button>
     </Sheet>
   );
 }
 
-function SkillsSection() {
-  const [skills, setSkills] = useState<SkillTag[]>([]);
-  const [loaded, setLoaded] = useState(false);
+// Service Location: the base/service location a caregiver operates
+// from — distinct from the live location used for dispatch only while
+// they're Available (that one is managed from Go Available on Home,
+// unchanged, not editable here).
+export function ServiceLocationSection() {
+  const { profile, setProfile, error: loadError } = useOwnProfile();
+  const [editing, setEditing] = useState(false);
+  const [baseLocation, setBaseLocation] = useState<ResolvedLocation | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    apiFetch<{ skills: SkillTag[] }>("/api/staff/skills")
-      .then((res) => {
-        setSkills(res.skills);
-        setLoaded(true);
-      })
-      .catch((err) => setError(errorMessage(err)));
-  }, []);
-
-  function toggle(skill: SkillTag) {
-    setSkills((prev) =>
-      prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill],
+  function startEditing() {
+    if (!profile) return;
+    setBaseLocation(
+      profile.base_address && profile.base_latitude != null && profile.base_longitude != null
+        ? {
+            formattedAddress: profile.base_address,
+            latitude: profile.base_latitude,
+            longitude: profile.base_longitude,
+            placeId: profile.base_place_id,
+            coarseArea: null,
+            source: "gps_address",
+          }
+        : null,
     );
-  }
-
-  async function save() {
-    setSaving(true);
     setError(null);
     setSaved(false);
+    setEditing(true);
+  }
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    if (!profile) return;
+    setSaving(true);
+    setError(null);
     try {
-      await apiFetch("/api/staff/skills", { method: "PUT", body: { skills } });
+      const updated = await patchProfile(profile, {
+        base_address: baseLocation?.formattedAddress ?? null,
+        base_latitude: baseLocation?.latitude ?? null,
+        base_longitude: baseLocation?.longitude ?? null,
+        base_place_id: baseLocation?.placeId ?? null,
+      });
+      setProfile(updated);
+      setEditing(false);
       setSaved(true);
     } catch (err) {
       setError(errorMessage(err));
@@ -312,42 +370,77 @@ function SkillsSection() {
     }
   }
 
-  if (!loaded) return <p className="text-[13px] text-ink-muted">Loading…</p>;
+  if (loadError) return <p className="text-[13px] text-error">{loadError}</p>;
+  if (!profile) return <p className="text-[13px] text-ink-muted">Loading…</p>;
 
   return (
-    <Sheet className="flex flex-col gap-4">
-      <h2 className="text-[19px] font-semibold font-heading">Skills</h2>
-      <div className="flex flex-wrap gap-2">
-        {skillTagSchema.options.map((skill) => {
-          const active = skills.includes(skill);
-          return (
-            <button
-              key={skill}
+    <div className="flex flex-col gap-4">
+      <Sheet className="flex flex-col gap-2">
+        <p className="text-[13px] leading-relaxed text-ink-muted">
+          Your location is used to find care requests near you while you&apos;re Available for Care.
+          Your exact location is never shown to families.
+        </p>
+        <p className="text-[12px] leading-relaxed text-ink-muted">
+          This is your base location — where you normally operate from. It&apos;s separate from the
+          live location CareLink uses for dispatch, which only turns on while you&apos;re Available
+          (managed from{" "}
+          <span className="font-semibold text-ink">Go Available on your Home dashboard</span>, not
+          here).
+        </p>
+      </Sheet>
+
+      {editing ? (
+        <Sheet as="form" onSubmit={save} className="flex flex-col gap-4">
+          <LocationPicker
+            value={baseLocation}
+            onChange={setBaseLocation}
+            description="Where do you normally operate from? This helps CareLink match you with nearby requests."
+            helperText="Your exact location is never shown to families — only used to find requests near you."
+            addressPlaceholder="Enter your base GPS address"
+            confirmedLabel="Base location confirmed"
+          />
+          {error && <p className="text-[13px] text-error">{error}</p>}
+          <div className="flex gap-3">
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saving…" : "Save"}
+            </Button>
+            <Button
               type="button"
-              onClick={() => toggle(skill)}
-              className={`min-h-[52px] rounded border px-3 py-2 text-[13px] font-semibold ${
-                active
-                  ? "border-wisteria bg-wisteria/10 text-wisteria-pressed"
-                  : "border-hairline text-ink-muted"
-              }`}
+              variant="secondary"
+              disabled={saving}
+              onClick={() => setEditing(false)}
             >
-              {skillLabel(skill)}
-            </button>
-          );
-        })}
-      </div>
-      {error && <p className="text-[13px] text-error">{error}</p>}
-      <Saved show={saved} />
-      <Button onClick={() => void save()} disabled={saving}>
-        {saving ? "Saving…" : "Save skills"}
-      </Button>
-    </Sheet>
+              Cancel
+            </Button>
+          </div>
+        </Sheet>
+      ) : (
+        <Sheet className="flex flex-col gap-3">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
+              Base location
+            </span>
+            <p className="text-[14.5px] text-ink">{profile.base_address ?? "Not set yet"}</p>
+          </div>
+          {saved && <p className="text-[13px] text-wisteria-pressed">Saved.</p>}
+          <Button variant="secondary" onClick={startEditing} className="self-start">
+            <PencilSimple size={15} /> Edit
+          </Button>
+        </Sheet>
+      )}
+
+      <AreasSection />
+    </div>
   );
 }
 
 type AreaEntry = { area: string; isPrimary: boolean };
 
-function AreasSection() {
+// Named service areas (staff_areas) — a different, still-active concept
+// from base location above: which areas' requests you're matched
+// against, not where you're based. Unchanged internally from before
+// this redesign.
+export function AreasSection() {
   const [areas, setAreas] = useState<AreaEntry[]>([]);
   const [newArea, setNewArea] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -395,15 +488,17 @@ function AreasSection() {
   if (!loaded) return <p className="text-[13px] text-ink-muted">Loading…</p>;
 
   return (
-    <Sheet className="flex flex-col gap-4">
-      <h2 className="text-[19px] font-semibold font-heading">Service areas</h2>
+    <Sheet className="flex flex-col gap-3">
+      <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
+        Service areas
+      </span>
       <div className="flex flex-col gap-2">
         {areas.map((a) => (
           <div key={a.area} className="flex items-center justify-between gap-3">
             <button
               type="button"
               onClick={() => setPrimary(a.area)}
-              className={`flex-1 rounded border px-3 py-2 text-left text-[15px] ${
+              className={`flex-1 rounded-[10px] border px-3 py-2 text-left text-[14px] ${
                 a.isPrimary
                   ? "border-wisteria bg-wisteria/10 text-wisteria-pressed"
                   : "border-hairline"
@@ -420,13 +515,14 @@ function AreasSection() {
             </button>
           </div>
         ))}
+        {areas.length === 0 && <p className="text-[13px] text-ink-muted">No areas added yet.</p>}
       </div>
       <div className="flex gap-3">
         <input
           value={newArea}
           onChange={(e) => setNewArea(e.target.value)}
           placeholder="Add an area"
-          className="flex-1 rounded border border-hairline bg-sheet px-3 py-2 text-[15px] text-ink"
+          className="flex-1 rounded-[10px] border border-hairline bg-sheet px-3 py-2 text-[14px] text-ink"
         />
         <Button type="button" variant="secondary" onClick={addArea}>
           Add
@@ -441,55 +537,39 @@ function AreasSection() {
   );
 }
 
-const PARTS: { part: DayPart; label: string; startTime: string; endTime: string }[] = [
-  { part: "morning", label: "Morning", startTime: "06:00", endTime: "12:00" },
-  { part: "afternoon", label: "Afternoon", startTime: "12:00", endTime: "17:00" },
-  { part: "evening", label: "Evening", startTime: "17:00", endTime: "21:00" },
-  { part: "overnight", label: "Overnight", startTime: "21:00", endTime: "23:45" },
-];
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-type Window = { weekday: number; part: DayPart; startTime: string; endTime: string };
-
-function AvailabilitySection() {
-  const [windows, setWindows] = useState<Window[]>([]);
-  const [loaded, setLoaded] = useState(false);
+// Emergency Contact: kept private, shared with a parent only during an
+// active booking (see app/staff/safety/page.tsx) — unchanged behavior,
+// only the read → Edit presentation is new.
+export function EmergencyContactSection() {
+  const { profile, setProfile, error: loadError } = useOwnProfile();
+  const [editing, setEditing] = useState(false);
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    apiFetch<{ windows: Window[] }>("/api/staff/availability")
-      .then((res) => {
-        setWindows(res.windows);
-        setLoaded(true);
-      })
-      .catch((err) => setError(errorMessage(err)));
-  }, []);
-
-  function isOn(weekday: number, part: DayPart) {
-    return windows.some((w) => w.weekday === weekday && w.part === part);
-  }
-
-  function toggle(weekday: number, part: DayPart) {
-    setWindows((prev) => {
-      if (prev.some((w) => w.weekday === weekday && w.part === part)) {
-        return prev.filter((w) => !(w.weekday === weekday && w.part === part));
-      }
-      const def = PARTS.find((p) => p.part === part)!;
-      return [...prev, { weekday, part, startTime: def.startTime, endTime: def.endTime }];
-    });
-  }
-
-  async function save() {
-    setSaving(true);
+  function startEditing() {
+    if (!profile) return;
+    setContactName(profile.emergency_contact_name);
+    setContactPhone(profile.emergency_contact_phone);
     setError(null);
     setSaved(false);
+    setEditing(true);
+  }
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    if (!profile) return;
+    setSaving(true);
+    setError(null);
     try {
-      await apiFetch("/api/staff/availability", {
-        method: "PUT",
-        body: { windows, exceptions: [] },
+      const updated = await patchProfile(profile, {
+        emergency_contact_name: contactName.trim(),
+        emergency_contact_phone: contactPhone.trim(),
       });
+      setProfile(updated);
+      setEditing(false);
       setSaved(true);
     } catch (err) {
       setError(errorMessage(err));
@@ -498,51 +578,61 @@ function AvailabilitySection() {
     }
   }
 
-  if (!loaded) return <p className="text-[13px] text-ink-muted">Loading…</p>;
+  if (loadError) return <p className="text-[13px] text-error">{loadError}</p>;
+  if (!profile) return <p className="text-[13px] text-ink-muted">Loading…</p>;
+
+  if (editing) {
+    return (
+      <Sheet as="form" onSubmit={save} className="flex flex-col gap-4">
+        <Field
+          label="Contact name"
+          required
+          value={contactName}
+          onChange={(e) => setContactName(e.target.value)}
+        />
+        <Field
+          label="Contact phone"
+          type="tel"
+          required
+          value={contactPhone}
+          onChange={(e) => setContactPhone(e.target.value)}
+        />
+        {error && <p className="text-[13px] text-error">{error}</p>}
+        <div className="flex gap-3">
+          <Button type="submit" disabled={saving}>
+            {saving ? "Saving…" : "Save"}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={saving}
+            onClick={() => setEditing(false)}
+          >
+            Cancel
+          </Button>
+        </div>
+      </Sheet>
+    );
+  }
 
   return (
-    <Sheet className="flex flex-col gap-4">
-      <h2 className="text-[19px] font-semibold font-heading">Availability</h2>
-      <div className="overflow-x-auto">
-        <table className="w-full text-[13px]">
-          <thead>
-            <tr>
-              <th className="text-left text-ink-muted"></th>
-              {WEEKDAYS.map((d) => (
-                <th key={d} className="px-2 py-1 text-center font-semibold text-ink-muted">
-                  {d}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {PARTS.map((p) => (
-              <tr key={p.part}>
-                <td className="pr-2 text-ink-muted">{p.label}</td>
-                {WEEKDAYS.map((_, weekday) => {
-                  const on = isOn(weekday, p.part);
-                  return (
-                    <td key={weekday} className="px-1 py-1 text-center">
-                      <button
-                        type="button"
-                        onClick={() => toggle(weekday, p.part)}
-                        aria-label={`${p.label} ${WEEKDAYS[weekday]}`}
-                        className={`h-[52px] w-[52px] rounded border ${
-                          on ? "border-wisteria bg-wisteria/20" : "border-hairline"
-                        }`}
-                      />
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <Sheet className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
+        {profile.emergency_contact_name ? (
+          <>
+            <p className="text-[15px] font-semibold text-ink">{profile.emergency_contact_name}</p>
+            <p className="text-[14px] text-ink-muted">{profile.emergency_contact_phone}</p>
+          </>
+        ) : (
+          <p className="text-[14px] text-ink-muted">Not set yet</p>
+        )}
       </div>
-      {error && <p className="text-[13px] text-error">{error}</p>}
-      <Saved show={saved} />
-      <Button onClick={() => void save()} disabled={saving}>
-        {saving ? "Saving…" : "Save availability"}
+      <p className="text-[12px] leading-relaxed text-ink-muted">
+        This information is kept private and is only used when necessary for safety purposes.
+      </p>
+      {saved && <p className="text-[13px] text-wisteria-pressed">Saved.</p>}
+      <Button variant="secondary" onClick={startEditing} className="self-start">
+        <PencilSimple size={15} /> Edit
       </Button>
     </Sheet>
   );
@@ -551,11 +641,12 @@ function AvailabilitySection() {
 type Qualification = { id?: string; name: string; institution: string; year: string };
 
 // Mirrors AreasSection's own add/remove-then-save-the-whole-list
-// pattern exactly, against the new GET/PUT /api/staff/qualifications
-// (same delete-then-insert shape staff_areas and staff_skills already
-// use). verificationStatus isn't editable here — an administrator sets
-// that, this section only manages what the caregiver themselves claims.
-function QualificationsSection() {
+// pattern exactly, against GET/PUT /api/staff/qualifications (same
+// delete-then-insert shape staff_areas and staff_skills already use).
+// verificationStatus isn't editable here — an administrator sets that,
+// this section only manages what the caregiver themselves claims.
+// Unchanged internally from before this redesign.
+export function QualificationsSection() {
   const [items, setItems] = useState<Qualification[]>([]);
   const [name, setName] = useState("");
   const [institution, setInstitution] = useState("");
@@ -630,17 +721,21 @@ function QualificationsSection() {
 
   return (
     <Sheet className="flex flex-col gap-4">
-      <h2 className="text-[19px] font-semibold font-heading">Qualifications & certifications</h2>
-      <p className="text-[13px] text-ink-muted">
-        Optional — an administrator reviews these before they show as verified on your profile.
-      </p>
+      <div className="flex flex-col gap-1">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
+          Qualifications & certifications
+        </span>
+        <p className="text-[12.5px] text-ink-muted">
+          Optional — an administrator reviews these before they show as verified.
+        </p>
+      </div>
       <div className="flex flex-col gap-2">
         {items.map((q, i) => (
           <div
             key={i}
-            className="flex items-center justify-between gap-3 rounded border border-hairline px-3 py-2"
+            className="flex items-center justify-between gap-3 rounded-[10px] border border-hairline px-3 py-2"
           >
-            <span className="text-[14px] text-ink">
+            <span className="text-[13.5px] text-ink">
               {q.name}
               {q.institution ? ` — ${q.institution}` : ""}
               {q.year ? ` (${q.year})` : ""}
@@ -656,20 +751,20 @@ function QualificationsSection() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Name (e.g. First Aid Certificate)"
-          className="rounded border border-hairline bg-sheet px-3 py-2 text-[15px] text-ink"
+          className="rounded-[10px] border border-hairline bg-sheet px-3 py-2 text-[14px] text-ink"
         />
         <input
           value={institution}
           onChange={(e) => setInstitution(e.target.value)}
           placeholder="Institution (optional)"
-          className="rounded border border-hairline bg-sheet px-3 py-2 text-[15px] text-ink"
+          className="rounded-[10px] border border-hairline bg-sheet px-3 py-2 text-[14px] text-ink"
         />
         <input
           value={year}
           onChange={(e) => setYear(e.target.value)}
           placeholder="Year (optional)"
           type="number"
-          className="rounded border border-hairline bg-sheet px-3 py-2 text-[15px] text-ink"
+          className="rounded-[10px] border border-hairline bg-sheet px-3 py-2 text-[14px] text-ink"
         />
       </div>
       <Button type="button" variant="secondary" onClick={addItem} className="self-start">
@@ -681,18 +776,5 @@ function QualificationsSection() {
         {saving ? "Saving…" : "Save qualifications"}
       </Button>
     </Sheet>
-  );
-}
-
-export function StaffProfileSetup() {
-  return (
-    <div className="flex flex-col gap-6">
-      <PhotoSection />
-      <ProfileSection />
-      <SkillsSection />
-      <QualificationsSection />
-      <AreasSection />
-      <AvailabilitySection />
-    </div>
   );
 }

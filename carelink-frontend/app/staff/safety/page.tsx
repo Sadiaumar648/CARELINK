@@ -60,10 +60,10 @@ export default function StaffSafetyPage() {
         href="/staff/profile"
         className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-muted hover:text-ink"
       >
-        <ArrowLeft size={16} /> Profile
+        <ArrowLeft size={16} /> Back to Settings
       </Link>
       <div className="flex flex-col gap-1">
-        <h1 className="text-[26px] font-semibold font-heading">Safety & Support</h1>
+        <h1 className="text-[26px] font-semibold font-heading">Safety &amp; Privacy</h1>
         <p className="text-[14px] text-ink-muted">
           Emergency options, reporting, and how CareLink protects your information.
         </p>
@@ -119,7 +119,7 @@ export default function StaffSafetyPage() {
               href="/staff/profile"
               className="font-semibold text-wisteria hover:text-wisteria-hover"
             >
-              your profile
+              Settings
             </Link>
             .
           </p>
