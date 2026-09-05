@@ -11,22 +11,20 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { BookingCardSkeleton } from "@/components/ui/skeleton";
 
-// Admin's "View Reviews" — the central place reviews are seen and
-// moderated. Today CareLink's reviews table only supports a parent's
-// review of a caregiver (see reviews.rating's insert policy, migration
-// 20260827200000_messaging_reviews_reports.sql) — a caregiver's review
-// of a parent doesn't exist in the schema. Rather than fabricate that
-// second direction, this page shows exactly what's real and says so;
-// building genuine caregiver→parent reviews needs a deliberate schema
-// change (a nullable rating column, or a new staff_rating column, plus
-// a widened insert policy) that hasn't been made.
+// Admin's "View Reviews" — real reviews from both directions:
+// public.reviews (parent -> caregiver) and public.caregiver_reviews
+// (caregiver -> parent, migration 20260913000000_caregiver_reviews.sql).
+// Both are read from GET /api/admin/reviews, which merges and tags each
+// row with its real `direction` — nothing here is fabricated.
+
+type Direction = "parent_to_caregiver" | "caregiver_to_parent";
 
 type ReviewRow = {
   id: string;
-  direction: "parent_to_caregiver";
+  direction: Direction;
   rating: number;
   comment: string | null;
-  staffResponse: string | null;
+  responseText: string | null;
   hiddenByAdmin: boolean;
   hiddenReason: string | null;
   createdAt: string;
@@ -39,11 +37,17 @@ type ReviewRow = {
 };
 
 type FlaggedAccount = {
-  staffProfileId: string;
+  role: "caregiver" | "parent";
+  profileId: string;
   userId: string | null;
   fullName: string;
   accountStatus: string | null;
   poorReviewCount: number;
+};
+
+const DIRECTION_LABEL: Record<Direction, string> = {
+  parent_to_caregiver: "Parent review",
+  caregiver_to_parent: "Caregiver review",
 };
 
 function formatDate(iso: string): string {
@@ -103,6 +107,10 @@ function FlaggedAccountCard({
         <p className="flex items-center gap-1.5 text-[15px] font-semibold text-ink">
           <WarningCircle size={17} weight="fill" className="text-error" />
           {account.fullName}
+          <StatusBadge
+            label={account.role === "caregiver" ? "Caregiver" : "Parent"}
+            tone="neutral"
+          />
         </p>
         <p className="text-[12.5px] text-ink-muted">
           {account.poorReviewCount} poor reviews (1–2★) · currently{" "}
@@ -132,8 +140,8 @@ function ReviewCard({ review, onChanged }: { review: ReviewRow; onChanged: () =>
       await apiFetch(`/api/admin/reviews/${review.id}`, {
         method: "PATCH",
         body: review.hiddenByAdmin
-          ? { hidden: false }
-          : { hidden: true, hiddenReason: "Hidden by admin" },
+          ? { hidden: false, direction: review.direction }
+          : { hidden: true, hiddenReason: "Hidden by admin", direction: review.direction },
       });
       onChanged();
     } catch (err) {
@@ -157,16 +165,20 @@ function ReviewCard({ review, onChanged }: { review: ReviewRow; onChanged: () =>
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <StatusBadge
+            label={DIRECTION_LABEL[review.direction]}
+            tone={review.direction === "parent_to_caregiver" ? "info" : "positive"}
+          />
           {review.flagged && <StatusBadge label="Account flagged" tone="attention" />}
           {review.hiddenByAdmin && <StatusBadge label="Hidden" tone="neutral" />}
           <Stars rating={review.rating} />
         </div>
       </div>
       {review.comment && <p className="text-[13.5px] leading-relaxed text-ink">{review.comment}</p>}
-      {review.staffResponse && (
+      {review.responseText && (
         <p className="rounded-[10px] bg-wisteria-tint px-3 py-2 text-[13px] text-ink">
           <span className="font-semibold">Caregiver response: </span>
-          {review.staffResponse}
+          {review.responseText}
         </p>
       )}
       {error && <p className="text-[12.5px] text-error">{error}</p>}
@@ -180,6 +192,7 @@ function ReviewCard({ review, onChanged }: { review: ReviewRow; onChanged: () =>
 export default function AdminReviewsPage() {
   const [reviews, setReviews] = useState<ReviewRow[] | null>(null);
   const [flaggedAccounts, setFlaggedAccounts] = useState<FlaggedAccount[] | null>(null);
+  const [direction, setDirection] = useState<"all" | Direction>("all");
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
 
@@ -195,6 +208,8 @@ export default function AdminReviewsPage() {
 
   useEffect(load, [retryKey]);
 
+  const filtered = reviews?.filter((r) => direction === "all" || r.direction === direction) ?? null;
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
       <Link
@@ -207,15 +222,10 @@ export default function AdminReviewsPage() {
       <div className="flex flex-col gap-1">
         <h1 className="text-[26px] font-semibold font-heading">Reviews</h1>
         <p className="text-[14px] text-ink-muted">
-          Reviews parents have submitted about caregivers after completed bookings.
+          Reviews submitted by parents about caregivers, and by caregivers about parents, after
+          completed bookings.
         </p>
       </div>
-
-      <p className="rounded-[10px] border border-hairline bg-sheet px-3.5 py-2.5 text-[12.5px] leading-relaxed text-ink-muted">
-        CareLink currently supports parent reviews of caregivers. Caregivers reviewing parents
-        isn&apos;t available yet — it would need a deliberate change to the review schema, not
-        something to add silently here.
-      </p>
 
       {error && <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />}
 
@@ -234,7 +244,7 @@ export default function AdminReviewsPage() {
           </p>
           <div className="flex flex-col gap-3">
             {flaggedAccounts.map((a) => (
-              <FlaggedAccountCard key={a.staffProfileId} account={a} onChanged={load} />
+              <FlaggedAccountCard key={`${a.role}-${a.profileId}`} account={a} onChanged={load} />
             ))}
           </div>
         </section>
@@ -251,6 +261,29 @@ export default function AdminReviewsPage() {
           </Link>
         </div>
 
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              { key: "all", label: "All" },
+              { key: "parent_to_caregiver", label: "Parent reviews" },
+              { key: "caregiver_to_parent", label: "Caregiver reviews" },
+            ] as const
+          ).map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => setDirection(f.key)}
+              className={`rounded-full px-3 py-1.5 text-[12.5px] font-semibold ${
+                direction === f.key
+                  ? "bg-wisteria text-sheet"
+                  : "border border-hairline bg-sheet text-ink-muted hover:text-ink"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
         {!error && reviews === null && (
           <div className="flex flex-col gap-3">
             <BookingCardSkeleton />
@@ -258,18 +291,18 @@ export default function AdminReviewsPage() {
           </div>
         )}
 
-        {!error && reviews?.length === 0 && (
+        {!error && filtered?.length === 0 && (
           <EmptyState
             icon={Star}
             title="No reviews yet"
-            description="Reviews will appear here once parents complete bookings and rate their caregiver."
+            description="Reviews will appear here once parents and caregivers complete bookings and rate each other."
           />
         )}
 
-        {!error && reviews && reviews.length > 0 && (
+        {!error && filtered && filtered.length > 0 && (
           <div className="flex flex-col gap-3">
-            {reviews.map((r) => (
-              <ReviewCard key={r.id} review={r} onChanged={load} />
+            {filtered.map((r) => (
+              <ReviewCard key={`${r.direction}-${r.id}`} review={r} onChanged={load} />
             ))}
           </div>
         )}

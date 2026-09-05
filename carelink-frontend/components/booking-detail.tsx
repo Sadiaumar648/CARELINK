@@ -617,6 +617,10 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
 
         {viewerRole === "parent" && booking.status === "completed" && <ReviewForm bookingId={id} />}
 
+        {viewerRole === "staff" && booking.status === "completed" && (
+          <CaregiverReviewForm bookingId={id} />
+        )}
+
         {viewerRole === "parent" && canCancel && <CancelForm bookingId={id} onCancelled={load} />}
       </div>
 
@@ -940,6 +944,94 @@ function ReviewForm({ bookingId }: { bookingId: string }) {
       {error && <p className="text-[13px] text-error">{error}</p>}
       <Button type="submit" disabled={submitting}>
         {submitting ? "Submitting…" : "Submit review"}
+      </Button>
+    </Sheet>
+  );
+}
+
+// The caregiver -> parent direction. Checks on load whether this
+// booking already has a caregiver_reviews row (GET
+// /api/bookings/[id]/caregiver-review) rather than always showing the
+// form the way ReviewForm above does — a caregiver revisiting a
+// completed booking they've already reviewed should never see the
+// submission form again, per the CareLink review model.
+function CaregiverReviewForm({ bookingId }: { bookingId: string }) {
+  const [checking, setChecking] = useState(true);
+  const [alreadyReviewed, setAlreadyReviewed] = useState(false);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch<{ review: { id: string } | null }>(`/api/bookings/${bookingId}/caregiver-review`)
+      .then((res) => {
+        if (cancelled) return;
+        setAlreadyReviewed(res.review !== null);
+      })
+      .catch(() => {
+        // Fail open to the form — the POST route's own duplicate-key
+        // guard is the real protection either way.
+      })
+      .finally(() => {
+        if (!cancelled) setChecking(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [bookingId]);
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    try {
+      await apiFetch(`/api/bookings/${bookingId}/caregiver-review`, {
+        method: "POST",
+        body: { rating, comment: comment || undefined },
+      });
+      setDone(true);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (checking) return <Skeleton className="h-40 w-full" />;
+  if (done || alreadyReviewed) {
+    return <p className="text-[15px] text-ink-muted">Review submitted</p>;
+  }
+
+  return (
+    <Sheet as="form" onSubmit={onSubmit} className="flex flex-col gap-4">
+      <h2 className="text-[17px] font-semibold font-heading">Leave a review for this family</h2>
+      <div className="flex gap-2">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => setRating(n)}
+            className={`rounded border px-3 py-2 text-[15px] font-semibold ${
+              rating === n
+                ? "border-wisteria bg-wisteria/10 text-wisteria-pressed"
+                : "border-hairline text-ink-muted"
+            }`}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+      <Field
+        label="Comment (optional)"
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+      />
+      {error && <p className="text-[13px] text-error">{error}</p>}
+      <Button type="submit" disabled={submitting}>
+        {submitting ? "Submitting…" : "Submit Review"}
       </Button>
     </Sheet>
   );

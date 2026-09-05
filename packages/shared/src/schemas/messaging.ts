@@ -16,6 +16,16 @@ export const staffResponseSchema = z.object({
 });
 export type StaffResponseInput = z.infer<typeof staffResponseSchema>;
 
+// The caregiver -> parent direction (public.caregiver_reviews), the
+// same shape as createReviewSchema — deliberately not shared as one
+// schema, since the two directions are independent, structurally
+// separate tables and are meant to evolve independently.
+export const createCaregiverReviewSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().trim().max(2000).optional(),
+});
+export type CreateCaregiverReviewInput = z.infer<typeof createCaregiverReviewSchema>;
+
 export const reportCategorySchema = z.enum(["no_show", "conduct", "payment", "safety", "other"]);
 export type ReportCategory = z.infer<typeof reportCategorySchema>;
 
