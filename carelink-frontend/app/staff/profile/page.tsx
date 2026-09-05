@@ -19,11 +19,8 @@ import { Sheet } from "@/components/ui/sheet";
 import {
   PhotoSection,
   ProfessionalInfoSection,
-  ServiceLocationSection,
   EmergencyContactSection,
-  QualificationsSection,
 } from "@/components/staff-profile-setup";
-import { VerificationForm } from "@/components/verification-form";
 
 function MenuRow({
   icon: IconComponent,
@@ -170,7 +167,7 @@ export default function StaffSettingsPage() {
       <div className="flex flex-col gap-1">
         <h1 className="text-[26px] font-bold font-heading text-ink">Settings</h1>
         <p className="text-[14px] text-ink-muted">
-          Manage your personal information, professional details, and CareLink account.
+          Manage your personal information and CareLink account.
         </p>
       </div>
 
@@ -186,21 +183,6 @@ export default function StaffSettingsPage() {
           Professional Information
         </h2>
         <ProfessionalInfoSection />
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h2 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-          Agency Approval & Training
-        </h2>
-        <VerificationForm />
-        <QualificationsSection />
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h2 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-          Service Location
-        </h2>
-        <ServiceLocationSection />
       </section>
 
       <section className="flex flex-col gap-3">
