@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Tray } from "@phosphor-icons/react";
+import { ArrowLeft, Tray } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
@@ -191,6 +191,12 @@ export default function StaffRequestsPage() {
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6 md:p-8">
+      <Link
+        href="/staff"
+        className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-muted hover:text-ink"
+      >
+        <ArrowLeft size={16} /> Back to Home
+      </Link>
       <div className="flex flex-col gap-1">
         <h1 className="text-[22px] font-bold font-heading text-ink">Care Requests</h1>
         <p className="text-[14px] text-ink-muted">
