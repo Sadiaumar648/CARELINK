@@ -1,6 +1,6 @@
 "use client";
 
-import { House, UsersThree, Baby, CalendarCheck, Star } from "@phosphor-icons/react";
+import { House, UsersThree, Baby, CalendarCheck, Star, Flag } from "@phosphor-icons/react";
 import { RequireRole } from "@/components/require-role";
 import { RoleShell, type NavItem } from "@/components/role-shell";
 import { AdminHeaderLogo } from "@/components/admin/header-nav";
@@ -16,11 +16,12 @@ import { AdminHeaderProfile } from "@/components/admin/header-profile";
 // in is hidden). Settings stays reachable from the profile dropdown, on
 // both desktop and mobile alike.
 const mobileItems: NavItem[] = [
-  { href: "/admin", label: "Home", icon: House },
+  { href: "/admin", label: "Dashboard", icon: House },
   { href: "/admin/roster", label: "Caregivers", icon: UsersThree },
-  { href: "/admin/users", label: "Parents", icon: Baby },
+  { href: "/admin/users", label: "Families", icon: Baby },
   { href: "/admin/bookings", label: "Bookings", icon: CalendarCheck },
   { href: "/admin/reviews", label: "Reviews", icon: Star },
+  { href: "/admin/reports", label: "Reports", icon: Flag },
 ];
 
 export default function AdminLayout({ children }: LayoutProps<"/admin">) {
