@@ -2,12 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Baby, DotsThreeVertical, MagnifyingGlass, Plus } from "@phosphor-icons/react";
+import { ArrowLeft, Baby, DotsThreeVertical, MagnifyingGlass } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
-import { Field } from "@/components/ui/field";
-import { Sheet } from "@/components/ui/sheet";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { BookingCardSkeleton } from "@/components/ui/skeleton";
 
@@ -15,10 +13,23 @@ import { BookingCardSkeleton } from "@/components/ui/skeleton";
 // This page previously combined Parents and Caregivers in one tabbed
 // view — caregiver management now lives entirely on /admin/roster (its
 // own "Invite a caregiver" affordance), so this page is Parents-only.
-// The richer "add an existing agency parent" flow (email, agency
-// reference, agency-verified attestation) is preserved, not dropped —
-// it's the same real POST /api/admin/parents this page already used,
-// just no longer needing a role-choice step.
+// The "Add Existing Parent" invite flow (email, agency reference,
+// agency-verified attestation — the same real POST /api/admin/parents)
+// has been removed from this page per explicit instruction; the
+// backend route itself is untouched, so it's still reachable if a
+// future entry point needs it.
+//
+// Test/legacy exclusion: same email-suffix rule already used on the
+// Caregivers directory (mirroring the existing public_caregivers
+// view's own test-account exclusion) — applied client-side here too,
+// since GET /api/admin/parents deliberately still returns every real
+// row for other admin-oversight consumers.
+//
+// Demo display cap: capped at 3 real parents, per explicit instruction
+// for the current demo phase — a display-only slice after filtering,
+// not a backend limit.
+const TEST_EMAIL_SUFFIXES = ["@example.com", "@carelink.invite", "@carelink.seed"];
+const DEMO_MAX_PARENTS = 3;
 
 const AVATAR_TINTS = [
   "bg-bluebell-tint text-[var(--color-bluebell-pressed)]",
@@ -51,130 +62,6 @@ function formatDate(iso: string): string {
     day: "numeric",
     year: "numeric",
   });
-}
-
-function AddParentForm({ onDone }: { onDone: () => void }) {
-  const [open, setOpen] = useState(false);
-  const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [agencyReferenceId, setAgencyReferenceId] = useState("");
-  const [agencyVerified, setAgencyVerified] = useState(false);
-  const [issued, setIssued] = useState<{ fullName: string; code: string } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSubmitting(true);
-    setError(null);
-    try {
-      const res = await apiFetch<{ invitationCode: string }>("/api/admin/parents", {
-        method: "POST",
-        body: {
-          fullName,
-          phone,
-          email: email.trim() || undefined,
-          agencyReferenceId: agencyReferenceId.trim() || undefined,
-          agencyVerified,
-        },
-      });
-      setIssued({ fullName, code: res.invitationCode });
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  if (issued) {
-    return (
-      <Sheet className="flex flex-col gap-3">
-        <p className="text-[15px]">
-          {issued.fullName} has been added. Share this invitation code with them — it&apos;s shown
-          only once. They&apos;ll use it, their phone number, and a password they choose themselves
-          to log in.
-        </p>
-        <p className="text-[28px] font-semibold tracking-[0.1em] tabular-nums">{issued.code}</p>
-        <Button
-          onClick={() => {
-            setIssued(null);
-            setOpen(false);
-            setFullName("");
-            setPhone("");
-            setEmail("");
-            setAgencyReferenceId("");
-            setAgencyVerified(false);
-            onDone();
-          }}
-        >
-          Done
-        </Button>
-      </Sheet>
-    );
-  }
-
-  if (!open) {
-    return (
-      <Button variant="secondary" onClick={() => setOpen(true)} className="self-start">
-        <Plus size={16} weight="bold" /> Add Existing Parent
-      </Button>
-    );
-  }
-
-  return (
-    <Sheet as="form" onSubmit={onSubmit} className="flex flex-col gap-4">
-      <h2 className="text-[15px] font-semibold font-heading">Existing parent details</h2>
-      <Field
-        label="Full name"
-        required
-        value={fullName}
-        onChange={(e) => setFullName(e.target.value)}
-      />
-      <Field
-        label="Phone"
-        type="tel"
-        placeholder="+233…"
-        required
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-      />
-      <Field
-        label="Email (optional)"
-        type="email"
-        placeholder="If the agency already has one on file"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
-      <Field
-        label="Agency reference ID (optional)"
-        placeholder="The agency's own client number, if they use one"
-        value={agencyReferenceId}
-        onChange={(e) => setAgencyReferenceId(e.target.value)}
-      />
-      <label className="flex items-start gap-2 rounded-[10px] border border-hairline bg-paper p-3 text-[13px] text-ink">
-        <input
-          type="checkbox"
-          checked={agencyVerified}
-          onChange={(e) => setAgencyVerified(e.target.checked)}
-          className="mt-0.5"
-        />
-        <span>
-          This person has already been identity-verified by the agency — mark their account verified
-          immediately.
-        </span>
-      </label>
-      {error && <p className="text-[13px] text-error">{error}</p>}
-      <div className="flex gap-3">
-        <Button type="submit" disabled={submitting || !fullName.trim() || !phone.trim()}>
-          {submitting ? "Adding…" : "Create Account & Get Invitation Code"}
-        </Button>
-        <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
-          Cancel
-        </Button>
-      </div>
-    </Sheet>
-  );
 }
 
 function ActionMenu({ entry, onChanged }: { entry: ParentEntry; onChanged: () => void }) {
@@ -303,12 +190,17 @@ export default function AdminUsersPage() {
 
   useEffect(load, [retryKey]);
 
-  const filtered = useMemo(() => {
+  const eligible = useMemo(() => {
     if (!parents) return null;
+    return parents.filter((p) => !TEST_EMAIL_SUFFIXES.some((suffix) => p.email.endsWith(suffix)));
+  }, [parents]);
+
+  const filtered = useMemo(() => {
+    if (!eligible) return null;
     const q = query.trim().toLowerCase();
-    if (!q) return parents;
-    return parents.filter((p) => p.fullName.toLowerCase().includes(q));
-  }, [parents, query]);
+    const matching = q ? eligible.filter((p) => p.fullName.toLowerCase().includes(q)) : eligible;
+    return matching.slice(0, DEMO_MAX_PARENTS);
+  }, [eligible, query]);
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6 md:p-8">
@@ -325,8 +217,6 @@ export default function AdminUsersPage() {
       </div>
 
       {error && <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />}
-
-      {!error && <AddParentForm onDone={load} />}
 
       {!error && (
         <div className="relative">
