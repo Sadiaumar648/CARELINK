@@ -93,6 +93,34 @@ export async function GET(request: Request) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+    const parentProfileIds = data
+      .map((row) => {
+        const profile = Array.isArray(row.parent_profiles)
+          ? row.parent_profiles[0]
+          : row.parent_profiles;
+        return profile?.id ?? null;
+      })
+      .filter((id): id is string => id !== null);
+
+    // Real booking count per parent, per the Admin Parents directory's
+    // "View Details (N)" requirement — every booking regardless of
+    // status, not just completed ones, matching the plain "booking
+    // count" wording. Read-only, no booking/dispatch logic touched.
+    const { data: bookingRows } =
+      parentProfileIds.length > 0
+        ? await supabase
+            .from("bookings")
+            .select("parent_profile_id")
+            .in("parent_profile_id", parentProfileIds)
+        : { data: [] as { parent_profile_id: string }[] };
+    const bookingCountByProfileId = new Map<string, number>();
+    for (const b of bookingRows ?? []) {
+      bookingCountByProfileId.set(
+        b.parent_profile_id,
+        (bookingCountByProfileId.get(b.parent_profile_id) ?? 0) + 1,
+      );
+    }
+
     const parents = data.map((row) => {
       const profile = Array.isArray(row.parent_profiles)
         ? row.parent_profiles[0]
@@ -113,6 +141,7 @@ export async function GET(request: Request) {
           row.invited_by === null ? null : row.account_status === "invited" ? "pending" : "claimed",
         profileComplete: Boolean(profile),
         parentProfileId: profile?.id ?? null,
+        bookingCount: profile ? (bookingCountByProfileId.get(profile.id) ?? 0) : 0,
         area: profile?.area ?? null,
         createdAt: row.created_at,
       };

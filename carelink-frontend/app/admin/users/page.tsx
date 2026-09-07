@@ -1,17 +1,31 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Baby, Plus, UserCircle, UsersThree } from "@phosphor-icons/react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { ArrowLeft, Baby, DotsThreeVertical, MagnifyingGlass, Plus } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { BookingCardSkeleton } from "@/components/ui/skeleton";
 
-type Role = "parent" | "caregiver";
+// Admin → Parents, matching the Caregivers directory's visual language.
+// This page previously combined Parents and Caregivers in one tabbed
+// view — caregiver management now lives entirely on /admin/roster (its
+// own "Invite a caregiver" affordance), so this page is Parents-only.
+// The richer "add an existing agency parent" flow (email, agency
+// reference, agency-verified attestation) is preserved, not dropped —
+// it's the same real POST /api/admin/parents this page already used,
+// just no longer needing a role-choice step.
+
+const AVATAR_TINTS = [
+  "bg-bluebell-tint text-[var(--color-bluebell-pressed)]",
+  "bg-wisteria-tint text-wisteria-pressed",
+  "bg-success-tint text-[var(--color-success)]",
+  "bg-gold-tint text-[var(--color-gold)]",
+];
 
 type ParentEntry = {
   id: string;
@@ -19,48 +33,16 @@ type ParentEntry = {
   phone: string;
   email: string;
   accountStatus: string;
-  verificationStatus: string;
-  verificationMethod: "carelink" | "agency" | null;
-  agencyReferenceId: string | null;
-  existingAgencyUser: boolean;
-  invitationStatus: "pending" | "claimed" | null;
-  profileComplete: boolean;
-  area: string | null;
+  parentProfileId: string | null;
+  bookingCount: number;
   createdAt: string;
 };
 
-type CaregiverEntry = {
-  id: string;
-  fullName: string;
-  phone: string;
-  email: string;
-  accountStatus: string;
-  verificationStatus: string;
-  verificationMethod: "carelink" | "agency" | null;
-  agencyReferenceId: string | null;
-  existingAgencyUser: boolean;
-  invitationStatus: "pending" | "claimed" | null;
-  profileComplete: boolean;
-  caregiverType: "nanny" | "babysitter" | null;
-  ratingAvg: number | null;
-  bookingsCompleted: number;
-  acceptingBookings: boolean;
-  createdAt: string;
-};
-
-// Reads users.verification_method directly now (added alongside
-// verification_status, never replacing it) rather than guessing from
-// invited_by — a real, per-account record of which of the two paths
-// verified them, not a heuristic.
-function verificationLabel(status: string, method: "carelink" | "agency" | null): string {
-  if (status === "verified") {
-    if (method === "carelink") return "✓ Verified by CareLink";
-    if (method === "agency") return "✓ Verified by Agency";
-    return "✓ Verified";
-  }
-  if (status === "pending") return "Pending review";
-  if (status === "rejected") return "Rejected";
-  return "Verification required";
+function initialsFor(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 function formatDate(iso: string): string {
@@ -71,33 +53,8 @@ function formatDate(iso: string): string {
   });
 }
 
-const VERIFICATION_TONE: Record<string, "neutral" | "positive" | "attention" | "info"> = {
-  unverified: "neutral",
-  pending: "info",
-  verified: "positive",
-  rejected: "attention",
-};
-
-function OriginTag({ existingAgencyUser }: { existingAgencyUser: boolean }) {
-  return (
-    <span
-      className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-        existingAgencyUser
-          ? "bg-bluebell-tint text-[var(--color-bluebell-pressed)]"
-          : "bg-wisteria-tint text-wisteria-pressed"
-      }`}
-    >
-      {existingAgencyUser ? "Existing agency user" : "New user"}
-    </span>
-  );
-}
-
-// Shared by both the parent and caregiver forms below — same fields,
-// same optional email/agency-verified attestation, only the submit
-// target (and therefore the account's role) differs. See
-// createParentInviteSchema / createStaffInviteSchema for why email and
-// agencyVerified are both optional.
-function OnboardExistingUserForm({ role, onDone }: { role: Role; onDone: () => void }) {
+function AddParentForm({ onDone }: { onDone: () => void }) {
+  const [open, setOpen] = useState(false);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -112,8 +69,7 @@ function OnboardExistingUserForm({ role, onDone }: { role: Role; onDone: () => v
     setSubmitting(true);
     setError(null);
     try {
-      const endpoint = role === "parent" ? "/api/admin/parents" : "/api/admin/staff";
-      const res = await apiFetch<{ invitationCode: string }>(endpoint, {
+      const res = await apiFetch<{ invitationCode: string }>("/api/admin/parents", {
         method: "POST",
         body: {
           fullName,
@@ -135,14 +91,15 @@ function OnboardExistingUserForm({ role, onDone }: { role: Role; onDone: () => v
     return (
       <Sheet className="flex flex-col gap-3">
         <p className="text-[15px]">
-          {issued.fullName} has been added as an existing {role}. Share this invitation code with
-          them — it&apos;s shown only once. They&apos;ll use it, their phone number, and a password
-          they choose themselves to log in — CareLink never sees or stores that password.
+          {issued.fullName} has been added. Share this invitation code with them — it&apos;s shown
+          only once. They&apos;ll use it, their phone number, and a password they choose themselves
+          to log in.
         </p>
         <p className="text-[28px] font-semibold tracking-[0.1em] tabular-nums">{issued.code}</p>
         <Button
           onClick={() => {
             setIssued(null);
+            setOpen(false);
             setFullName("");
             setPhone("");
             setEmail("");
@@ -157,11 +114,17 @@ function OnboardExistingUserForm({ role, onDone }: { role: Role; onDone: () => v
     );
   }
 
+  if (!open) {
+    return (
+      <Button variant="secondary" onClick={() => setOpen(true)} className="self-start">
+        <Plus size={16} weight="bold" /> Add Existing Parent
+      </Button>
+    );
+  }
+
   return (
     <Sheet as="form" onSubmit={onSubmit} className="flex flex-col gap-4">
-      <h2 className="text-[15px] font-semibold font-heading">
-        Existing {role === "parent" ? "parent" : "caregiver"} details
-      </h2>
+      <h2 className="text-[15px] font-semibold font-heading">Existing parent details</h2>
       <Field
         label="Full name"
         required
@@ -185,7 +148,7 @@ function OnboardExistingUserForm({ role, onDone }: { role: Role; onDone: () => v
       />
       <Field
         label="Agency reference ID (optional)"
-        placeholder="The agency's own client/staff number, if they use one"
+        placeholder="The agency's own client number, if they use one"
         value={agencyReferenceId}
         onChange={(e) => setAgencyReferenceId(e.target.value)}
       />
@@ -197,91 +160,137 @@ function OnboardExistingUserForm({ role, onDone }: { role: Role; onDone: () => v
           className="mt-0.5"
         />
         <span>
-          This person has already been identity-verified by the agency — skip CareLink&apos;s
-          document review and mark their account verified immediately.
+          This person has already been identity-verified by the agency — mark their account verified
+          immediately.
         </span>
       </label>
-      <p className="text-[12.5px] leading-relaxed text-ink-muted">
-        {role === "parent"
-          ? "They'll complete their household and ward profile themselves after logging in, the same way any parent does."
-          : "They'll complete their profile — bio, rate, skills, service areas, availability — themselves after logging in, the same way any caregiver does."}
-      </p>
       {error && <p className="text-[13px] text-error">{error}</p>}
       <div className="flex gap-3">
         <Button type="submit" disabled={submitting || !fullName.trim() || !phone.trim()}>
           {submitting ? "Adding…" : "Create Account & Get Invitation Code"}
+        </Button>
+        <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
+          Cancel
         </Button>
       </div>
     </Sheet>
   );
 }
 
-function AddExistingUserFlow({ onDone }: { onDone: () => void }) {
-  const [step, setStep] = useState<"closed" | "chooseRole" | Role>("closed");
+function ActionMenu({ entry, onChanged }: { entry: ParentEntry; onChanged: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const suspended = entry.accountStatus === "suspended";
 
-  if (step === "closed") {
-    return (
-      <Button onClick={() => setStep("chooseRole")}>
-        <Plus size={16} weight="bold" /> Add Existing User
-      </Button>
-    );
-  }
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
 
-  if (step === "chooseRole") {
-    return (
-      <Sheet className="flex flex-col gap-4">
-        <h2 className="text-[15px] font-semibold font-heading">Who are you onboarding?</h2>
-        <p className="text-[13px] text-ink-muted">
-          Choose the role for this existing agency client or caregiver.
-        </p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => setStep("parent")}
-            className="flex flex-col items-center gap-2 rounded-[14px] border border-hairline p-6 text-center hover:border-wisteria hover:bg-wisteria-tint"
-          >
-            <UserCircle size={28} className="text-wisteria" />
-            <span className="text-[14px] font-semibold text-ink">Parent</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setStep("caregiver")}
-            className="flex flex-col items-center gap-2 rounded-[14px] border border-hairline p-6 text-center hover:border-wisteria hover:bg-wisteria-tint"
-          >
-            <UsersThree size={28} className="text-wisteria" />
-            <span className="text-[14px] font-semibold text-ink">Caregiver</span>
-          </button>
-        </div>
-        <Button variant="secondary" onClick={() => setStep("closed")} className="self-start">
-          Cancel
-        </Button>
-      </Sheet>
-    );
+  async function setAccountStatus(status: "active" | "suspended") {
+    setBusy(true);
+    setError(null);
+    try {
+      await apiFetch(`/api/admin/users/${entry.id}/status`, {
+        method: "PATCH",
+        body: { accountStatus: status },
+      });
+      onChanged();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+      setOpen(false);
+    }
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <OnboardExistingUserForm
-        role={step}
-        onDone={() => {
-          setStep("closed");
-          onDone();
-        }}
-      />
+    <div ref={containerRef} className="relative">
       <button
         type="button"
-        onClick={() => setStep("chooseRole")}
-        className="self-start text-[13px] font-semibold text-ink-muted hover:text-ink"
+        onClick={() => setOpen((o) => !o)}
+        aria-label="Actions"
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-ink-muted hover:bg-wisteria-tint hover:text-wisteria"
       >
-        ← Choose a different role
+        <DotsThreeVertical size={16} weight="bold" />
       </button>
+      {open && (
+        <div className="absolute right-0 z-20 mt-1.5 w-44 overflow-hidden rounded-[12px] border border-hairline bg-sheet py-1 shadow-[var(--shadow-card-hover)]">
+          {suspended ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void setAccountStatus("active")}
+              className="flex w-full items-center px-3.5 py-2 text-left text-[13px] text-ink hover:bg-wisteria-tint"
+            >
+              Reactivate
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void setAccountStatus("suspended")}
+              className="flex w-full items-center px-3.5 py-2 text-left text-[13px] text-error hover:bg-error-tint"
+            >
+              Suspend
+            </button>
+          )}
+          {error && <p className="px-3.5 py-1.5 text-[12px] text-error">{error}</p>}
+        </div>
+      )}
     </div>
   );
 }
 
-function ParentsTab() {
+function ParentRow({
+  entry,
+  avatarTint,
+  onChanged,
+}: {
+  entry: ParentEntry;
+  avatarTint: string;
+  onChanged: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-4 border-b border-hairline p-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between md:p-5">
+      <div className="flex items-center gap-3.5">
+        <span
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold ${avatarTint}`}
+        >
+          {initialsFor(entry.fullName)}
+        </span>
+        <p className="text-[15px] font-semibold text-ink">{entry.fullName}</p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 sm:flex-nowrap">
+        <div className="flex flex-col gap-1">
+          <p className="text-[10.5px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
+            Joined
+          </p>
+          <span className="text-[13.5px] font-medium text-ink">{formatDate(entry.createdAt)}</span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Link href={`/admin/users/${entry.id}`}>
+            <Button variant="secondary">View Details ({entry.bookingCount})</Button>
+          </Link>
+          <ActionMenu entry={entry} onChanged={onChanged} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function AdminUsersPage() {
   const [parents, setParents] = useState<ParentEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [retryKey, setRetryKey] = useState(0);
 
   function load() {
     apiFetch<{ parents: ParentEntry[] }>("/api/admin/parents")
@@ -292,160 +301,85 @@ function ParentsTab() {
       .catch((err) => setError(errorMessage(err)));
   }
 
-  useEffect(load, []);
+  useEffect(load, [retryKey]);
+
+  const filtered = useMemo(() => {
+    if (!parents) return null;
+    const q = query.trim().toLowerCase();
+    if (!q) return parents;
+    return parents.filter((p) => p.fullName.toLowerCase().includes(q));
+  }, [parents, query]);
 
   return (
-    <div className="flex flex-col gap-4">
-      {error && <ErrorState onRetry={load} />}
+    <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6 md:p-8">
+      <Link
+        href="/admin"
+        className="flex w-fit items-center gap-1.5 text-[13px] font-semibold text-ink-muted hover:text-wisteria"
+      >
+        <ArrowLeft size={16} /> Back to Admin
+      </Link>
+
+      <div className="flex flex-col gap-1">
+        <h1 className="text-[26px] font-semibold font-heading text-ink">Parents</h1>
+        <p className="text-[14px] text-ink-muted">Manage the agency&rsquo;s parents.</p>
+      </div>
+
+      {error && <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />}
+
+      {!error && <AddParentForm onDone={load} />}
+
+      {!error && (
+        <div className="relative">
+          <MagnifyingGlass
+            size={16}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted"
+          />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search parents by name"
+            aria-label="Search parents"
+            className="w-full rounded-[12px] border border-hairline bg-sheet py-3 pl-10 pr-3 text-[14px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
+          />
+        </div>
+      )}
+
       {!error && parents === null && (
         <div className="flex flex-col gap-4">
           <BookingCardSkeleton />
           <BookingCardSkeleton />
         </div>
       )}
-      {!error && parents?.length === 0 && (
-        <EmptyState
-          icon={Baby}
-          title="No parents yet"
-          description="Onboarded parents will appear here."
-        />
-      )}
-      {!error &&
-        parents?.map((p) => (
-          <Sheet key={p.id} className="flex items-center justify-between gap-4">
-            <div>
-              <p className="flex items-center gap-2 text-[15px] font-semibold text-ink">
-                {p.fullName}
-                <OriginTag existingAgencyUser={p.existingAgencyUser} />
-              </p>
-              <p className="text-[13px] text-ink-muted">
-                {p.phone} · {p.email}
-                {p.area ? ` · ${p.area}` : ""}
-              </p>
-              <p className="text-[12px] text-ink-muted">
-                {p.profileComplete ? "Household profile complete" : "Household profile incomplete"}
-                {p.agencyReferenceId ? ` · Ref: ${p.agencyReferenceId}` : ""}
-                {p.invitationStatus === "pending" ? " · Invitation pending" : ""}
-                {p.invitationStatus === "claimed" ? " · Invitation claimed" : ""}
-                {" · Added " + formatDate(p.createdAt)}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <StatusBadge label={p.accountStatus} />
-              <StatusBadge
-                label={verificationLabel(p.verificationStatus, p.verificationMethod)}
-                tone={VERIFICATION_TONE[p.verificationStatus] ?? "neutral"}
+
+      {!error && parents && (
+        <div className="overflow-hidden rounded-[16px] border border-hairline bg-sheet">
+          <div className="flex items-center justify-between border-b border-hairline px-5 py-4">
+            <h2 className="text-[16px] font-semibold text-ink">Parent Directory</h2>
+            <span className="text-[13px] font-medium text-wisteria">
+              {filtered?.length ?? 0} parent{filtered?.length === 1 ? "" : "s"}
+            </span>
+          </div>
+
+          {filtered && filtered.length === 0 && (
+            <div className="p-8">
+              <EmptyState
+                icon={Baby}
+                title="No parents yet"
+                tone="bluebell"
+                description="Parents who register with your agency will appear here."
               />
             </div>
-          </Sheet>
-        ))}
-    </div>
-  );
-}
+          )}
 
-function CaregiversTab() {
-  const [caregivers, setCaregivers] = useState<CaregiverEntry[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  function load() {
-    apiFetch<{ roster: CaregiverEntry[] }>("/api/admin/roster")
-      .then((res) => {
-        setError(null);
-        setCaregivers(res.roster);
-      })
-      .catch((err) => setError(errorMessage(err)));
-  }
-
-  useEffect(load, []);
-
-  return (
-    <div className="flex flex-col gap-4">
-      {error && <ErrorState onRetry={load} />}
-      {!error && caregivers === null && (
-        <div className="flex flex-col gap-4">
-          <BookingCardSkeleton />
-          <BookingCardSkeleton />
+          {filtered?.map((p, i) => (
+            <ParentRow
+              key={p.id}
+              entry={p}
+              avatarTint={AVATAR_TINTS[i % AVATAR_TINTS.length]}
+              onChanged={load}
+            />
+          ))}
         </div>
-      )}
-      {!error && caregivers?.length === 0 && (
-        <EmptyState
-          icon={UsersThree}
-          title="No caregivers yet"
-          description="Onboarded caregivers will appear here."
-        />
-      )}
-      {!error &&
-        caregivers?.map((c) => (
-          <Sheet key={c.id} className="flex items-center justify-between gap-4">
-            <div>
-              <p className="flex items-center gap-2 text-[15px] font-semibold text-ink">
-                {c.fullName}
-                <OriginTag existingAgencyUser={c.existingAgencyUser} />
-              </p>
-              <p className="text-[13px] text-ink-muted">
-                {c.phone} · {c.bookingsCompleted} bookings
-                {c.ratingAvg ? ` · ${c.ratingAvg.toFixed(1)}★` : ""}
-                {c.caregiverType
-                  ? ` · ${c.caregiverType === "nanny" ? "Nanny" : "Babysitter"}`
-                  : ""}
-              </p>
-              <p className="text-[12px] text-ink-muted">
-                {c.profileComplete ? "Profile complete" : "Profile incomplete"}
-                {c.agencyReferenceId ? ` · Ref: ${c.agencyReferenceId}` : ""}
-                {c.invitationStatus === "pending" ? " · Invitation pending" : ""}
-                {c.invitationStatus === "claimed" ? " · Invitation claimed" : ""}
-                {" · Added " + formatDate(c.createdAt)}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <StatusBadge label={c.accountStatus} />
-              <StatusBadge
-                label={verificationLabel(c.verificationStatus, c.verificationMethod)}
-                tone={VERIFICATION_TONE[c.verificationStatus] ?? "neutral"}
-              />
-            </div>
-          </Sheet>
-        ))}
-    </div>
-  );
-}
-
-export default function AdminUsersPage() {
-  const [tab, setTab] = useState<"parents" | "caregivers">("parents");
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-[26px] font-semibold font-heading">Users</h1>
-        <p className="text-[14px] text-ink-muted">
-          Every parent and caregiver on the platform, and where they came from.
-        </p>
-      </div>
-
-      <AddExistingUserFlow onDone={() => setRefreshKey((k) => k + 1)} />
-
-      <div className="flex gap-2">
-        {(["parents", "caregivers"] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setTab(t)}
-            className={`rounded-full px-3.5 py-1.5 text-[13px] font-semibold ${
-              tab === t
-                ? "bg-wisteria text-sheet"
-                : "border border-hairline bg-sheet text-ink-muted hover:text-ink"
-            }`}
-          >
-            {t === "parents" ? "Parents" : "Caregivers"}
-          </button>
-        ))}
-      </div>
-
-      {tab === "parents" ? (
-        <ParentsTab key={`parents-${refreshKey}`} />
-      ) : (
-        <CaregiversTab key={`caregivers-${refreshKey}`} />
       )}
     </div>
   );
