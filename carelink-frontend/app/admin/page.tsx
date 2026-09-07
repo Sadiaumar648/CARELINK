@@ -4,15 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   CalendarCheck,
+  CaretRight,
+  ChartBar,
   ChatCircleDots,
   ClockCounterClockwise,
   Flag,
-  Lightning,
   Link as LinkIcon,
   MagnifyingGlass,
   ShieldWarning,
   Star,
-  UserPlus,
   UsersFour,
   UsersThree,
   Wallet,
@@ -24,18 +24,18 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Admin Home, redesigned as an agency operations command centre rather
-// than a stats dashboard. Revenue and the old top metric-card row are
-// gone entirely (financial figures belong in Payments/Finance, which
-// doesn't have a dedicated admin page yet — not built here, see the
-// report). Every section below reads real, already-existing backend
-// data: GET /api/admin/bookings (unfiltered, the same route
-// /admin/bookings already uses) powers both Live Care and Today's
-// Schedule; GET /api/admin/roster supplies caregiver names/types for
-// those rows; GET /api/admin/overview and GET /api/admin/verifications
-// supply Needs Attention's real counts; GET /api/admin/activity is the
-// existing Recent Activity feed, unchanged. Nothing here is fabricated
-// or hardcoded.
+// Admin Home, an agency operations command centre rather than a stats
+// dashboard. Revenue and every large top KPI card are gone entirely —
+// financial figures live in /admin/payments instead. Every section
+// below reads real, already-existing backend data: GET
+// /api/admin/bookings powers both Live Care and Today's Schedule;
+// GET /api/admin/roster and GET /api/admin/parents supply caregiver/
+// family names for those rows; GET /api/admin/overview and
+// GET /api/admin/verifications supply Needs Attention's real counts;
+// GET /api/admin/activity is the real, merged Recent Activity feed
+// (only its 4 newest rows show here — the same route's full result,
+// currently up to 15, is reachable via "View all"). Nothing here is
+// fabricated or hardcoded.
 //
 // One deliberate, flagged gap: "Generate Caregiver Onboarding Link"
 // describes a bulk self-service registration link CareLink's backend
@@ -43,9 +43,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 // admin-issued code per caregiver, via the existing /admin/roster
 // invite flow) — per this task's own instruction not to invent that
 // backend, the action routes to the existing roster/invite flow
-// instead of a link generator that doesn't exist. See the report for
-// the fuller note on how this also touches the earlier "agency-
-// controlled, no caregiver self-verification" decision.
+// instead of a link generator that doesn't exist.
 
 type Overview = {
   bookings: { byStatus: Record<string, number> };
@@ -86,6 +84,10 @@ type ActivityRow = {
 
 type VerificationSubmission = { users: { role: string } | null };
 
+// Only the 4 newest show on Home — the rest of what the API already
+// returns (up to 15) is reachable via "View all" on /admin/activity.
+const RECENT_ACTIVITY_HOME_COUNT = 4;
+
 const CAREGIVER_TYPE_LABEL: Record<"nanny" | "babysitter", string> = {
   nanny: "Nanny",
   babysitter: "Babysitter",
@@ -98,15 +100,17 @@ const SCHEDULE_STATUS_LABEL: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
+// Green = In Progress, Blue = Upcoming, Grey = Completed, Red = Cancelled.
 const SCHEDULE_STATUS_TONE: Record<string, "neutral" | "positive" | "attention" | "info"> = {
   paid: "info",
   active: "positive",
-  completed: "positive",
+  completed: "neutral",
   cancelled: "attention",
 };
 
-// Purely presentational — one accent per Quick Action card, drawn from
-// CareLink's existing palette tokens (no new colors introduced).
+// One pastel accent per Quick Action card, drawn only from CareLink's
+// existing palette tokens (no new colors introduced): light blue,
+// lavender, mint, peach, pink, lavender again for the sixth.
 const QUICK_ACTION_TINT = [
   "bg-bluebell-tint text-[var(--color-bluebell-pressed)]",
   "bg-wisteria-tint text-wisteria-pressed",
@@ -172,37 +176,80 @@ function QuickAction({
   return (
     <Link
       href={href}
-      className="flex flex-col gap-3 rounded-[16px] border border-hairline bg-sheet p-5 hover:border-wisteria/50 hover:shadow-[var(--shadow-card-hover)]"
+      className="flex h-full flex-col justify-between gap-4 rounded-[16px] border border-hairline bg-sheet p-5 hover:border-wisteria/50 hover:shadow-[var(--shadow-card-hover)]"
     >
-      <span className={`flex h-11 w-11 items-center justify-center rounded-full ${tint}`}>
-        <Icon size={21} />
-      </span>
-      <div className="flex flex-col gap-1">
-        <span className="text-[14.5px] font-semibold text-ink">{label}</span>
-        <span className="text-[12.5px] leading-relaxed text-ink-muted">{description}</span>
+      <div className="flex flex-col gap-3">
+        <span className={`flex h-11 w-11 items-center justify-center rounded-full ${tint}`}>
+          <Icon size={21} />
+        </span>
+        <div className="flex flex-col gap-1">
+          <span className="text-[14px] font-semibold text-ink">{label}</span>
+          <span className="text-[12.5px] leading-relaxed text-ink-muted">{description}</span>
+        </div>
       </div>
+      <span className="flex h-7 w-7 items-center justify-center self-end rounded-full bg-[var(--color-lavender-bg)] text-ink-muted">
+        <CaretRight size={13} />
+      </span>
     </Link>
   );
 }
 
+// A section title with an optional "View all" action on the right —
+// the compact icon-badge style used by every section except Live Care,
+// which gets a live status dot instead (see LiveCareHeading below).
 function SectionHeading({
   icon: Icon,
   title,
   subtitle,
+  action,
 }: {
   icon: typeof UsersThree;
   title: string;
   subtitle: string;
+  action?: { href: string; label: string };
 }) {
   return (
-    <div className="flex items-start gap-2.5">
-      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] bg-wisteria-tint text-wisteria-pressed">
-        <Icon size={13} weight="bold" />
-      </span>
-      <div className="flex flex-col gap-1">
-        <h2 className="text-[15px] font-semibold text-ink">{title}</h2>
-        <p className="text-[12.5px] text-ink-muted">{subtitle}</p>
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start gap-2.5">
+        <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] bg-wisteria-tint text-wisteria-pressed">
+          <Icon size={13} weight="bold" />
+        </span>
+        <div className="flex flex-col gap-1">
+          <h2 className="text-[15px] font-semibold text-ink">{title}</h2>
+          <p className="text-[12.5px] text-ink-muted">{subtitle}</p>
+        </div>
       </div>
+      {action && (
+        <Link
+          href={action.href}
+          className="flex shrink-0 items-center gap-1 whitespace-nowrap text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
+        >
+          {action.label} <CaretRight size={12} />
+        </Link>
+      )}
+    </div>
+  );
+}
+
+function LiveCareHeading({ action }: { action: { href: string; label: string } }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start gap-2.5">
+        <span
+          className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--color-success)]"
+          aria-hidden
+        />
+        <div className="flex flex-col gap-1">
+          <h2 className="text-[15px] font-semibold text-ink">Live Care</h2>
+          <p className="text-[12.5px] text-ink-muted">Care sessions currently in progress.</p>
+        </div>
+      </div>
+      <Link
+        href={action.href}
+        className="flex shrink-0 items-center gap-1 whitespace-nowrap text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
+      >
+        {action.label} <CaretRight size={12} />
+      </Link>
     </div>
   );
 }
@@ -228,6 +275,7 @@ function AttentionItem({
       </span>
       <span className="flex-1 text-[13.5px] text-ink">{description}</span>
       <span className="text-[19px] font-bold tabular-nums text-ink">{count}</span>
+      <CaretRight size={14} className="text-ink-muted" />
     </Link>
   );
 }
@@ -285,6 +333,7 @@ export default function AdminOverviewPage() {
         b.starts_at.slice(0, 10) === today,
     )
     .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
+  const recentActivity = (activity ?? []).slice(0, RECENT_ACTIVITY_HOME_COUNT);
 
   function caregiverName(staffProfileId: string): string {
     return rosterByStaffProfileId.get(staffProfileId)?.fullName ?? "Unknown caregiver";
@@ -295,7 +344,7 @@ export default function AdminOverviewPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-8 p-6 md:p-8">
+    <div className="mx-auto flex max-w-7xl flex-col gap-8 p-6 md:p-8">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
           <h1 className="text-[26px] font-bold font-heading text-ink">Good morning, Admin 👋</h1>
@@ -316,10 +365,10 @@ export default function AdminOverviewPage() {
               title="Quick Actions"
               subtitle="Common tasks for managing your agency."
             />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
               <QuickAction
                 href="/admin/roster"
-                icon={UserPlus}
+                icon={LinkIcon}
                 label="Generate Caregiver Onboarding Link"
                 description="Create a secure registration link for your agency caregivers."
                 tint={QUICK_ACTION_TINT[0]}
@@ -342,7 +391,7 @@ export default function AdminOverviewPage() {
                 href="/admin/bookings"
                 icon={CalendarCheck}
                 label="View Bookings"
-                description="See bookings by status and date."
+                description="See all bookings by status and date."
                 tint={QUICK_ACTION_TINT[3]}
               />
               <QuickAction
@@ -354,7 +403,7 @@ export default function AdminOverviewPage() {
               />
               <QuickAction
                 href="/admin/reports"
-                icon={Flag}
+                icon={ChartBar}
                 label="View Reports"
                 description="See platform activity and insights."
                 tint={QUICK_ACTION_TINT[5]}
@@ -362,12 +411,10 @@ export default function AdminOverviewPage() {
             </div>
           </section>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <section className="flex flex-col gap-3">
-              <SectionHeading
-                icon={Lightning}
-                title="Live Care"
-                subtitle="Care sessions currently in progress."
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+            <section className="flex flex-col gap-3 lg:col-span-3">
+              <LiveCareHeading
+                action={{ href: "/admin/bookings?status=active", label: "View all live care" }}
               />
 
               {bookings === null && (
@@ -381,7 +428,7 @@ export default function AdminOverviewPage() {
                 <EmptyState
                   icon={ClockCounterClockwise}
                   title="No care sessions in progress"
-                  description="Active care sessions will appear here when care begins."
+                  description="Active care sessions will appear here when a care session begins."
                 />
               )}
 
@@ -436,20 +483,14 @@ export default function AdminOverviewPage() {
                   </table>
                 </div>
               )}
-
-              <Link
-                href="/admin/bookings?status=active"
-                className="self-start text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
-              >
-                View all live care
-              </Link>
             </section>
 
-            <section className="flex flex-col gap-3">
+            <section className="flex flex-col gap-3 lg:col-span-2">
               <SectionHeading
                 icon={CalendarCheck}
                 title="Today's Schedule"
                 subtitle="Confirmed and upcoming care sessions for today."
+                action={{ href: "/admin/bookings", label: "View full schedule" }}
               />
 
               {bookings === null && (
@@ -470,39 +511,27 @@ export default function AdminOverviewPage() {
               {bookings && todaysSchedule.length > 0 && (
                 <div className="flex flex-col gap-2">
                   {todaysSchedule.slice(0, 8).map((b) => (
-                    <Sheet key={b.id} className="flex items-center justify-between gap-3 py-3">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-[13.5px] font-medium text-ink">
-                          {formatTime(b.starts_at)} · {caregiverName(b.staff_profile_id)}
+                    <Sheet key={b.id} className="flex flex-col gap-1.5 py-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[13px] font-semibold text-ink">
+                          {formatTime(b.starts_at)}
                         </span>
-                        <span className="text-[12px] text-ink-muted">
-                          {caregiverTypeLabel(b.staff_profile_id)} ·{" "}
-                          {familyLabel(parentsByProfileId.get(b.parent_profile_id)?.fullName)}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3">
                         <StatusBadge
                           label={SCHEDULE_STATUS_LABEL[b.status] ?? b.status}
                           tone={SCHEDULE_STATUS_TONE[b.status] ?? "neutral"}
                         />
-                        <Link
-                          href={`/admin/bookings?status=${b.status}`}
-                          className="text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
-                        >
-                          View Details
-                        </Link>
                       </div>
+                      <span className="text-[13px] font-medium text-ink">
+                        {caregiverName(b.staff_profile_id)}
+                      </span>
+                      <span className="text-[12px] text-ink-muted">
+                        {caregiverTypeLabel(b.staff_profile_id)} ·{" "}
+                        {familyLabel(parentsByProfileId.get(b.parent_profile_id)?.fullName)}
+                      </span>
                     </Sheet>
                   ))}
                 </div>
               )}
-
-              <Link
-                href="/admin/bookings"
-                className="self-start text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
-              >
-                View full schedule
-              </Link>
             </section>
           </div>
 
@@ -556,6 +585,7 @@ export default function AdminOverviewPage() {
                 icon={ChatCircleDots}
                 title="Recent Activity"
                 subtitle="Latest updates on the platform."
+                action={{ href: "/admin/activity", label: "View all" }}
               />
 
               {activity === null && (
@@ -571,7 +601,7 @@ export default function AdminOverviewPage() {
 
               {activity && activity.length > 0 && (
                 <div className="flex flex-col divide-y divide-hairline overflow-hidden rounded-[16px] border border-hairline bg-sheet">
-                  {activity.map((a, i) => (
+                  {recentActivity.map((a, i) => (
                     <div
                       key={`${a.bookingId ?? "evt"}-${i}`}
                       className="flex items-center justify-between gap-3 px-4 py-3 text-[13px]"

@@ -13,10 +13,10 @@ function initialsFor(fullName: string): string {
 }
 
 // The header's avatar/name/chevron cluster for Admin — same two-item
-// structure as the Parent and Staff dropdowns (Settings, then Log Out).
-// The sidebar's own built-in Sign out button (RoleShell) stays too —
-// Admin keeps its rail, unlike Parent/Staff, so this is an additional,
-// not a replacement, path to the same actions.
+// dropdown structure as Parent/Staff (Settings, then Log Out). The
+// pill itself shows the literal "CareLink Admin" label (the role, not
+// the individual admin's own name) per the current design direction;
+// the dropdown's own header line still shows the real signed-in name.
 export function AdminHeaderProfile() {
   const { user, signOut } = useAuth();
   const fullName = (user?.user_metadata?.full_name as string | undefined) ?? "Admin";
@@ -44,8 +44,8 @@ export function AdminHeaderProfile() {
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-wisteria text-[13px] font-semibold text-white">
           {initialsFor(fullName)}
         </span>
-        <span className="hidden max-w-[120px] truncate text-[13.5px] font-semibold text-ink sm:inline">
-          {fullName.split(" ")[0]}
+        <span className="hidden text-[13.5px] font-semibold text-ink sm:inline">
+          CareLink Admin
         </span>
         <CaretDown size={14} className="text-ink-muted" />
       </button>
