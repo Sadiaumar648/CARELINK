@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Flag, Star, WarningCircle } from "@phosphor-icons/react";
+import { ArrowLeft, Star, WarningCircle } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
@@ -251,15 +251,7 @@ export default function AdminReviewsPage() {
       )}
 
       <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-[15px] font-semibold text-ink">All Reviews</h2>
-          <Link
-            href="/admin/reports"
-            className="flex items-center gap-1.5 text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
-          >
-            <Flag size={14} /> Safety reports
-          </Link>
-        </div>
+        <h2 className="text-[15px] font-semibold text-ink">All Reviews</h2>
 
         <div className="flex flex-wrap gap-2">
           {(
