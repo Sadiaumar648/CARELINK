@@ -1,20 +1,29 @@
 import type { Icon } from "@phosphor-icons/react";
 import { ReactNode } from "react";
 
+const ICON_TONE = {
+  wisteria: "bg-wisteria-tint text-wisteria-pressed",
+  bluebell: "bg-bluebell-tint text-[var(--color-bluebell-pressed)]",
+} as const;
+
 export function EmptyState({
   icon: IconComponent,
   title,
   description,
   action,
+  tone = "wisteria",
 }: {
   icon: Icon;
   title: string;
   description?: string;
   action?: ReactNode;
+  tone?: keyof typeof ICON_TONE;
 }) {
   return (
     <div className="flex flex-col items-center gap-3 rounded-[18px] border border-dashed border-hairline bg-sheet p-8 text-center">
-      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-wisteria-tint text-wisteria-pressed">
+      <span
+        className={`flex h-11 w-11 items-center justify-center rounded-full ${ICON_TONE[tone]}`}
+      >
         <IconComponent size={22} weight="duotone" />
       </span>
       <p className="text-[15px] font-semibold text-ink">{title}</p>
