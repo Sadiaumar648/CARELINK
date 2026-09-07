@@ -169,7 +169,7 @@ function ReviewCard({ review, onChanged }: { review: ReviewRow; onChanged: () =>
             label={DIRECTION_LABEL[review.direction]}
             tone={review.direction === "parent_to_caregiver" ? "info" : "positive"}
           />
-          {review.flagged && <StatusBadge label="Account flagged" tone="attention" />}
+          {review.flagged && <StatusBadge label="Needs review" tone="attention" />}
           {review.hiddenByAdmin && <StatusBadge label="Hidden" tone="neutral" />}
           <Stars rating={review.rating} />
         </div>
@@ -216,15 +216,12 @@ export default function AdminReviewsPage() {
         href="/admin"
         className="flex w-fit items-center gap-1.5 text-[13px] font-semibold text-ink-muted hover:text-ink"
       >
-        <ArrowLeft size={16} /> Back to Home
+        <ArrowLeft size={16} /> Back to Admin
       </Link>
 
       <div className="flex flex-col gap-1">
         <h1 className="text-[26px] font-semibold font-heading">Reviews</h1>
-        <p className="text-[14px] text-ink-muted">
-          Reviews submitted by parents about caregivers, and by caregivers about parents, after
-          completed bookings.
-        </p>
+        <p className="text-[14px] text-ink-muted">Monitor feedback from parents and caregivers.</p>
       </div>
 
       {error && <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />}
@@ -251,8 +248,6 @@ export default function AdminReviewsPage() {
       )}
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-[15px] font-semibold text-ink">All Reviews</h2>
-
         <div className="flex flex-wrap gap-2">
           {(
             [
@@ -286,8 +281,9 @@ export default function AdminReviewsPage() {
         {!error && filtered?.length === 0 && (
           <EmptyState
             icon={Star}
+            tone="bluebell"
             title="No reviews yet"
-            description="Reviews will appear here once parents and caregivers complete bookings and rate each other."
+            description="Reviews will appear here after completed care bookings are rated by parents and caregivers."
           />
         )}
 
