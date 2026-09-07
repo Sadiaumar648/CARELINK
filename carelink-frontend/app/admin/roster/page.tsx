@@ -295,9 +295,7 @@ export default function AdminRosterPage() {
 
       <div className="flex flex-col gap-1">
         <h1 className="text-[26px] font-semibold font-heading text-ink">Caregivers</h1>
-        <p className="text-[14px] text-ink-muted">
-          Manage agency caregivers, onboarding and availability.
-        </p>
+        <p className="text-[14px] text-ink-muted">Manage the agency&rsquo;s caregivers.</p>
       </div>
 
       {error && <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />}
@@ -311,7 +309,7 @@ export default function AdminRosterPage() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search caregivers by name or phone"
+            placeholder="Search caregivers by name"
             aria-label="Search caregivers"
             className="w-full rounded-[12px] border border-hairline bg-sheet py-3 pl-10 pr-3 text-[14px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
           />
