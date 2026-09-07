@@ -8,7 +8,6 @@ import {
   DotsThreeVertical,
   Link as LinkIcon,
   ShareNetwork,
-  WarningCircle,
 } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
@@ -29,8 +28,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 // The generated URL's actual destination — a public
 // /caregiver/join/[token] self-registration page — does not exist yet
 // (a separate, larger, not-yet-approved piece of work). Links are
-// genuinely created, listed, and deactivated for real; the honest
-// caveat about where they point is shown, not hidden.
+// genuinely created, listed, and deactivated for real; per the user's
+// explicit instruction, this implementation-status caveat is a
+// developer-facing note (here, in code) only — it does not surface as
+// UI copy shown to the Admin.
 
 type OnboardingLink = {
   id: string;
@@ -328,13 +329,6 @@ export default function AdminOnboardingLinkPage() {
           Create a secure registration link for your agency caregivers.
         </p>
       </div>
-
-      <p className="flex items-start gap-1.5 rounded-[10px] border border-hairline bg-sheet px-3.5 py-2.5 text-[12.5px] leading-relaxed text-ink-muted">
-        <WarningCircle size={15} className="mt-0.5 shrink-0 text-gold" />
-        Links generated here are real and manageable, but the caregiver-facing registration page
-        they point to hasn&apos;t been built yet — sharing a link won&apos;t let anyone register
-        until that exists.
-      </p>
 
       <Sheet className="flex flex-col gap-6">
         <div className="flex items-start gap-3">
