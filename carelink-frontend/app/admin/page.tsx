@@ -41,9 +41,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 // describes a bulk self-service registration link CareLink's backend
 // does not have today (the real invitation mechanism is one
 // admin-issued code per caregiver, via the existing /admin/roster
-// invite flow) — per this task's own instruction not to invent that
-// backend, the action routes to the existing roster/invite flow
-// instead of a link generator that doesn't exist.
+// invite flow). This action routes to /admin/onboarding-link, a real
+// UI shell for that future flow — its "Generate Link" is honestly
+// disabled, not faked, since the backend it needs doesn't exist yet.
 
 type Overview = {
   bookings: { byStatus: Record<string, number> };
@@ -367,7 +367,7 @@ export default function AdminOverviewPage() {
             />
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
               <QuickAction
-                href="/admin/roster"
+                href="/admin/onboarding-link"
                 icon={LinkIcon}
                 label="Generate Caregiver Onboarding Link"
                 description="Create a secure registration link for your agency caregivers."
