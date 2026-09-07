@@ -10,7 +10,7 @@ export async function GET(request: Request) {
     const { data, error } = await supabase
       .from("users")
       .select(
-        "id, full_name, phone, email, account_status, verification_status, verification_method, agency_reference_id, invited_by, created_at, staff_profiles(id, caregiver_type, hourly_rate, years_experience, rating_avg, rating_count, bookings_completed, accepting_bookings, dispatch_available)",
+        "id, full_name, phone, email, account_status, verification_status, verification_method, agency_reference_id, invited_by, created_at, staff_profiles(id, photo_path, caregiver_type, hourly_rate, years_experience, rating_avg, rating_count, bookings_completed, accepting_bookings, dispatch_available)",
       )
       .eq("role", "staff")
       .order("created_at", { ascending: false });
@@ -82,6 +82,7 @@ export async function GET(request: Request) {
           row.invited_by === null ? null : row.account_status === "invited" ? "pending" : "claimed",
         profileComplete: Boolean(profile),
         staffProfileId: profile?.id ?? null,
+        photoPath: profile?.photo_path ?? null,
         caregiverType: profile?.caregiver_type ?? null,
         ratingAvg: profile?.rating_avg ?? null,
         bookingsCompleted: profile?.bookings_completed ?? 0,
