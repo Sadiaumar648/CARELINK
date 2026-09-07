@@ -112,6 +112,7 @@ export async function GET(request: Request) {
         invitationStatus:
           row.invited_by === null ? null : row.account_status === "invited" ? "pending" : "claimed",
         profileComplete: Boolean(profile),
+        parentProfileId: profile?.id ?? null,
         area: profile?.area ?? null,
         createdAt: row.created_at,
       };

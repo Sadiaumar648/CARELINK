@@ -7,6 +7,8 @@ import {
   ChatCircleDots,
   ClockCounterClockwise,
   Flag,
+  Lightning,
+  Link as LinkIcon,
   MagnifyingGlass,
   ShieldWarning,
   Star,
@@ -58,10 +60,17 @@ type RosterEntry = {
   caregiverType: "nanny" | "babysitter" | null;
 };
 
+type ParentEntry = {
+  id: string;
+  parentProfileId: string | null;
+  fullName: string;
+};
+
 type Booking = {
   id: string;
   reference: string;
   staff_profile_id: string;
+  parent_profile_id: string;
   starts_at: string;
   ends_at: string;
   session_started_at: string | null;
@@ -69,7 +78,7 @@ type Booking = {
 };
 
 type ActivityRow = {
-  bookingId: string;
+  bookingId: string | null;
   reference: string | null;
   label: string;
   occurredAt: string;
@@ -95,6 +104,36 @@ const SCHEDULE_STATUS_TONE: Record<string, "neutral" | "positive" | "attention" 
   completed: "positive",
   cancelled: "attention",
 };
+
+// Purely presentational — one accent per Quick Action card, drawn from
+// CareLink's existing palette tokens (no new colors introduced).
+const QUICK_ACTION_TINT = [
+  "bg-bluebell-tint text-[var(--color-bluebell-pressed)]",
+  "bg-wisteria-tint text-wisteria-pressed",
+  "bg-success-tint text-[var(--color-success)]",
+  "bg-gold-tint text-[var(--color-gold)]",
+  "bg-error-tint text-error",
+  "bg-wisteria-tint text-wisteria-pressed",
+] as const;
+
+function activityDotClass(label: string): string {
+  if (label.includes("started") || label.includes("Payment")) return "bg-[var(--color-success)]";
+  if (label.includes("application")) return "bg-[var(--color-bluebell-pressed)]";
+  if (label.includes("review")) return "bg-wisteria";
+  if (label.includes("request created")) return "bg-[var(--color-gold)]";
+  if (label.includes("cancelled") || label.includes("declined")) return "bg-error";
+  return "bg-ink-muted/50";
+}
+
+// "{Surname} Family" — a light presentational transform of the real
+// parent's full name (from GET /api/admin/parents), matching how
+// families are referred to elsewhere in CareLink's own copy. Never a
+// fabricated value: falls back honestly when the lookup can't resolve.
+function familyLabel(fullName: string | undefined): string {
+  if (!fullName) return "Unknown family";
+  const parts = fullName.trim().split(/\s+/);
+  return `${parts[parts.length - 1]} Family`;
+}
 
 function formatTodayLong(): string {
   return new Date().toLocaleDateString(undefined, {
@@ -122,18 +161,20 @@ function QuickAction({
   icon: Icon,
   label,
   description,
+  tint,
 }: {
   href: string;
   icon: typeof UsersThree;
   label: string;
   description: string;
+  tint: string;
 }) {
   return (
     <Link
       href={href}
       className="flex flex-col gap-3 rounded-[16px] border border-hairline bg-sheet p-5 hover:border-wisteria/50 hover:shadow-[var(--shadow-card-hover)]"
     >
-      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-wisteria-tint text-wisteria-pressed">
+      <span className={`flex h-11 w-11 items-center justify-center rounded-full ${tint}`}>
         <Icon size={21} />
       </span>
       <div className="flex flex-col gap-1">
@@ -141,6 +182,28 @@ function QuickAction({
         <span className="text-[12.5px] leading-relaxed text-ink-muted">{description}</span>
       </div>
     </Link>
+  );
+}
+
+function SectionHeading({
+  icon: Icon,
+  title,
+  subtitle,
+}: {
+  icon: typeof UsersThree;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <div className="flex items-start gap-2.5">
+      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] bg-wisteria-tint text-wisteria-pressed">
+        <Icon size={13} weight="bold" />
+      </span>
+      <div className="flex flex-col gap-1">
+        <h2 className="text-[15px] font-semibold text-ink">{title}</h2>
+        <p className="text-[12.5px] text-ink-muted">{subtitle}</p>
+      </div>
+    </div>
   );
 }
 
@@ -173,6 +236,7 @@ export default function AdminOverviewPage() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [pendingCaregiverApps, setPendingCaregiverApps] = useState<number | null>(null);
   const [roster, setRoster] = useState<RosterEntry[] | null>(null);
+  const [parents, setParents] = useState<ParentEntry[] | null>(null);
   const [bookings, setBookings] = useState<Booking[] | null>(null);
   const [activity, setActivity] = useState<ActivityRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -196,6 +260,10 @@ export default function AdminOverviewPage() {
       .then((res) => setRoster(res.roster))
       .catch(() => setRoster([]));
 
+    apiFetch<{ parents: ParentEntry[] }>("/api/admin/parents")
+      .then((res) => setParents(res.parents))
+      .catch(() => setParents([]));
+
     apiFetch<{ bookings: Booking[] }>("/api/admin/bookings")
       .then((res) => setBookings(res.bookings))
       .catch(() => setBookings([]));
@@ -206,6 +274,7 @@ export default function AdminOverviewPage() {
   }, [retryKey]);
 
   const rosterByStaffProfileId = new Map((roster ?? []).map((r) => [r.staffProfileId, r]));
+  const parentsByProfileId = new Map((parents ?? []).map((p) => [p.parentProfileId, p]));
   const today = new Date().toISOString().slice(0, 10);
 
   const liveCare = (bookings ?? []).filter((b) => b.status === "active");
@@ -242,56 +311,64 @@ export default function AdminOverviewPage() {
       {!error && (
         <>
           <section className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1">
-              <h2 className="text-[15px] font-semibold text-ink">Quick Actions</h2>
-              <p className="text-[13px] text-ink-muted">Common tasks for managing your agency.</p>
-            </div>
+            <SectionHeading
+              icon={LinkIcon}
+              title="Quick Actions"
+              subtitle="Common tasks for managing your agency."
+            />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <QuickAction
                 href="/admin/roster"
                 icon={UserPlus}
                 label="Generate Caregiver Onboarding Link"
                 description="Create a secure registration link for your agency caregivers."
+                tint={QUICK_ACTION_TINT[0]}
               />
               <QuickAction
                 href="/admin/roster"
                 icon={UsersThree}
                 label="Manage Caregivers"
                 description="View and manage all agency caregivers."
+                tint={QUICK_ACTION_TINT[1]}
               />
               <QuickAction
                 href="/admin/users"
                 icon={UsersFour}
                 label="Manage Families"
                 description="View and manage parent accounts."
+                tint={QUICK_ACTION_TINT[2]}
               />
               <QuickAction
                 href="/admin/bookings"
                 icon={CalendarCheck}
                 label="View Bookings"
                 description="See bookings by status and date."
+                tint={QUICK_ACTION_TINT[3]}
               />
               <QuickAction
                 href="/admin/reviews"
                 icon={Star}
                 label="View Reviews"
                 description="Monitor reviews and feedback."
+                tint={QUICK_ACTION_TINT[4]}
               />
               <QuickAction
                 href="/admin/reports"
                 icon={Flag}
                 label="View Reports"
                 description="See platform activity and insights."
+                tint={QUICK_ACTION_TINT[5]}
               />
             </div>
           </section>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <section className="flex flex-col gap-3">
-              <div className="flex flex-col gap-1">
-                <h2 className="text-[15px] font-semibold text-ink">Live Care</h2>
-                <p className="text-[12.5px] text-ink-muted">Care sessions currently in progress.</p>
-              </div>
+              <SectionHeading
+                icon={Lightning}
+                title="Live Care"
+                subtitle="Care sessions currently in progress."
+              />
 
               {bookings === null && (
                 <div className="flex flex-col gap-2">
@@ -315,7 +392,7 @@ export default function AdminOverviewPage() {
                       <tr className="border-b border-hairline text-left text-[11px] uppercase tracking-[0.08em] text-ink-muted">
                         <th className="whitespace-nowrap px-4 py-2.5 font-semibold">Caregiver</th>
                         <th className="whitespace-nowrap px-4 py-2.5 font-semibold">Care Type</th>
-                        <th className="whitespace-nowrap px-4 py-2.5 font-semibold">Booking</th>
+                        <th className="whitespace-nowrap px-4 py-2.5 font-semibold">Family</th>
                         <th className="whitespace-nowrap px-4 py-2.5 font-semibold">Started</th>
                         <th className="whitespace-nowrap px-4 py-2.5 font-semibold">
                           Expected End
@@ -333,8 +410,8 @@ export default function AdminOverviewPage() {
                           <td className="whitespace-nowrap px-4 py-2.5 text-ink-muted">
                             {caregiverTypeLabel(b.staff_profile_id)}
                           </td>
-                          <td className="whitespace-nowrap px-4 py-2.5 font-mono text-[12px] text-ink-muted">
-                            {b.reference}
+                          <td className="whitespace-nowrap px-4 py-2.5 text-ink-muted">
+                            {familyLabel(parentsByProfileId.get(b.parent_profile_id)?.fullName)}
                           </td>
                           <td className="whitespace-nowrap px-4 py-2.5 text-ink-muted">
                             {formatTime(b.session_started_at ?? b.starts_at)}
@@ -369,12 +446,11 @@ export default function AdminOverviewPage() {
             </section>
 
             <section className="flex flex-col gap-3">
-              <div className="flex flex-col gap-1">
-                <h2 className="text-[15px] font-semibold text-ink">Today&apos;s Schedule</h2>
-                <p className="text-[12.5px] text-ink-muted">
-                  Confirmed and upcoming care sessions for today.
-                </p>
-              </div>
+              <SectionHeading
+                icon={CalendarCheck}
+                title="Today's Schedule"
+                subtitle="Confirmed and upcoming care sessions for today."
+              />
 
               {bookings === null && (
                 <div className="flex flex-col gap-2">
@@ -400,7 +476,8 @@ export default function AdminOverviewPage() {
                           {formatTime(b.starts_at)} · {caregiverName(b.staff_profile_id)}
                         </span>
                         <span className="text-[12px] text-ink-muted">
-                          {caregiverTypeLabel(b.staff_profile_id)} · {b.reference}
+                          {caregiverTypeLabel(b.staff_profile_id)} ·{" "}
+                          {familyLabel(parentsByProfileId.get(b.parent_profile_id)?.fullName)}
                         </span>
                       </div>
                       <div className="flex items-center gap-3">
@@ -431,10 +508,11 @@ export default function AdminOverviewPage() {
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <section className="flex flex-col gap-3">
-              <div className="flex flex-col gap-1">
-                <h2 className="text-[15px] font-semibold text-ink">Needs Attention</h2>
-                <p className="text-[12.5px] text-ink-muted">Items that require your action.</p>
-              </div>
+              <SectionHeading
+                icon={ShieldWarning}
+                title="Needs Attention"
+                subtitle="Items that require your action."
+              />
 
               {(overview === null || pendingCaregiverApps === null) && (
                 <div className="flex flex-col gap-2">
@@ -474,10 +552,11 @@ export default function AdminOverviewPage() {
             </section>
 
             <section className="flex flex-col gap-3">
-              <div className="flex flex-col gap-1">
-                <h2 className="text-[15px] font-semibold text-ink">Recent Activity</h2>
-                <p className="text-[12.5px] text-ink-muted">Latest updates on the platform.</p>
-              </div>
+              <SectionHeading
+                icon={ChatCircleDots}
+                title="Recent Activity"
+                subtitle="Latest updates on the platform."
+              />
 
               {activity === null && (
                 <div className="flex flex-col gap-2">
@@ -494,10 +573,14 @@ export default function AdminOverviewPage() {
                 <div className="flex flex-col divide-y divide-hairline overflow-hidden rounded-[16px] border border-hairline bg-sheet">
                   {activity.map((a, i) => (
                     <div
-                      key={`${a.bookingId}-${i}`}
+                      key={`${a.bookingId ?? "evt"}-${i}`}
                       className="flex items-center justify-between gap-3 px-4 py-3 text-[13px]"
                     >
-                      <span className="text-ink">
+                      <span className="flex items-center gap-2 text-ink">
+                        <span
+                          className={`h-2 w-2 shrink-0 rounded-full ${activityDotClass(a.label)}`}
+                          aria-hidden
+                        />
                         {a.label}
                         {a.reference && <span className="text-ink-muted"> · {a.reference}</span>}
                       </span>
