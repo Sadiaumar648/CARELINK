@@ -37,13 +37,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 // currently up to 15, is reachable via "View all"). Nothing here is
 // fabricated or hardcoded.
 //
-// One deliberate, flagged gap: "Generate Caregiver Onboarding Link"
-// describes a bulk self-service registration link CareLink's backend
-// does not have today (the real invitation mechanism is one
-// admin-issued code per caregiver, via the existing /admin/roster
-// invite flow). This action routes to /admin/onboarding-link, a real
-// UI shell for that future flow — its "Generate Link" is honestly
-// disabled, not faked, since the backend it needs doesn't exist yet.
+// "Generate Caregiver Onboarding Link" routes to /admin/onboarding-link,
+// where real links are generated and managed (migration
+// 20260914000000_caregiver_onboarding_links.sql). One remaining,
+// flagged gap: the caregiver-facing /caregiver/join/[token]
+// self-registration page those links point to doesn't exist yet — a
+// separate, larger piece of work — so a generated link is real but not
+// yet usable by an actual caregiver.
 
 type Overview = {
   bookings: { byStatus: Record<string, number> };
