@@ -1,12 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import {
-  ShieldCheck,
-  IdentificationCard,
-  LockKey,
-  ChatCircleText,
-  Star,
-} from "@phosphor-icons/react/dist/ssr";
+import { ShieldCheck, LockKey, ChatCircleText, Star } from "@phosphor-icons/react/dist/ssr";
 import { LinkButton } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -17,24 +11,19 @@ import { PublicFooter } from "@/components/public-footer";
 
 const TRUST_FEATURES = [
   {
-    icon: IdentificationCard,
-    title: "Identity verification",
-    body: "Know who you're booking.",
-  },
-  {
     icon: ShieldCheck,
-    title: "Verified profiles",
-    body: "See relevant experience and credentials.",
+    title: "Agency-trained & verified",
+    body: "Caregivers are trained by the agency and verified through CareLink before joining the platform.",
   },
   {
     icon: LockKey,
     title: "Secure booking",
-    body: "Clear terms and booking records.",
+    body: "Clear booking details, secure payments and records for every care session.",
   },
   {
     icon: ChatCircleText,
     title: "Real reviews",
-    body: "Hear from families after completed bookings.",
+    body: "Parents and caregivers can leave reviews after completed bookings.",
   },
 ];
 
@@ -219,7 +208,7 @@ export default function Home() {
         {/* TRUST STRIP / ABOUT */}
         <section id="about" className="mx-auto w-full max-w-6xl scroll-mt-20 px-6">
           <SectionHeading title="Care that puts trust first." align="center" />
-          <div className="mx-auto mt-10 grid max-w-5xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mx-auto mt-10 grid max-w-5xl grid-cols-1 gap-4 sm:grid-cols-3">
             {TRUST_FEATURES.map((f) => (
               <Sheet key={f.title} className="flex flex-col gap-3">
                 <f.icon size={26} weight="duotone" className="text-wisteria" />
