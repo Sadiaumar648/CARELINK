@@ -259,18 +259,18 @@ function ParentDashboard() {
             <Sparkle size={20} weight="fill" />
           </span>
           <div>
-            <p className="text-[17px] font-bold font-heading text-ink">CareLink AI</p>
+            <p className="text-[17px] font-bold font-heading text-ink">Nia</p>
             <p className="text-[14px] font-semibold text-ink">
               Not sure what type of care you need?
             </p>
             <p className="text-[13.5px] text-ink-muted">
-              Tell us about your situation and we&apos;ll help you decide between a Nanny or
+              Tell Nia about your situation and she&apos;ll help you decide between a Nanny or
               Babysitter.
             </p>
           </div>
         </div>
         <LinkButton href="/parent/care-ai" className="w-full shrink-0 justify-center sm:w-auto">
-          Start with CareLink AI
+          Start with Nia
         </LinkButton>
       </Sheet>
 
