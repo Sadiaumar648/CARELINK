@@ -177,8 +177,8 @@ export default function Home() {
               </p>
               <ul className="flex flex-wrap gap-x-6 gap-y-2 pt-2 text-[13px] text-ink-muted">
                 <li className="flex items-center gap-1.5">
-                  <span className="text-[var(--color-success)]">✓</span> Agency-trained &
-                  CareLink-verified
+                  <span className="text-[var(--color-success)]">✓</span> Trained and verified by
+                  CareLink
                 </li>
                 <li className="flex items-center gap-1.5">
                   <span className="text-[var(--color-success)]">✓</span> Secure bookings
