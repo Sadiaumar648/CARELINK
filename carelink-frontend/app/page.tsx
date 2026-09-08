@@ -1,10 +1,16 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ShieldCheck, LockKey, ChatCircleText, Star } from "@phosphor-icons/react/dist/ssr";
+import {
+  ShieldCheck,
+  LockKey,
+  ChatCircleText,
+  SealCheck,
+  Star,
+} from "@phosphor-icons/react/dist/ssr";
 import { LinkButton } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { SectionHeading } from "@/components/ui/section-heading";
-import { CaregiverCard } from "@/components/ui/caregiver-card";
+import { Avatar } from "@/components/ui/avatar";
 import { Accordion } from "@/components/ui/accordion";
 import { PublicNav } from "@/components/public-nav";
 import { PublicFooter } from "@/components/public-footer";
@@ -50,31 +56,22 @@ const DEMO_CAREGIVERS = [
     name: "Ama Mensah",
     photoUrl: "/demo/ama-mensah.jpeg",
     yearsExperience: 5,
+    careType: "Nanny",
     area: "East Legon",
-    ratingAvg: 4.9,
-    ratingCount: 27,
-    skills: ["infant_care", "toddler_care"],
-    hourlyRate: 25,
   },
   {
     name: "Efua Owusu",
     photoUrl: "/demo/efua-owusu.jpeg",
     yearsExperience: 3,
+    careType: "Babysitter",
     area: "Osu",
-    ratingAvg: 4.8,
-    ratingCount: 14,
-    skills: ["school_age_supervision", "meal_preparation"],
-    hourlyRate: 20,
   },
   {
     name: "Maame Ama",
     photoUrl: "/demo/maame-ama.jpeg",
     yearsExperience: 7,
+    careType: "Nanny",
     area: "Airport Residential",
-    ratingAvg: 5,
-    ratingCount: 41,
-    skills: ["newborn_care", "special_needs_care"],
-    hourlyRate: 30,
   },
 ];
 
@@ -246,30 +243,34 @@ export default function Home() {
           </div>
         </section>
 
-        {/* FEATURED CAREGIVERS */}
+        {/* CAREGIVER PROFILES */}
         <section className="mx-auto w-full max-w-6xl px-6">
           <SectionHeading
-            title="Meet some of our caregivers"
-            description="Explore experienced caregivers and find someone who fits your family's needs."
+            title="Trusted caregivers, ready to care."
+            description="CareLink works with agency-trained caregivers who are verified before they can receive care requests."
           />
-          <p className="mt-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
-            Example profiles — sign in to see real, live caregivers near you
-          </p>
-          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {DEMO_CAREGIVERS.map((c) => (
-              <CaregiverCard
-                key={c.name}
-                href="/register"
-                photoUrl={c.photoUrl}
-                name={c.name}
-                verified
-                yearsExperience={c.yearsExperience}
-                area={c.area}
-                hourlyRate={c.hourlyRate}
-                ratingAvg={c.ratingAvg}
-                ratingCount={c.ratingCount}
-                skills={c.skills}
-              />
+              <Sheet key={c.name} className="flex flex-col gap-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar photoUrl={c.photoUrl} name={c.name} size="sm" />
+                    <div>
+                      <p className="text-[16px] font-semibold font-heading">{c.name}</p>
+                      <p className="text-[13px] text-ink-muted">Agency-trained caregiver</p>
+                    </div>
+                  </div>
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success-tint px-3 py-1 text-[12px] font-semibold text-[var(--color-success)]">
+                    <SealCheck size={14} weight="fill" />
+                    CareLink verified
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1 border-t border-hairline pt-4 text-[13px] text-ink-muted">
+                  <p>{c.yearsExperience} years of experience</p>
+                  <p>{c.careType}</p>
+                  <p>Serves {c.area} & nearby areas</p>
+                </div>
+              </Sheet>
             ))}
           </div>
         </section>
