@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Camera, CheckCircle } from "@phosphor-icons/react";
+import { CheckCircle } from "@phosphor-icons/react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { errorMessage } from "@/lib/error-message";
 import { Field } from "@/components/ui/field";
@@ -50,7 +50,6 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [ghanaCardId, setGhanaCardId] = useState("");
   const [livePhoto, setLivePhoto] = useState<File | null>(null);
-  const [selfieMode, setSelfieMode] = useState<"camera" | "file">("camera");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [agreed, setAgreed] = useState(false);
@@ -267,29 +266,15 @@ export default function RegisterPage() {
                   Retake
                 </button>
               </div>
-            ) : selfieMode === "camera" ? (
+            ) : (
               <div className="rounded-[14px] border-2 border-dashed border-hairline bg-sheet px-6 py-8">
                 <p className="mb-4 text-center text-[12px] text-ink-muted">
                   Take a clear photo of your face
                 </p>
                 <CameraCapture
                   onCapture={onLivePhotoChange}
-                  onFallback={() => setSelfieMode("file")}
-                />
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-2 rounded-[14px] border-2 border-dashed border-hairline bg-sheet px-6 py-8 text-center">
-                <Camera size={26} className="text-wisteria" />
-                <p className="text-[12px] text-ink-muted">
-                  Camera access is required to take your live photo. You can attach a recent photo
-                  instead.
-                </p>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/jpg,image/png"
-                  capture="user"
-                  onChange={(e) => onLivePhotoChange(e.target.files?.[0] ?? null)}
-                  className="text-[13px]"
+                  onFallback={() => {}}
+                  showFallback={false}
                 />
               </div>
             )}

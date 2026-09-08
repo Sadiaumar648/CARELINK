@@ -11,9 +11,12 @@ import { Button } from "@/components/ui/button";
 export function CameraCapture({
   onCapture,
   onFallback,
+  showFallback = true,
 }: {
   onCapture: (file: File) => void;
   onFallback: () => void;
+  /** Set false to hide the "Attach a photo instead" escape hatch entirely — camera-only. */
+  showFallback?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -86,10 +89,15 @@ export function CameraCapture({
   if (error) {
     return (
       <div className="flex flex-col gap-3">
-        <p className="text-[13px] text-ink-muted">{error} You can attach a photo instead.</p>
-        <Button type="button" variant="secondary" onClick={onFallback}>
-          Attach a photo instead
-        </Button>
+        <p className="text-[13px] text-ink-muted">
+          {error}
+          {showFallback && " You can attach a photo instead."}
+        </p>
+        {showFallback && (
+          <Button type="button" variant="secondary" onClick={onFallback}>
+            Attach a photo instead
+          </Button>
+        )}
       </div>
     );
   }
@@ -129,9 +137,11 @@ export function CameraCapture({
         </Button>
       )}
 
-      <button type="button" onClick={onFallback} className="text-[13px] text-ink-muted underline">
-        Attach a photo instead
-      </button>
+      {showFallback && (
+        <button type="button" onClick={onFallback} className="text-[13px] text-ink-muted underline">
+          Attach a photo instead
+        </button>
+      )}
     </div>
   );
 }
