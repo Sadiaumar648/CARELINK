@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CaretRight, CheckCircle, Plus } from "@phosphor-icons/react";
+import { ArrowLeft, CaretRight, Plus } from "@phosphor-icons/react";
 import {
   calculateTotalAmount,
   countOccurrences,
@@ -513,17 +513,6 @@ export function RequestFlowPanel({
       >
         <ArrowLeft size={16} /> Back
       </button>
-
-      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
-        {["Verified caregivers", "Availability checked", "CareLink safety process"].map((t) => (
-          <span
-            key={t}
-            className="flex items-center gap-1.5 text-[12.5px] font-medium text-wisteria"
-          >
-            <CheckCircle size={14} weight="fill" /> {t}
-          </span>
-        ))}
-      </div>
 
       {/* TITLE */}
       <div className="flex flex-col items-center gap-2 text-center">
