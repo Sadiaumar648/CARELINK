@@ -14,10 +14,10 @@ import { AddWardForm, type Ward } from "@/components/parent/add-ward-form";
 import { parseWardGeneralNotes, CARE_STAGE_LABELS } from "@/lib/ward-notes";
 
 type Household = {
-  area: string;
+  area: string | null;
   address: string | null;
-  emergency_contact_name: string;
-  emergency_contact_phone: string;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
   emergency_contact_relation: string | null;
 } | null;
 
@@ -37,10 +37,10 @@ function HouseholdForm({ onSaved }: { onSaved: (h: Household) => void }) {
       const res = await apiFetch<{ household: Household }>("/api/parents/household", {
         method: "PATCH",
         body: {
-          area,
+          area: area || undefined,
           address: address || undefined,
-          emergencyContactName: contactName,
-          emergencyContactPhone: contactPhone,
+          emergencyContactName: contactName || undefined,
+          emergencyContactPhone: contactPhone || undefined,
         },
       });
       onSaved(res.household);
@@ -53,11 +53,12 @@ function HouseholdForm({ onSaved }: { onSaved: (h: Household) => void }) {
 
   return (
     <Sheet as="form" onSubmit={onSubmit} className="flex flex-col gap-4">
-      <h2 className="text-[19px] font-semibold font-heading">Set up your household</h2>
+      <h2 className="text-[19px] font-semibold font-heading">Emergency contact (optional)</h2>
       <p className="text-[13px] text-ink-muted">
-        Needed once before you can add a child or request a booking.
+        Not required to add a child or request care — each request already has its own care
+        location. This is just a contact CareLink can reach if needed.
       </p>
-      <Field label="Area" required value={area} onChange={(e) => setArea(e.target.value)} />
+      <Field label="Area (optional)" value={area} onChange={(e) => setArea(e.target.value)} />
       <Field
         label="Address (optional)"
         value={address}
@@ -78,7 +79,7 @@ function HouseholdForm({ onSaved }: { onSaved: (h: Household) => void }) {
       />
       {error && <p className="text-[13px] text-error">{error}</p>}
       <Button type="submit" disabled={saving}>
-        {saving ? "Saving…" : "Save household"}
+        {saving ? "Saving…" : "Save emergency contact"}
       </Button>
     </Sheet>
   );
@@ -86,6 +87,7 @@ function HouseholdForm({ onSaved }: { onSaved: (h: Household) => void }) {
 
 export default function ParentChildrenPage() {
   const [household, setHousehold] = useState<Household | undefined>(undefined);
+  const [showHouseholdForm, setShowHouseholdForm] = useState(false);
   const [wards, setWards] = useState<Ward[] | null>(null);
   const [addingWard, setAddingWard] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,18 +100,17 @@ export default function ParentChildrenPage() {
     setRetryKey((k) => k + 1);
   }
 
+  // Wards no longer wait on a household row existing — adding a child
+  // never required one to begin with; GET /api/wards itself now just
+  // returns an empty list for a parent who has neither yet.
   useEffect(() => {
     apiFetch<{ household: Household }>("/api/parents/household")
       .then((res) => setHousehold(res.household))
       .catch((err) => setError(errorMessage(err)));
-  }, [retryKey]);
-
-  useEffect(() => {
-    if (!household) return;
     apiFetch<{ wards: Ward[] }>("/api/wards")
       .then((res) => setWards(res.wards))
       .catch((err) => setError(errorMessage(err)));
-  }, [household]);
+  }, [retryKey]);
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
@@ -141,16 +142,32 @@ export default function ParentChildrenPage() {
 
       {error && <ErrorState onRetry={retry} />}
 
-      {!error && household === undefined && (
-        <div className="flex flex-col gap-3">
-          <WardCardSkeleton />
-          <WardCardSkeleton />
-        </div>
+      {/* Emergency contact is real, but optional and never blocking —
+          a parent can add a child (and request care) without it. Only
+          shown as something to fill in once we know there isn't one yet;
+          collapsed by default so it never reads as a required step. */}
+      {!error && household === null && (
+        <>
+          {showHouseholdForm ? (
+            <HouseholdForm
+              onSaved={(h) => {
+                setHousehold(h);
+                setShowHouseholdForm(false);
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowHouseholdForm(true)}
+              className="text-left text-[13px] font-semibold text-wisteria hover:text-wisteria-hover"
+            >
+              + Add an emergency contact (optional)
+            </button>
+          )}
+        </>
       )}
 
-      {!error && household === null && <HouseholdForm onSaved={setHousehold} />}
-
-      {!error && household && (
+      {!error && (
         <div className="flex flex-col gap-4">
           {wards === null && (
             <div className="flex flex-col gap-3">

@@ -10,8 +10,10 @@ export async function GET(request: Request) {
   try {
     const { supabase, userId } = await requireRole(request, ["parent"]);
     const parentProfileId = await getOwnParentProfileId(supabase, userId);
+    // No household step required to have wards — a parent with no
+    // profile row yet simply has no wards yet, not an error.
     if (!parentProfileId) {
-      return NextResponse.json({ error: "Complete your household profile first" }, { status: 400 });
+      return NextResponse.json({ wards: [] });
     }
 
     const { data, error } = await supabase
@@ -33,9 +35,23 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const { supabase, userId } = await requireRole(request, ["parent"]);
-    const parentProfileId = await getOwnParentProfileId(supabase, userId);
+    let parentProfileId = await getOwnParentProfileId(supabase, userId);
     if (!parentProfileId) {
-      return NextResponse.json({ error: "Complete your household profile first" }, { status: 400 });
+      // A parent no longer sets up a household (area, emergency contact)
+      // before adding their first child — each care request already
+      // carries its own real, resolved location independently. A bare
+      // profile row is created here, on first use; area/emergency
+      // contact are still real fields a parent can fill in later from
+      // Settings whenever they choose (migration
+      // 20260916000000_parent_profiles_household_optional.sql is what
+      // made them nullable so this insert can succeed with neither).
+      const { data: created, error: createErr } = await supabase
+        .from("parent_profiles")
+        .insert({ user_id: userId })
+        .select("id")
+        .single();
+      if (createErr) return NextResponse.json({ error: createErr.message }, { status: 400 });
+      parentProfileId = created.id;
     }
 
     const body = wardProfileSchema.parse(await request.json());
