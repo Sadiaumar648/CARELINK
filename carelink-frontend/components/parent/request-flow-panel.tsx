@@ -779,7 +779,7 @@ export function RequestFlowPanel({
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-wisteria text-[11px] text-white">
                     4
                   </span>
-                  What help do you need?
+                  What else do you need help with?
                 </h2>
                 <p className="ml-7 text-[12px] text-ink-muted">Select all that apply.</p>
               </div>
