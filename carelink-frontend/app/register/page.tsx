@@ -179,7 +179,7 @@ export default function RegisterPage() {
           {fieldErrors.agreed && <p className="text-[13px] text-error">{fieldErrors.agreed}</p>}
           {error && <p className="text-[13px] text-error">{error}</p>}
           <Button type="submit" disabled={loading}>
-            {loading ? "Creating your account…" : "Create Account →"}
+            {loading ? "Creating your account…" : "Create Account"}
           </Button>
         </Sheet>
         <p className="text-center text-[13px] text-ink-muted">
