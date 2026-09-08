@@ -17,6 +17,7 @@ import { Field } from "@/components/ui/field";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { LocationPicker, type ResolvedLocation } from "@/components/location-picker";
+import { AddWardForm } from "@/components/parent/add-ward-form";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { suggestedSkillForAge, type SearchFilters, type Ward } from "@/components/find-care/types";
@@ -266,6 +267,12 @@ export function RequestFlowPanel({
   const [wards, setWards] = useState<Ward[] | null>(null);
   const [wardId, setWardId] = useState(() => restoreFrom?.wardId ?? "");
   const [changingWard, setChangingWard] = useState(false);
+  // Adding a child from here never navigates away — it shows the same
+  // real Add Child form inline (components/parent/add-ward-form.tsx),
+  // so nothing already filled in on this request is ever lost. Settings
+  // → Ward Profiles reuses the exact same component for the same reason
+  // it should behave identically there.
+  const [addingWard, setAddingWard] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -511,8 +518,8 @@ export function RequestFlowPanel({
       <div className="flex flex-col gap-2">
         <h1 className="text-[26px] font-bold font-heading text-ink">Request a {copy.heading}</h1>
         <p className="text-[14px] text-ink-muted">
-          Tell us what you need and we&apos;ll find an available, verified{" "}
-          {copy.heading.toLowerCase()} near you.
+          Tell us what you need and we&apos;ll find an eligible agency {copy.heading.toLowerCase()}{" "}
+          near your care location.
         </p>
         <div className="flex flex-wrap gap-x-4 gap-y-1">
           {["Verified caregivers", "Availability checked", "CareLink safety process"].map((t) => (
@@ -527,341 +534,360 @@ export function RequestFlowPanel({
       </div>
 
       <div className="mx-auto w-full max-w-2xl">
-        <Sheet
-          as="form"
-          onSubmit={onSubmit}
-          className="flex flex-col gap-6 border-[var(--color-lavender-border)]"
-        >
-          {/* 1. WHO NEEDS CARE */}
-          <section className="flex flex-col gap-3">
-            <h2 className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em] text-ink">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-wisteria text-[11px] text-white">
-                1
-              </span>
-              Who needs care?
-            </h2>
+        {addingWard ? (
+          // Rendered in place of the request form itself (never nested
+          // inside it — a <form> can't legally contain another <form>).
+          // Nothing about the request the parent has already started is
+          // lost: every other field here lives in this component's own
+          // state, untouched by which Sheet is currently on screen.
+          <AddWardForm
+            onAdded={(w) => {
+              setWards((prev) => [...(prev ?? []), w]);
+              setWardId(w.id);
+              setAddingWard(false);
+            }}
+            onCancel={() => setAddingWard(false)}
+          />
+        ) : (
+          <Sheet
+            as="form"
+            onSubmit={onSubmit}
+            className="flex flex-col gap-6 border-[var(--color-lavender-border)]"
+          >
+            {/* 1. WHO NEEDS CARE */}
+            <section className="flex flex-col gap-3">
+              <h2 className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em] text-ink">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-wisteria text-[11px] text-white">
+                  1
+                </span>
+                Who needs care?
+              </h2>
 
-            {wards === null && <p className="text-[13px] text-ink-muted">Loading your children…</p>}
+              {wards === null && (
+                <p className="text-[13px] text-ink-muted">Loading your children…</p>
+              )}
 
-            {wards && wards.length === 0 && (
-              <LinkButton
-                href="/parent/children"
-                variant="secondary"
-                className="justify-center border-dashed"
-              >
-                <Plus size={16} /> Add a child before requesting care
-              </LinkButton>
-            )}
-
-            {wards && wards.length > 0 && selectedWard && !changingWard && (
-              <div className="flex items-center justify-between gap-3 rounded-[12px] border border-[var(--color-lavender-border)] p-3">
-                <div className="flex items-center gap-3">
-                  <Avatar photoUrl={null} name={selectedWard.display_name} size="sm" />
-                  <div>
-                    <p className="text-[14px] font-semibold text-ink">
-                      {selectedWard.display_name}
-                    </p>
-                    <p className="text-[12.5px] text-ink-muted">Age {selectedWard.age_years}</p>
-                  </div>
-                </div>
-                <button
+              {wards && wards.length === 0 && (
+                <Button
                   type="button"
-                  onClick={() => setChangingWard(true)}
-                  className="text-[13px] font-semibold text-wisteria hover:text-wisteria-hover"
-                >
-                  Change
-                </button>
-              </div>
-            )}
-
-            {wards && wards.length > 0 && (changingWard || !selectedWard) && (
-              <div className="flex flex-col gap-2">
-                {wards.map((w) => (
-                  <button
-                    key={w.id}
-                    type="button"
-                    onClick={() => {
-                      setWardId(w.id);
-                      setChangingWard(false);
-                    }}
-                    className="flex items-center justify-between gap-3 rounded-[12px] border border-[var(--color-lavender-border)] p-3 text-left hover:border-wisteria"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Avatar photoUrl={null} name={w.display_name} size="sm" />
-                      <div>
-                        <p className="text-[14px] font-semibold text-ink">{w.display_name}</p>
-                        <p className="text-[12.5px] text-ink-muted">Age {w.age_years}</p>
-                      </div>
-                    </div>
-                    <CaretRight size={16} className="text-ink-muted" />
-                  </button>
-                ))}
-                <LinkButton
-                  href="/parent/children"
                   variant="secondary"
+                  onClick={() => setAddingWard(true)}
                   className="justify-center border-dashed"
                 >
-                  <Plus size={16} /> Add another child
-                </LinkButton>
-              </div>
-            )}
-          </section>
+                  <Plus size={16} /> Add a child before requesting care
+                </Button>
+              )}
 
-          {/* 2. WHEN */}
-          <section className="flex flex-col gap-3 border-t border-[var(--color-lavender-border)] pt-6">
-            <h2 className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em] text-ink">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-wisteria text-[11px] text-white">
-                2
-              </span>
-              When do you need care?
-            </h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field
-                label="Start time"
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="border-[var(--color-lavender-border)] focus:border-wisteria focus:ring-wisteria/15"
-              />
-              <SelectField
-                label="Duration"
-                value={duration}
-                onChange={setDuration}
-                options={DURATION_OPTIONS}
-              />
-              <div className={repeat === "once" ? "" : "sm:col-span-2"}>
-                <SelectField
-                  label="Repeat"
-                  value={repeat}
-                  onChange={setRepeat}
-                  options={REPEAT_OPTIONS}
-                />
-              </div>
-              {repeat === "once" && (
+              {wards && wards.length > 0 && selectedWard && !changingWard && (
+                <div className="flex items-center justify-between gap-3 rounded-[12px] border border-[var(--color-lavender-border)] p-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar photoUrl={null} name={selectedWard.display_name} size="sm" />
+                    <div>
+                      <p className="text-[14px] font-semibold text-ink">
+                        {selectedWard.display_name}
+                      </p>
+                      <p className="text-[12.5px] text-ink-muted">Age {selectedWard.age_years}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setChangingWard(true)}
+                    className="text-[13px] font-semibold text-wisteria hover:text-wisteria-hover"
+                  >
+                    Change
+                  </button>
+                </div>
+              )}
+
+              {wards && wards.length > 0 && (changingWard || !selectedWard) && (
+                <div className="flex flex-col gap-2">
+                  {wards.map((w) => (
+                    <button
+                      key={w.id}
+                      type="button"
+                      onClick={() => {
+                        setWardId(w.id);
+                        setChangingWard(false);
+                      }}
+                      className="flex items-center justify-between gap-3 rounded-[12px] border border-[var(--color-lavender-border)] p-3 text-left hover:border-wisteria"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Avatar photoUrl={null} name={w.display_name} size="sm" />
+                        <div>
+                          <p className="text-[14px] font-semibold text-ink">{w.display_name}</p>
+                          <p className="text-[12.5px] text-ink-muted">Age {w.age_years}</p>
+                        </div>
+                      </div>
+                      <CaretRight size={16} className="text-ink-muted" />
+                    </button>
+                  ))}
+                  <LinkButton
+                    href="/parent/children"
+                    variant="secondary"
+                    className="justify-center border-dashed"
+                  >
+                    <Plus size={16} /> Add another child
+                  </LinkButton>
+                </div>
+              )}
+            </section>
+
+            {/* 2. WHEN */}
+            <section className="flex flex-col gap-3 border-t border-[var(--color-lavender-border)] pt-6">
+              <h2 className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em] text-ink">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-wisteria text-[11px] text-white">
+                  2
+                </span>
+                When do you need care?
+              </h2>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field
-                  label="Date"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+                  label="Start time"
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
                   className="border-[var(--color-lavender-border)] focus:border-wisteria focus:ring-wisteria/15"
                 />
-              )}
-            </div>
+                <SelectField
+                  label="Duration"
+                  value={duration}
+                  onChange={setDuration}
+                  options={DURATION_OPTIONS}
+                />
+                <div className={repeat === "once" ? "" : "sm:col-span-2"}>
+                  <SelectField
+                    label="Repeat"
+                    value={repeat}
+                    onChange={setRepeat}
+                    options={REPEAT_OPTIONS}
+                  />
+                </div>
+                {repeat === "once" && (
+                  <Field
+                    label="Date"
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="border-[var(--color-lavender-border)] focus:border-wisteria focus:ring-wisteria/15"
+                  />
+                )}
+              </div>
 
-            {/* Weekly = exactly one selected day, every week between the
+              {/* Weekly = exactly one selected day, every week between the
                 two dates. Custom schedule = any number of selected days,
                 same date-range mechanic — the two modes share this range
                 UI but never share which days are selected. */}
-            {(repeat === "weekly" || repeat === "custom") && (
-              <div className="flex flex-col gap-4 rounded-[12px] border border-[var(--color-lavender-border)] bg-paper p-4">
-                <fieldset className="flex flex-col gap-2">
-                  <legend className="text-[13px] font-semibold text-ink">
-                    {repeat === "weekly"
-                      ? "Which day of the week?"
-                      : "Which days do you need care?"}
-                  </legend>
-                  <div className="flex flex-wrap gap-x-4 gap-y-2">
-                    {DAYS.map((day) =>
-                      repeat === "weekly" ? (
-                        <label
-                          key={day.value}
-                          className="flex items-center gap-2 text-[13.5px] text-ink"
-                        >
-                          <input
-                            type="radio"
-                            name="weekly-day"
-                            value={day.value}
-                            checked={weeklyDay === day.value}
-                            onChange={() => setWeeklyDay(day.value)}
-                            className="h-4 w-4 accent-wisteria"
-                          />
-                          {day.label}
-                        </label>
-                      ) : (
-                        <label
-                          key={day.value}
-                          className="flex items-center gap-2 text-[13.5px] text-ink"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={customDays.has(day.value)}
-                            onChange={() => toggleCustomDay(day.value)}
-                            className="h-4 w-4 accent-wisteria"
-                          />
-                          {day.label}
-                        </label>
-                      ),
-                    )}
+              {(repeat === "weekly" || repeat === "custom") && (
+                <div className="flex flex-col gap-4 rounded-[12px] border border-[var(--color-lavender-border)] bg-paper p-4">
+                  <fieldset className="flex flex-col gap-2">
+                    <legend className="text-[13px] font-semibold text-ink">
+                      {repeat === "weekly"
+                        ? "Which day of the week?"
+                        : "Which days do you need care?"}
+                    </legend>
+                    <div className="flex flex-wrap gap-x-4 gap-y-2">
+                      {DAYS.map((day) =>
+                        repeat === "weekly" ? (
+                          <label
+                            key={day.value}
+                            className="flex items-center gap-2 text-[13.5px] text-ink"
+                          >
+                            <input
+                              type="radio"
+                              name="weekly-day"
+                              value={day.value}
+                              checked={weeklyDay === day.value}
+                              onChange={() => setWeeklyDay(day.value)}
+                              className="h-4 w-4 accent-wisteria"
+                            />
+                            {day.label}
+                          </label>
+                        ) : (
+                          <label
+                            key={day.value}
+                            className="flex items-center gap-2 text-[13.5px] text-ink"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={customDays.has(day.value)}
+                              onChange={() => toggleCustomDay(day.value)}
+                              className="h-4 w-4 accent-wisteria"
+                            />
+                            {day.label}
+                          </label>
+                        ),
+                      )}
+                    </div>
+                  </fieldset>
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Field
+                      label="Start date"
+                      type="date"
+                      value={rangeStart}
+                      onChange={(e) => setRangeStart(e.target.value)}
+                      className="border-[var(--color-lavender-border)] bg-sheet focus:border-wisteria focus:ring-wisteria/15"
+                    />
+                    <Field
+                      label="End date"
+                      type="date"
+                      value={rangeEnd}
+                      onChange={(e) => setRangeEnd(e.target.value)}
+                      className="border-[var(--color-lavender-border)] bg-sheet focus:border-wisteria focus:ring-wisteria/15"
+                    />
                   </div>
-                </fieldset>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Field
-                    label="Start date"
-                    type="date"
-                    value={rangeStart}
-                    onChange={(e) => setRangeStart(e.target.value)}
-                    className="border-[var(--color-lavender-border)] bg-sheet focus:border-wisteria focus:ring-wisteria/15"
-                  />
-                  <Field
-                    label="End date"
-                    type="date"
-                    value={rangeEnd}
-                    onChange={(e) => setRangeEnd(e.target.value)}
-                    className="border-[var(--color-lavender-border)] bg-sheet focus:border-wisteria focus:ring-wisteria/15"
-                  />
+                  {(() => {
+                    const days = (
+                      repeat === "weekly" ? (weeklyDay ? [weeklyDay] : []) : Array.from(customDays)
+                    ) as Weekday[];
+                    const occurrences = countOccurrences(rangeStart, rangeEnd, days);
+                    if (occurrences === 0) return null;
+                    return (
+                      <p className="text-[12.5px] text-ink-muted">
+                        This will repeat {occurrences} time{occurrences === 1 ? "" : "s"} between{" "}
+                        {new Date(`${rangeStart}T00:00:00`).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                        })}{" "}
+                        and{" "}
+                        {new Date(`${rangeEnd}T00:00:00`).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                        . CareLink bookings are single-session today — this request finds a
+                        caregiver for the first session; you&apos;ll confirm the rest separately.
+                      </p>
+                    );
+                  })()}
                 </div>
+              )}
+            </section>
 
-                {(() => {
-                  const days = (
-                    repeat === "weekly" ? (weeklyDay ? [weeklyDay] : []) : Array.from(customDays)
-                  ) as Weekday[];
-                  const occurrences = countOccurrences(rangeStart, rangeEnd, days);
-                  if (occurrences === 0) return null;
-                  return (
-                    <p className="text-[12.5px] text-ink-muted">
-                      This will repeat {occurrences} time{occurrences === 1 ? "" : "s"} between{" "}
-                      {new Date(`${rangeStart}T00:00:00`).toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                      })}{" "}
-                      and{" "}
-                      {new Date(`${rangeEnd}T00:00:00`).toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                      . CareLink bookings are single-session today — this request finds a caregiver
-                      for the first session; you&apos;ll confirm the rest separately.
-                    </p>
-                  );
-                })()}
-              </div>
-            )}
-          </section>
-
-          {/* 3. WHERE */}
-          <section className="flex flex-col gap-2 border-t border-[var(--color-lavender-border)] pt-6">
-            <h2 className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em] text-ink">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-wisteria text-[11px] text-white">
-                3
-              </span>
-              Where will care take place?
-            </h2>
-            <LocationPicker
-              value={location}
-              onChange={setLocation}
-              initialQuery={initial?.area}
-              helperText="We'll use this location to find suitable nearby caregivers."
-              layout="radio"
-            />
-          </section>
-
-          {/* 4. WHAT HELP */}
-          <section className="flex flex-col gap-3 border-t border-[var(--color-lavender-border)] pt-6">
-            <div>
+            {/* 3. WHERE */}
+            <section className="flex flex-col gap-2 border-t border-[var(--color-lavender-border)] pt-6">
               <h2 className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em] text-ink">
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-wisteria text-[11px] text-white">
-                  4
+                  3
                 </span>
-                What help do you need?
+                Where will care take place?
               </h2>
-              <p className="ml-7 text-[12px] text-ink-muted">Select all that apply.</p>
-            </div>
-            <div className="ml-7 flex flex-wrap gap-2">
-              {REQUIREMENT_CHIPS.map((chip) => {
-                const active = requirementChips.has(chip.value);
-                return (
-                  <button
-                    key={chip.value}
-                    type="button"
-                    onClick={() => toggleChip(chip.value)}
-                    className={`rounded-full border px-3 py-1.5 text-[12.5px] font-medium transition-colors ${
-                      active
-                        ? "border-wisteria bg-wisteria text-white"
-                        : "border-[var(--color-lavender-border)] bg-sheet text-ink hover:border-wisteria"
-                    }`}
-                  >
-                    {chip.label}
-                  </button>
-                );
-              })}
-              <button
-                type="button"
-                onClick={() => setShowOther((s) => !s)}
-                className={`rounded-full border px-3 py-1.5 text-[12.5px] font-medium transition-colors ${
-                  showOther
-                    ? "border-wisteria bg-wisteria text-white"
-                    : "border-[var(--color-lavender-border)] bg-sheet text-ink hover:border-wisteria"
-                }`}
-              >
-                Other
-              </button>
-            </div>
-          </section>
-
-          {/* 5. ANYTHING ELSE */}
-          {showOther && (
-            <section className="flex flex-col gap-2">
-              <label htmlFor="requirements" className="ml-7 text-[13px] font-semibold text-ink">
-                Anything else? <span className="font-normal text-ink-muted">Optional</span>
-              </label>
-              <textarea
-                id="requirements"
-                rows={3}
-                maxLength={1000}
-                value={requirements}
-                onChange={(e) => setRequirements(e.target.value)}
-                placeholder="Tell us anything else your caregiver should know…"
-                className="ml-7 rounded-[10px] border border-[var(--color-lavender-border)] bg-sheet px-3 py-2.5 text-[14px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
+              <LocationPicker
+                value={location}
+                onChange={setLocation}
+                initialQuery={initial?.area}
+                helperText="We'll use this location to find suitable nearby caregivers."
+                layout="radio"
               />
             </section>
-          )}
 
-          {/* 5. ESTIMATED COST — informational only, never what actually
+            {/* 4. WHAT HELP */}
+            <section className="flex flex-col gap-3 border-t border-[var(--color-lavender-border)] pt-6">
+              <div>
+                <h2 className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em] text-ink">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-wisteria text-[11px] text-white">
+                    4
+                  </span>
+                  What help do you need?
+                </h2>
+                <p className="ml-7 text-[12px] text-ink-muted">Select all that apply.</p>
+              </div>
+              <div className="ml-7 flex flex-wrap gap-2">
+                {REQUIREMENT_CHIPS.map((chip) => {
+                  const active = requirementChips.has(chip.value);
+                  return (
+                    <button
+                      key={chip.value}
+                      type="button"
+                      onClick={() => toggleChip(chip.value)}
+                      className={`rounded-full border px-3 py-1.5 text-[12.5px] font-medium transition-colors ${
+                        active
+                          ? "border-wisteria bg-wisteria text-white"
+                          : "border-[var(--color-lavender-border)] bg-sheet text-ink hover:border-wisteria"
+                      }`}
+                    >
+                      {chip.label}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => setShowOther((s) => !s)}
+                  className={`rounded-full border px-3 py-1.5 text-[12.5px] font-medium transition-colors ${
+                    showOther
+                      ? "border-wisteria bg-wisteria text-white"
+                      : "border-[var(--color-lavender-border)] bg-sheet text-ink hover:border-wisteria"
+                  }`}
+                >
+                  Other
+                </button>
+              </div>
+            </section>
+
+            {/* 5. ANYTHING ELSE */}
+            {showOther && (
+              <section className="flex flex-col gap-2">
+                <label htmlFor="requirements" className="ml-7 text-[13px] font-semibold text-ink">
+                  Anything else? <span className="font-normal text-ink-muted">Optional</span>
+                </label>
+                <textarea
+                  id="requirements"
+                  rows={3}
+                  maxLength={1000}
+                  value={requirements}
+                  onChange={(e) => setRequirements(e.target.value)}
+                  placeholder="Tell us anything else your caregiver should know…"
+                  className="ml-7 rounded-[10px] border border-[var(--color-lavender-border)] bg-sheet px-3 py-2.5 text-[14px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
+                />
+              </section>
+            )}
+
+            {/* 5. ESTIMATED COST — informational only, never what actually
               gets charged. The backend independently recomputes and
               charges this same figure at booking time; nothing here is
               ever trusted as the final amount, and submitting this form
               never charges the parent. */}
-          {startTime && priceTotal !== null && (
-            <section className="flex flex-col gap-2 border-t border-[var(--color-lavender-border)] pt-6">
-              <h2 className="text-[13px] font-bold uppercase tracking-[0.08em] text-ink">
-                Estimated cost
-              </h2>
-              <div className="flex flex-col gap-1 rounded-[12px] border border-[var(--color-lavender-border)] bg-wisteria-tint p-4">
-                <p className="text-[12.5px] text-ink-muted">
-                  {priceSessionCount === 1
-                    ? `${priceDurationHours} hour${priceDurationHours === 1 ? "" : "s"} × GH₵${hourlyRateFor(type)}/hour`
-                    : `${priceSessionCount} sessions × ${priceDurationHours} hour${priceDurationHours === 1 ? "" : "s"} × GH₵${hourlyRateFor(type)}/hour`}
-                </p>
-                <p className="text-[19px] font-bold tabular-nums text-ink">
-                  Total: GH₵{priceTotal}
-                </p>
-                <p className="text-[12px] text-ink-muted">
-                  This is an estimate only — you won&apos;t be charged now. You&apos;ll pay once a
-                  caregiver accepts your request.
-                  {priceSessionCount > 1 &&
-                    " CareLink bookings are single-session today — this request finds a caregiver for the first session; you'll confirm the rest separately."}
-                </p>
-              </div>
-            </section>
-          )}
+            {startTime && priceTotal !== null && (
+              <section className="flex flex-col gap-2 border-t border-[var(--color-lavender-border)] pt-6">
+                <h2 className="text-[13px] font-bold uppercase tracking-[0.08em] text-ink">
+                  Estimated cost
+                </h2>
+                <div className="flex flex-col gap-1 rounded-[12px] border border-[var(--color-lavender-border)] bg-wisteria-tint p-4">
+                  <p className="text-[12.5px] text-ink-muted">
+                    {priceSessionCount === 1
+                      ? `${priceDurationHours} hour${priceDurationHours === 1 ? "" : "s"} × GH₵${hourlyRateFor(type)}/hour`
+                      : `${priceSessionCount} sessions × ${priceDurationHours} hour${priceDurationHours === 1 ? "" : "s"} × GH₵${hourlyRateFor(type)}/hour`}
+                  </p>
+                  <p className="text-[19px] font-bold tabular-nums text-ink">
+                    Total: GH₵{priceTotal}
+                  </p>
+                  <p className="text-[12px] text-ink-muted">
+                    This is an estimate only — you won&apos;t be charged now. You&apos;ll pay once a
+                    caregiver accepts your request.
+                    {priceSessionCount > 1 &&
+                      " CareLink bookings are single-session today — this request finds a caregiver for the first session; you'll confirm the rest separately."}
+                  </p>
+                </div>
+              </section>
+            )}
 
-          {formError && <p className="text-[13px] text-error">{formError}</p>}
+            {formError && <p className="text-[13px] text-error">{formError}</p>}
 
-          <div className="flex flex-col items-center gap-1.5">
-            <Button
-              type="submit"
-              size="lg"
-              disabled={submitting || wards === null || wards.length === 0 || !canSubmit}
-              className="w-full justify-center"
-            >
-              {submitting ? "Starting your search…" : "Find Care"}
-            </Button>
-            <p className="text-[12px] text-ink-muted">
-              We&apos;ll find an available, verified caregiver near you.
-            </p>
-          </div>
-        </Sheet>
+            <div className="flex flex-col items-center gap-1.5">
+              <Button
+                type="submit"
+                size="lg"
+                disabled={submitting || wards === null || wards.length === 0 || !canSubmit}
+                className="w-full justify-center"
+              >
+                {submitting ? "Starting your search…" : "Find Care"}
+              </Button>
+              <p className="text-[12px] text-ink-muted">
+                We&apos;ll find an available, verified caregiver near you.
+              </p>
+            </div>
+          </Sheet>
+        )}
       </div>
     </div>
   );
