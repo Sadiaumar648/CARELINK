@@ -174,19 +174,14 @@ export default function Home() {
                 Trusted care, closer to home.
               </h1>
               <p className="max-w-[52ch] text-[16px] leading-relaxed text-ink-muted">
-                Finding someone you trust with your child shouldn&apos;t feel complicated. CareLink
-                helps families discover, compare and book verified nannies and babysitters from a
-                trusted caregiving agency.
+                Tell us what you need and your location, and CareLink will find a suitable nanny or
+                babysitter for you from our trusted agency caregivers. We handle the search, so you
+                can focus on what matters most.
               </p>
-              <div className="flex flex-wrap gap-3 pt-2">
-                <LinkButton href="/register">Find a Caregiver</LinkButton>
-                <LinkButton href="/claim-invitation" variant="secondary">
-                  Become a Caregiver
-                </LinkButton>
-              </div>
               <ul className="flex flex-wrap gap-x-6 gap-y-2 pt-2 text-[13px] text-ink-muted">
                 <li className="flex items-center gap-1.5">
-                  <span className="text-[var(--color-success)]">✓</span> Verified caregivers
+                  <span className="text-[var(--color-success)]">✓</span> Agency-trained &
+                  CareLink-verified
                 </li>
                 <li className="flex items-center gap-1.5">
                   <span className="text-[var(--color-success)]">✓</span> Secure bookings
