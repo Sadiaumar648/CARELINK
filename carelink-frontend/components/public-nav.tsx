@@ -22,7 +22,7 @@ export function PublicNav() {
           >
             Log in
           </Link>
-          <LinkButton href="/get-started" size="default">
+          <LinkButton href="/register" size="default">
             Get Started
           </LinkButton>
         </div>

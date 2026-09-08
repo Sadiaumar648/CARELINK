@@ -13,8 +13,10 @@ import { Sheet } from "@/components/ui/sheet";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^[+\d][\d\s-]{6,}$/;
 
-// Logo-only header, local to this page (mirrors /get-started's header) —
-// not the shared PublicNav, so no other page is affected by this edit.
+// Logo-only header, local to this page — not the shared PublicNav, so no
+// other page is affected by this edit. This is the public homepage's
+// "Get Started" button's direct destination; there's no separate
+// Get Started choice page anymore.
 function RegisterHeader() {
   return (
     <header className="border-b border-hairline bg-sheet/95 px-6 py-4">
