@@ -75,14 +75,6 @@ const DEMO_CAREGIVERS = [
   },
 ];
 
-const MATCH_REASONS = [
-  { label: "Available at your requested time", factor: "Availability" },
-  { label: "Works in your area", factor: "Area" },
-  { label: "Within your budget", factor: "Budget" },
-  { label: "Experience and skills that fit", factor: "Skills" },
-  { label: "Highly rated by other families", factor: "Rating & experience" },
-];
-
 const SAFETY_ITEMS = [
   "Identity verification",
   "Reference contacts",
@@ -273,25 +265,6 @@ export default function Home() {
               </Sheet>
             ))}
           </div>
-        </section>
-
-        {/* MATCHING EXPLANATION */}
-        <section className="mx-auto w-full max-w-6xl px-6">
-          <Sheet className="grid grid-cols-1 gap-8 p-8 sm:p-10 lg:grid-cols-2">
-            <SectionHeading
-              eyebrow="Why this match?"
-              title="Matching you can actually understand."
-              description="Every search is ranked using five real factors — never a black box."
-            />
-            <ul className="flex flex-col gap-3">
-              {MATCH_REASONS.map((r) => (
-                <li key={r.factor} className="flex items-center gap-3 text-[14px]">
-                  <span className="text-[var(--color-success)]">✓</span>
-                  <span>{r.label}</span>
-                </li>
-              ))}
-            </ul>
-          </Sheet>
         </section>
 
         {/* SAFETY */}
