@@ -93,34 +93,44 @@ const TESTIMONIALS = [
 
 const FAQ_ITEMS = [
   {
-    question: "How does CareLink verify caregivers?",
+    question: "How does CareLink find a caregiver for me?",
     answer:
-      "Caregivers submit a government ID, a live photo, and a reference contact. An administrator reviews every submission by hand before an account is marked verified.",
+      "CareLink uses your care type, requested time, location, experience needs and caregiver availability to find a suitable agency caregiver near you. Caregivers are contacted one at a time. If you have a preferred caregiver, we’ll try them first. If they’re unavailable, we’ll find another suitable caregiver.",
+  },
+  {
+    question: "Are CareLink caregivers verified?",
+    answer:
+      "Yes. CareLink caregivers are trained and approved by the caregiving agency. Their required information and documents are reviewed as part of the agency’s approval process before they can receive care requests.",
   },
   {
     question: "Do parents need to verify their identity?",
     answer:
-      "Yes — both parents and caregivers go through the same identity verification before a booking can be requested or accepted.",
+      "Yes. Parents complete identity verification before requesting care. This helps CareLink maintain a trusted environment for both families and agency caregivers.",
   },
   {
-    question: "How does caregiver matching work?",
+    question: "How does payment work?",
     answer:
-      "Search results are ranked using five factors: availability for your requested time, service area, relevant skills, rating and experience, and how well the rate fits your budget.",
+      "Once a caregiver accepts your request, you’ll see the final booking cost. You can then pay securely using Mobile Money. Your booking is confirmed after successful payment.",
   },
   {
-    question: "How does Mobile Money payment work?",
+    question: "What happens if a caregiver doesn’t accept my request?",
     answer:
-      "Once a caregiver accepts your request, you pay the agreed amount by MTN, Telecel or AirtelTigo Mobile Money before the booking begins.",
+      "You don’t need to search for another caregiver yourself. If a caregiver declines or doesn’t respond, CareLink automatically moves to the next suitable agency caregiver. If needed, the search expands to other eligible caregivers nearby.",
   },
   {
     question: "What happens if I have a problem during a booking?",
     answer:
-      "You can message your caregiver directly through the booking, and file a report if something goes wrong — every report is reviewed by an administrator.",
+      "You can contact the caregiver through your booking and report a problem to CareLink. Our support process allows the agency to review the issue and take appropriate action.",
   },
   {
-    question: "Who can see my child's care information?",
+    question: "Who can see my child’s care information?",
     answer:
-      "Only you and the caregiver assigned to a specific booking can see your child's care profile. It's never public, and a caregiver only sees it once a booking is in place.",
+      "Your child’s care information is private. It is only shared with the caregiver assigned to your booking when the information is needed to provide the requested care.",
+  },
+  {
+    question: "Can I request a specific caregiver?",
+    answer:
+      "Yes. You can choose a preferred caregiver when making your request. CareLink will try your preferred caregiver first. If they’re unavailable, we’ll continue searching for another suitable agency caregiver.",
   },
 ];
 
@@ -327,7 +337,11 @@ export default function Home() {
 
         {/* FAQ */}
         <section id="faq" className="mx-auto w-full max-w-4xl scroll-mt-20 px-6">
-          <SectionHeading title="Frequently asked questions" align="center" />
+          <SectionHeading
+            title="Questions parents often ask"
+            description="Everything you need to know about finding and booking care with CareLink."
+            align="center"
+          />
           <div className="mt-8">
             <Accordion items={FAQ_ITEMS} />
           </div>
