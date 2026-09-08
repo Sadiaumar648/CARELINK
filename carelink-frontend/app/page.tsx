@@ -1,4 +1,3 @@
-import Link from "next/link";
 import Image from "next/image";
 import {
   ShieldCheck,
@@ -7,7 +6,6 @@ import {
   SealCheck,
   Star,
 } from "@phosphor-icons/react/dist/ssr";
-import { LinkButton } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Avatar } from "@/components/ui/avatar";
@@ -73,15 +71,6 @@ const DEMO_CAREGIVERS = [
     careType: "Nanny",
     area: "Airport Residential",
   },
-];
-
-const SAFETY_ITEMS = [
-  "Identity verification",
-  "Reference contacts",
-  "Administrator review",
-  "Transparent ratings",
-  "Controlled emergency-contact sharing",
-  "Reporting and dispute support",
 ];
 
 const TESTIMONIALS = [
@@ -313,43 +302,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* SAFETY */}
-        <section id="safety" className="mx-auto w-full max-w-6xl scroll-mt-20 px-6">
-          <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-16">
-            <div className="flex flex-col gap-5">
-              <SectionHeading
-                title="Because trust should never be an afterthought."
-                description="CareLink is designed to protect both families and caregivers throughout the booking journey."
-              />
-              <ul className="flex flex-col gap-2">
-                {SAFETY_ITEMS.map((item) => (
-                  <li key={item} className="flex items-center gap-2 text-[14px]">
-                    <span className="text-[var(--color-success)]">✓</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <div>
-                <Link
-                  href="#faq"
-                  className="text-[14px] font-semibold text-wisteria hover:text-wisteria-hover"
-                >
-                  Explore our safety approach
-                </Link>
-              </div>
-            </div>
-            <div className="relative aspect-[4/5] w-full overflow-hidden rounded-[24px]">
-              <Image
-                src="/demo/safety-outdoor.jpeg"
-                alt="A caregiver laughing with a child outdoors"
-                fill
-                sizes="(min-width: 1024px) 480px, 90vw"
-                className="object-cover"
-              />
-            </div>
-          </div>
-        </section>
-
         {/* TESTIMONIALS */}
         <section className="mx-auto w-full max-w-6xl px-6">
           <SectionHeading title="What families are saying" align="center" />
@@ -378,35 +330,6 @@ export default function Home() {
           <SectionHeading title="Frequently asked questions" align="center" />
           <div className="mt-8">
             <Accordion items={FAQ_ITEMS} />
-          </div>
-        </section>
-
-        {/* FINAL CTA */}
-        <section className="mx-auto w-full max-w-6xl px-6">
-          <div className="flex flex-col items-center gap-6 rounded-[24px] bg-wisteria p-12 text-center">
-            <h2 className="text-balance text-[28px] font-semibold text-sheet sm:text-[34px]">
-              Ready to find care you can feel confident about?
-            </h2>
-            <div className="flex flex-wrap justify-center gap-3">
-              <LinkButton
-                href="/register"
-                variant="secondary"
-                className="border-none"
-                style={{
-                  backgroundColor: "var(--color-sheet)",
-                  color: "var(--color-wisteria-pressed)",
-                }}
-              >
-                Find a Caregiver
-              </LinkButton>
-              <LinkButton
-                href="/claim-invitation"
-                variant="secondary"
-                className="border-sheet/40 text-black hover:border-sheet hover:text-black"
-              >
-                Are you a caregiver? Join CareLink
-              </LinkButton>
-            </div>
           </div>
         </section>
       </main>
