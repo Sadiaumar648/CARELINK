@@ -37,21 +37,6 @@ function SignInForm() {
         return;
       }
 
-      // A parent who has never completed their household setup hasn't
-      // finished onboarding yet — send them back into it rather than the
-      // dashboard. Any parent who already has a household row has been
-      // through this before and goes straight in, same as always.
-      if (me.role === "parent") {
-        try {
-          const { household } = await apiFetch<{ household: unknown }>("/api/parents/household");
-          if (!household) {
-            router.replace("/onboarding/identity");
-            return;
-          }
-        } catch {
-          // fall through to the normal dashboard redirect
-        }
-      }
       router.replace(`/${me.role}`);
     } catch (err) {
       setError(errorMessage(err));

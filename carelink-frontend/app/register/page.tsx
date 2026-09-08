@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle } from "@phosphor-icons/react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { errorMessage } from "@/lib/error-message";
 import { Field } from "@/components/ui/field";
@@ -56,7 +55,6 @@ export default function RegisterPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [checkEmail, setCheckEmail] = useState(false);
 
   // A fresh object URL per selected file, computed during render rather
   // than via setState-in-an-effect — revoked in the cleanup-only effect
@@ -155,34 +153,21 @@ export default function RegisterPage() {
       });
       if (signUpErr) throw new Error(signUpErr.message);
       await stashPendingVerification();
-      // If email confirmation is required, signUp succeeds but returns no
-      // session — there's nothing to route into yet.
-      if (data.session) router.replace("/onboarding/identity");
-      else setCheckEmail(true);
+      // Email confirmation is off for this project, so signUp() returns a
+      // session immediately — straight into the app. Their Ghana Card
+      // number/live photo are still waiting in sessionStorage whenever
+      // they later complete identity verification at /onboarding/identity
+      // — never auto-submitted, since that still requires the ID-card
+      // photo and a reference contact this page never collected.
+      if (!data.session) {
+        throw new Error("Your account was created, but signing you in failed — try logging in.");
+      }
+      router.replace("/parent");
     } catch (err) {
       setError(errorMessage(err));
     } finally {
       setLoading(false);
     }
-  }
-
-  if (checkEmail) {
-    return (
-      <div className="flex flex-1 flex-col">
-        <RegisterHeader />
-        <div className="mx-auto flex w-full max-w-sm flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-          <CheckCircle size={44} weight="fill" className="text-wisteria" />
-          <h1 className="text-[24px] font-semibold font-heading">Check your email</h1>
-          <p className="text-[15px] text-ink-muted">
-            We sent a confirmation link to <strong className="text-ink">{email}</strong>. Follow it,
-            then come back and log in to continue setting up your account.
-          </p>
-          <Link href="/sign-in" className="font-semibold text-wisteria hover:text-wisteria-hover">
-            Log in
-          </Link>
-        </div>
-      </div>
-    );
   }
 
   return (
