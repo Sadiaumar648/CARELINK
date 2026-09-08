@@ -235,6 +235,52 @@ export default function Home() {
           </div>
         </section>
 
+        {/* WARD CARE PROFILE */}
+        <section className="mx-auto w-full max-w-6xl px-6">
+          <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-16">
+            <SectionHeading
+              title="Tell us once. CareLink remembers."
+              description="Create a care profile for each child so you don't have to repeat their routine every time you book. Relevant care information is automatically available to the caregiver once a booking is made — never shared publicly."
+            />
+            <Sheet className="flex flex-col gap-4 overflow-hidden">
+              <div className="relative -mx-6 -mt-6 aspect-[16/9]">
+                <Image
+                  src="/demo/ward-activity.jpeg"
+                  alt="A child painting wooden shapes during a caregiving session"
+                  fill
+                  sizes="(min-width: 1024px) 480px, 90vw"
+                  className="object-cover"
+                />
+              </div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
+                Example care profile
+              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-[18px] font-semibold font-heading">Kofi · Age 4</p>
+              </div>
+              <dl className="grid grid-cols-1 gap-3 text-[13px] sm:grid-cols-2">
+                <div>
+                  <dt className="text-ink-muted">Meals</dt>
+                  <dd>No peanuts. Prefers rice dishes.</dd>
+                </div>
+                <div>
+                  <dt className="text-ink-muted">Nap</dt>
+                  <dd>1:00–2:30pm daily.</dd>
+                </div>
+                <div>
+                  <dt className="text-ink-muted">Play</dt>
+                  <dd>Loves painting and building blocks.</dd>
+                </div>
+                <div>
+                  <dt className="text-ink-muted">Care notes</dt>
+                  <dd>Mild eczema — cream in the top drawer.</dd>
+                </div>
+              </dl>
+              <p className="text-[12px] text-ink-muted">Last updated 2 weeks ago</p>
+            </Sheet>
+          </div>
+        </section>
+
         {/* CAREGIVER PROFILES */}
         <section className="mx-auto w-full max-w-6xl px-6">
           <SectionHeading
@@ -301,52 +347,6 @@ export default function Home() {
                 className="object-cover"
               />
             </div>
-          </div>
-        </section>
-
-        {/* WARD CARE PROFILE */}
-        <section className="mx-auto w-full max-w-6xl px-6">
-          <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-16">
-            <SectionHeading
-              title="Tell us once. CareLink remembers."
-              description="Create a care profile for each child so you don't have to repeat their routine every time you book. Relevant care information is automatically available to the caregiver once a booking is made — never shared publicly."
-            />
-            <Sheet className="flex flex-col gap-4 overflow-hidden">
-              <div className="relative -mx-6 -mt-6 aspect-[16/9]">
-                <Image
-                  src="/demo/ward-activity.jpeg"
-                  alt="A child painting wooden shapes during a caregiving session"
-                  fill
-                  sizes="(min-width: 1024px) 480px, 90vw"
-                  className="object-cover"
-                />
-              </div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
-                Example care profile
-              </p>
-              <div className="flex items-center justify-between">
-                <p className="text-[18px] font-semibold font-heading">Kofi · Age 4</p>
-              </div>
-              <dl className="grid grid-cols-1 gap-3 text-[13px] sm:grid-cols-2">
-                <div>
-                  <dt className="text-ink-muted">Meals</dt>
-                  <dd>No peanuts. Prefers rice dishes.</dd>
-                </div>
-                <div>
-                  <dt className="text-ink-muted">Nap</dt>
-                  <dd>1:00–2:30pm daily.</dd>
-                </div>
-                <div>
-                  <dt className="text-ink-muted">Play</dt>
-                  <dd>Loves painting and building blocks.</dd>
-                </div>
-                <div>
-                  <dt className="text-ink-muted">Care notes</dt>
-                  <dd>Mild eczema — cream in the top drawer.</dd>
-                </div>
-              </dl>
-              <p className="text-[12px] text-ink-muted">Last updated 2 weeks ago</p>
-            </Sheet>
           </div>
         </section>
 
