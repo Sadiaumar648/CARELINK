@@ -350,21 +350,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* CAREGIVER CTA */}
-        <section className="mx-auto w-full max-w-6xl px-6">
-          <Sheet className="flex flex-col items-center gap-4 bg-peach-tint p-10 text-center">
-            <SectionHeading
-              title="Your experience deserves to be seen."
-              description="Already part of our caregiving agency? Claim your CareLink account, share your skills and availability, and connect with families looking for childcare."
-              align="center"
-            />
-            <LinkButton href="/claim-invitation">Claim your account</LinkButton>
-            <p className="text-[12px] text-ink-muted">
-              Verification is required before receiving bookings.
-            </p>
-          </Sheet>
-        </section>
-
         {/* TESTIMONIALS */}
         <section className="mx-auto w-full max-w-6xl px-6">
           <SectionHeading title="What families are saying" align="center" />
