@@ -195,29 +195,6 @@ function addHours(time: string, hours: number): string {
   return `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
 }
 
-// Directly from lib/services/dispatch.ts's real stages — never implies
-// every caregiver is contacted at once, and never promises a third
-// expansion round the backend doesn't have (there's no real geographic
-// data in this schema to expand further than one "nearby" round). Purely
-// informational — this component never performs matching itself.
-const DISPATCH_STEPS = [
-  {
-    number: "01",
-    title: "We check nearby caregivers",
-    body: "We find verified caregivers who are available near your care location.",
-  },
-  {
-    number: "02",
-    title: "We offer the request",
-    body: "The request is offered to suitable caregivers one at a time, based on priority.",
-  },
-  {
-    number: "03",
-    title: "We keep searching",
-    body: "If needed, CareLink expands the search to the next closest eligible caregivers.",
-  },
-];
-
 export function RequestFlowPanel({
   type,
   onBack,
@@ -549,8 +526,7 @@ export function RequestFlowPanel({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
-        {/* LEFT: the form */}
+      <div className="mx-auto w-full max-w-2xl">
         <Sheet
           as="form"
           onSubmit={onSubmit}
@@ -886,28 +862,6 @@ export function RequestFlowPanel({
             </p>
           </div>
         </Sheet>
-
-        {/* RIGHT RAIL — one compact, informational card. Safety remains
-            fully available via Settings → Safety & Privacy; it's
-            deliberately not duplicated here as a second large panel. */}
-        <div className="flex flex-col gap-4">
-          <Sheet className="flex flex-col gap-4 border-[var(--color-lavender-border)]">
-            <h2 className="text-[14px] font-semibold text-ink">
-              How CareLink finds your caregiver
-            </h2>
-            <div className="flex flex-col gap-4">
-              {DISPATCH_STEPS.map((step) => (
-                <div key={step.number} className="flex items-start gap-3">
-                  <span className="text-[12px] font-bold text-wisteria">{step.number}</span>
-                  <div>
-                    <p className="text-[13px] font-semibold text-ink">{step.title}</p>
-                    <p className="text-[12px] leading-relaxed text-ink-muted">{step.body}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Sheet>
-        </div>
       </div>
     </div>
   );
