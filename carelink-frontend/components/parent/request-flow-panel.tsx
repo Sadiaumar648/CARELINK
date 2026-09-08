@@ -505,7 +505,7 @@ export function RequestFlowPanel({
     hasCareNeed;
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
       <button
         type="button"
         onClick={onBack}
@@ -514,7 +514,7 @@ export function RequestFlowPanel({
         <ArrowLeft size={16} /> Back
       </button>
 
-      <div className="flex flex-wrap gap-x-4 gap-y-1">
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
         {["Verified caregivers", "Availability checked", "CareLink safety process"].map((t) => (
           <span
             key={t}
@@ -526,7 +526,7 @@ export function RequestFlowPanel({
       </div>
 
       {/* TITLE */}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col items-center gap-2 text-center">
         <h1 className="text-[26px] font-bold font-heading text-ink">Request a {copy.heading}</h1>
         <p className="text-[14px] text-ink-muted">
           Tell us what you need and we&apos;ll find an eligible agency {copy.heading.toLowerCase()}{" "}
@@ -534,7 +534,7 @@ export function RequestFlowPanel({
         </p>
       </div>
 
-      <div className="mx-auto w-full max-w-2xl">
+      <div className="w-full">
         {addingWard ? (
           // Rendered in place of the request form itself (never nested
           // inside it — a <form> can't legally contain another <form>).
