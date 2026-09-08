@@ -31,17 +31,17 @@ const STEPS = [
   {
     number: "01",
     title: "Tell us what you need",
-    body: "Search by area, date and skills, or just describe it in your own words.",
+    body: "Choose a nanny or babysitter, tell us when you need care, and share your care location.",
   },
   {
     number: "02",
-    title: "Find your match",
-    body: "Compare verified caregivers, ranked by availability, location, skills and rating.",
+    title: "We find your match",
+    body: "CareLink finds suitable agency caregivers near your location. If you have a preferred caregiver, we’ll try them first.",
   },
   {
     number: "03",
-    title: "Book with confidence",
-    body: "Request a time, pay by Mobile Money, and message your caregiver throughout.",
+    title: "Confirm your booking",
+    body: "Once a caregiver accepts, review your booking details, pay securely, and your care is confirmed.",
   },
 ];
 
