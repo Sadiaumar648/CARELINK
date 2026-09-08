@@ -514,6 +514,17 @@ export function RequestFlowPanel({
         <ArrowLeft size={16} /> Back
       </button>
 
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        {["Verified caregivers", "Availability checked", "CareLink safety process"].map((t) => (
+          <span
+            key={t}
+            className="flex items-center gap-1.5 text-[12.5px] font-medium text-wisteria"
+          >
+            <CheckCircle size={14} weight="fill" /> {t}
+          </span>
+        ))}
+      </div>
+
       {/* TITLE */}
       <div className="flex flex-col gap-2">
         <h1 className="text-[26px] font-bold font-heading text-ink">Request a {copy.heading}</h1>
@@ -521,16 +532,6 @@ export function RequestFlowPanel({
           Tell us what you need and we&apos;ll find an eligible agency {copy.heading.toLowerCase()}{" "}
           near your care location.
         </p>
-        <div className="flex flex-wrap gap-x-4 gap-y-1">
-          {["Verified caregivers", "Availability checked", "CareLink safety process"].map((t) => (
-            <span
-              key={t}
-              className="flex items-center gap-1.5 text-[12.5px] font-medium text-wisteria"
-            >
-              <CheckCircle size={14} weight="fill" /> {t}
-            </span>
-          ))}
-        </div>
       </div>
 
       <div className="mx-auto w-full max-w-2xl">
