@@ -167,9 +167,6 @@ export default function Home() {
         <section className="mx-auto w-full max-w-6xl px-6">
           <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-16">
             <div className="flex flex-col gap-5">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-wisteria">
-                Trusted childcare, made simple
-              </span>
               <h1 className="text-balance text-[38px] font-semibold leading-[1.15] sm:text-[48px]">
                 Trusted care, closer to home.
               </h1>
