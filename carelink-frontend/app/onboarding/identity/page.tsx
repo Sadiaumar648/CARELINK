@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { CheckCircle, UploadSimple, Warning } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
+import {
+  pendingVerificationToFile,
+  readAndClearPendingVerification,
+} from "@/lib/pending-verification";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
@@ -45,11 +49,29 @@ export default function IdentityVerificationPage() {
   // so that case still skips the document-upload wizard.
   const [agencyVerified, setAgencyVerified] = useState<boolean | null>(null);
 
-  const [step, setStep] = useState<Step>("intro");
+  // If the parent already gave a Ghana Card number and live photo at
+  // registration (/register), pick it up here rather than asking again —
+  // read once (and cleared immediately by the read itself) to lazily seed
+  // the states below, rather than an effect that would set them after an
+  // extra render. This never submits anything on its own; it only
+  // pre-fills the same wizard/submission flow below.
+  const [pendingVerification] = useState(() => readAndClearPendingVerification());
+
+  const [step, setStep] = useState<Step>(pendingVerification ? "upload" : "intro");
   const [idDocumentType, setIdDocumentType] = useState<IdType>("ghana_card");
-  const [idDocumentNumber, setIdDocumentNumber] = useState("");
+  const [idDocumentNumber, setIdDocumentNumber] = useState(
+    pendingVerification?.idDocumentNumber ?? "",
+  );
   const [idFile, setIdFile] = useState<File | null>(null);
-  const [selfieFile, setSelfieFile] = useState<File | null>(null);
+  const [selfieFile, setSelfieFile] = useState<File | null>(() => {
+    if (!pendingVerification) return null;
+    try {
+      return pendingVerificationToFile(pendingVerification);
+    } catch {
+      // Malformed/undecodable stash — the photo step just asks again.
+      return null;
+    }
+  });
   const [selfieMode, setSelfieMode] = useState<"camera" | "file">("camera");
   const [referenceName, setReferenceName] = useState("");
   const [referencePhone, setReferencePhone] = useState("");
