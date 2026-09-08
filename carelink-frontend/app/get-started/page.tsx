@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Baby, HandHeart } from "@phosphor-icons/react/dist/ssr";
-import { PublicNav } from "@/components/public-nav";
+import { Baby, HandHeart } from "@phosphor-icons/react/dist/ssr";
 import { PublicFooter } from "@/components/public-footer";
 import { Sheet } from "@/components/ui/sheet";
 
@@ -30,7 +29,16 @@ const ROLES = [
 export default function GetStartedPage() {
   return (
     <div className="flex min-h-dvh flex-col bg-paper">
-      <PublicNav />
+      <header className="sticky top-0 z-20 border-b border-hairline bg-sheet/95 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center px-6 py-4">
+          <Link
+            href="/"
+            className="text-[19px] font-semibold font-heading text-wisteria-pressed transition-colors hover:text-wisteria"
+          >
+            CareLink
+          </Link>
+        </div>
+      </header>
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center gap-10 px-6 py-16">
         <div className="flex flex-col items-center gap-3 text-center">
           <h1 className="text-balance text-[30px] font-semibold font-heading sm:text-[36px]">
@@ -53,8 +61,8 @@ export default function GetStartedPage() {
                   </p>
                 </div>
                 <p className="flex-1 text-[14px] leading-relaxed text-ink-muted">{role.body}</p>
-                <span className="flex items-center gap-1.5 text-[14px] font-semibold text-wisteria group-hover:text-wisteria-hover">
-                  {role.cta} <ArrowRight size={16} />
+                <span className="text-[14px] font-semibold text-wisteria group-hover:text-wisteria-hover">
+                  {role.cta}
                 </span>
               </Sheet>
             </Link>
