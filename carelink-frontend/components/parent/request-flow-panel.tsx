@@ -14,7 +14,7 @@ import {
 } from "@carelink/shared";
 import { Sheet } from "@/components/ui/sheet";
 import { Field } from "@/components/ui/field";
-import { Button, LinkButton } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { LocationPicker, type ResolvedLocation } from "@/components/location-picker";
 import { AddWardForm } from "@/components/parent/add-ward-form";
@@ -621,13 +621,14 @@ export function RequestFlowPanel({
                       <CaretRight size={16} className="text-ink-muted" />
                     </button>
                   ))}
-                  <LinkButton
-                    href="/parent/children"
+                  <Button
+                    type="button"
                     variant="secondary"
+                    onClick={() => setAddingWard(true)}
                     className="justify-center border-dashed"
                   >
                     <Plus size={16} /> Add another child
-                  </LinkButton>
+                  </Button>
                 </div>
               )}
             </section>
