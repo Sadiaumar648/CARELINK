@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Camera, CheckCircle } from "@phosphor-icons/react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { errorMessage } from "@/lib/error-message";
-import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { CameraCapture } from "@/components/camera-capture";
 import { PENDING_VERIFICATION_KEY } from "@/lib/pending-verification";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -49,6 +50,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [ghanaCardId, setGhanaCardId] = useState("");
   const [livePhoto, setLivePhoto] = useState<File | null>(null);
+  const [selfieMode, setSelfieMode] = useState<"camera" | "file">("camera");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [agreed, setAgreed] = useState(false);
@@ -56,7 +58,6 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkEmail, setCheckEmail] = useState(false);
-  const livePhotoInputRef = useRef<HTMLInputElement>(null);
 
   // A fresh object URL per selected file, computed during render rather
   // than via setState-in-an-effect — revoked in the cleanup-only effect
@@ -252,40 +253,43 @@ export default function RegisterPage() {
                 {/* eslint-disable-next-line @next/next/no-img-element -- a transient local object URL, not a static/remote asset */}
                 <img
                   src={livePhotoPreview}
-                  alt="Your selected live photo"
+                  alt="Your captured live photo"
                   className="h-14 w-14 shrink-0 rounded-full object-cover"
                 />
                 <div className="flex-1">
-                  <p className="text-[13px] font-semibold text-ink">Photo selected</p>
-                  <p className="truncate text-[12px] text-ink-muted">{livePhoto.name}</p>
+                  <p className="text-[13px] font-semibold text-ink">Photo captured</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => onLivePhotoChange(null)}
                   className="text-[13px] font-semibold text-wisteria hover:text-wisteria-hover"
                 >
-                  Remove
+                  Retake
                 </button>
+              </div>
+            ) : selfieMode === "camera" ? (
+              <div className="rounded-[14px] border-2 border-dashed border-hairline bg-sheet px-6 py-8">
+                <p className="mb-4 text-center text-[12px] text-ink-muted">
+                  Take a clear photo of your face
+                </p>
+                <CameraCapture
+                  onCapture={onLivePhotoChange}
+                  onFallback={() => setSelfieMode("file")}
+                />
               </div>
             ) : (
               <div className="flex flex-col items-center gap-2 rounded-[14px] border-2 border-dashed border-hairline bg-sheet px-6 py-8 text-center">
                 <Camera size={26} className="text-wisteria" />
-                <p className="text-[14px] font-semibold text-ink">Upload a live photo</p>
-                <p className="text-[12px] text-ink-muted">Take a clear photo of your face</p>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => livePhotoInputRef.current?.click()}
-                >
-                  Upload Photo
-                </Button>
+                <p className="text-[12px] text-ink-muted">
+                  Camera access is required to take your live photo. You can attach a recent photo
+                  instead.
+                </p>
                 <input
-                  ref={livePhotoInputRef}
                   type="file"
                   accept="image/jpeg,image/jpg,image/png"
                   capture="user"
-                  className="sr-only"
                   onChange={(e) => onLivePhotoChange(e.target.files?.[0] ?? null)}
+                  className="text-[13px]"
                 />
               </div>
             )}
