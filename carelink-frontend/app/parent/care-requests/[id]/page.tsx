@@ -40,7 +40,13 @@ type ActiveOffer = {
 
 type DispatchStatus = {
   dispatchStatus:
-    "not_started" | "searching" | "expanding" | "accepted" | "exhausted" | "cancelled";
+    | "not_started"
+    | "searching"
+    | "expanding"
+    | "accepted"
+    | "exhausted"
+    | "cancelled"
+    | "preferred_declined";
   vicinityRound: number;
   activeOffer: ActiveOffer | null;
 };
@@ -259,9 +265,24 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
   // window's own lazy sweep cancelled it).
   const active =
     !status ||
-    !TERMINAL.has(status.dispatchStatus) ||
+    (!TERMINAL.has(status.dispatchStatus) && status.dispatchStatus !== "preferred_declined") ||
     (status.dispatchStatus === "accepted" && status.activeOffer?.status === "accepted");
   useDispatchPolling(id, setStatus, setError, active);
+  const [findingAnother, setFindingAnother] = useState(false);
+
+  async function findAnotherCaregiver() {
+    setFindingAnother(true);
+    try {
+      const res = await apiFetch<DispatchStatus>(`/api/care-requests/${id}/dispatch/continue`, {
+        method: "POST",
+      });
+      setStatus(res);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setFindingAnother(false);
+    }
+  }
 
   const activeOffer = status?.dispatchStatus === "accepted" ? (status.activeOffer ?? null) : null;
   const offerAwaitingPayment = activeOffer?.status === "accepted";
@@ -310,6 +331,37 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
     <div className="mx-auto flex max-w-xl flex-col gap-6 p-6">
       {(status.dispatchStatus === "not_started" || status.dispatchStatus === "searching") && (
         <SearchingCard status={status} cancelling={cancelling} onCancel={() => void cancel()} />
+      )}
+
+      {/* The preferred caregiver declined, didn't respond in time, or
+          wasn't eligible — dispatch paused itself here rather than
+          silently moving on to someone else (lib/services/dispatch.ts).
+          Nothing happens until the parent explicitly asks CareLink to
+          search normally. */}
+      {status.dispatchStatus === "preferred_declined" && (
+        <Sheet className="flex flex-col items-center gap-4 border-[var(--color-lavender-border)] py-10 text-center">
+          <div>
+            <h1 className="text-[19px] font-bold font-heading text-ink">
+              Your preferred caregiver isn&apos;t available.
+            </h1>
+            <p className="mt-1 text-[13.5px] text-ink-muted">
+              Would you like us to find another suitable caregiver?
+            </p>
+          </div>
+          {error && <p className="text-[13px] text-error">{error}</p>}
+          <div className="flex flex-wrap justify-center gap-3">
+            <Button onClick={() => void findAnotherCaregiver()} disabled={findingAnother}>
+              {findingAnother ? "Searching…" : "Find another caregiver"}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => void cancel()}
+              disabled={cancelling || findingAnother}
+            >
+              Cancel Search
+            </Button>
+          </div>
+        </Sheet>
       )}
 
       {status.dispatchStatus === "expanding" && (

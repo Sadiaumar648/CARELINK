@@ -18,6 +18,12 @@ export const createCareRequestSchema = z
     // contrast, always sources a real wardId from the parent's own
     // GET /api/wards before this is called.
     wardId: z.string().uuid().optional(),
+    // Optional: a parent may name one specific caregiver to try before
+    // CareLink's normal sequential search — see lib/services/dispatch.ts.
+    // Real eligibility (type, date/time, service area) is always
+    // checked server-side when dispatch actually runs; this is never
+    // trusted as a guarantee.
+    preferredStaffProfileId: z.string().uuid().optional(),
     source: z.enum(["ai", "direct"]),
     caregiverType: caregiverTypeSchema,
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD"),

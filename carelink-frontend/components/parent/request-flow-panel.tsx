@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CaretRight, Plus } from "@phosphor-icons/react";
+import { ArrowLeft, CaretRight, MagnifyingGlass, Plus, X } from "@phosphor-icons/react";
 import {
   calculateTotalAmount,
   countOccurrences,
@@ -23,6 +23,14 @@ import { errorMessage } from "@/lib/error-message";
 import { suggestedSkillForAge, type SearchFilters, type Ward } from "@/components/find-care/types";
 
 type CaregiverType = "nanny" | "babysitter";
+
+// A parent's optional pick of one specific caregiver to try first —
+// real eligibility (type, date/time, service area) is always checked
+// server-side when dispatch actually runs (lib/services/dispatch.ts);
+// this is never a guarantee. Reuses the existing GET /api/search/
+// caregivers results (same data Find Care shows), filtered client-side
+// to this request's caregiver type — no new search endpoint.
+type PreferredCandidate = { staff_profile_id: string; full_name: string; caregiver_type: string };
 
 export type RequestFlowInitial = {
   startDate?: string;
@@ -276,6 +284,26 @@ export function RequestFlowPanel({
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const [preferredCaregiver, setPreferredCaregiver] = useState<PreferredCandidate | null>(null);
+  const [preferredPickerOpen, setPreferredPickerOpen] = useState(false);
+  const [preferredCandidates, setPreferredCandidates] = useState<PreferredCandidate[] | null>(null);
+  const [preferredSearch, setPreferredSearch] = useState("");
+
+  function openPreferredPicker() {
+    setPreferredPickerOpen(true);
+    if (preferredCandidates !== null) return;
+    const params = new URLSearchParams();
+    const area = location?.coarseArea ?? location?.formattedAddress;
+    if (area) params.set("area", area);
+    apiFetch<{ results: PreferredCandidate[] }>(`/api/search/caregivers?${params.toString()}`)
+      .then((res) => setPreferredCandidates(res.results.filter((c) => c.caregiver_type === type)))
+      .catch(() => setPreferredCandidates([]));
+  }
+
+  const filteredPreferredCandidates = (preferredCandidates ?? []).filter((c) =>
+    c.full_name.toLowerCase().includes(preferredSearch.trim().toLowerCase()),
+  );
+
   useEffect(() => {
     apiFetch<{ wards: Ward[] }>("/api/wards")
       .then((res) => setWards(res.wards))
@@ -437,6 +465,7 @@ export function RequestFlowPanel({
         method: "POST",
         body: {
           wardId,
+          preferredStaffProfileId: preferredCaregiver?.staff_profile_id,
           source: "direct",
           caregiverType: type,
           date: filters.date,
@@ -813,6 +842,95 @@ export function RequestFlowPanel({
                   Other
                 </button>
               </div>
+            </section>
+
+            {/* PREFERRED CAREGIVER — optional. Real eligibility is only
+              ever checked when dispatch actually runs (lib/services/
+              dispatch.ts); nothing here is a promise. */}
+            <section className="flex flex-col gap-3 border-t border-[var(--color-lavender-border)] pt-6">
+              <div>
+                <h2 className="text-[13px] font-bold uppercase tracking-[0.08em] text-ink">
+                  Preferred caregiver{" "}
+                  <span className="font-normal normal-case text-ink-muted">(optional)</span>
+                </h2>
+                <p className="text-[12px] text-ink-muted">
+                  We&apos;ll try your preferred caregiver first. If they&apos;re unavailable, you
+                  can ask CareLink to find another suitable caregiver.
+                </p>
+              </div>
+
+              {preferredCaregiver ? (
+                <div className="flex items-center justify-between gap-3 rounded-[12px] border border-[var(--color-lavender-border)] p-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar photoUrl={null} name={preferredCaregiver.full_name} size="sm" />
+                    <p className="text-[14px] font-semibold text-ink">
+                      {preferredCaregiver.full_name}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPreferredCaregiver(null)}
+                    className="text-[13px] font-semibold text-wisteria hover:text-wisteria-hover"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : preferredPickerOpen ? (
+                <div className="flex flex-col gap-3 rounded-[12px] border border-[var(--color-lavender-border)] p-3">
+                  <div className="relative">
+                    <MagnifyingGlass
+                      size={16}
+                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted"
+                    />
+                    <input
+                      value={preferredSearch}
+                      onChange={(e) => setPreferredSearch(e.target.value)}
+                      placeholder="Search by name"
+                      className="w-full rounded-[10px] border border-[var(--color-lavender-border)] bg-sheet py-2 pl-9 pr-3 text-[14px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
+                    />
+                  </div>
+                  {preferredCandidates === null && (
+                    <p className="text-[13px] text-ink-muted">Loading caregivers…</p>
+                  )}
+                  {preferredCandidates !== null && filteredPreferredCandidates.length === 0 && (
+                    <p className="text-[13px] text-ink-muted">No matching caregivers found.</p>
+                  )}
+                  {filteredPreferredCandidates.length > 0 && (
+                    <div className="flex max-h-56 flex-col gap-1.5 overflow-y-auto">
+                      {filteredPreferredCandidates.map((c) => (
+                        <button
+                          key={c.staff_profile_id}
+                          type="button"
+                          onClick={() => {
+                            setPreferredCaregiver(c);
+                            setPreferredPickerOpen(false);
+                          }}
+                          className="flex items-center gap-3 rounded-[10px] p-2 text-left hover:bg-paper"
+                        >
+                          <Avatar photoUrl={null} name={c.full_name} size="sm" />
+                          <p className="text-[14px] font-medium text-ink">{c.full_name}</p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setPreferredPickerOpen(false)}
+                    className="flex w-fit items-center gap-1.5 text-[13px] font-semibold text-ink-muted hover:text-ink"
+                  >
+                    <X size={14} /> Cancel
+                  </button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={openPreferredPicker}
+                  className="w-fit"
+                >
+                  Choose a preferred caregiver
+                </Button>
+              )}
             </section>
 
             {/* 5. ANYTHING ELSE */}

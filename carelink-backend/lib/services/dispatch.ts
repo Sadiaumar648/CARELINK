@@ -67,6 +67,9 @@ type CareRequestRow = {
   dispatch_status: string;
   vicinity_round: number;
   response_window_seconds: number;
+  preferred_staff_profile_id: string | null;
+  preferred_dispatch_done: boolean;
+  preferred_continue_authorized: boolean;
 };
 
 type SummarizedBooking = {
@@ -151,6 +154,15 @@ export async function advanceDispatch(
     return summarize(supabase, careRequest, finalBooking);
   }
 
+  // Preferred-caregiver-declined is a PAUSE, not a terminal outcome and
+  // not something dispatch auto-advances out of the way every other
+  // decline/timeout above does — it stays here, with no active offer,
+  // until the parent explicitly calls continuePreferredDispatch below
+  // (POST .../dispatch/continue).
+  if (careRequest.dispatch_status === "preferred_declined") {
+    return summarize(supabase, careRequest, null);
+  }
+
   // The current active offer, if any.
   const { data: activeBooking } = await supabase
     .from("bookings")
@@ -198,14 +210,22 @@ export async function advanceDispatch(
   const hasCoordinates =
     careRequest.service_latitude != null && careRequest.service_longitude != null;
 
-  while (round <= MAX_VICINITY_ROUND) {
-    const outcome = await findEligibleCaregivers(
+  // Preferred caregiver: tried exactly once, before the normal
+  // sequential queue, and never automatically falls through to it. The
+  // eligibility check is the exact same round-0 standard (caregiver
+  // type, schedule/conflicts, skills, service area) ordinary dispatch
+  // already applies — findEligibleCaregivers itself, unchanged — just
+  // asking "is this one specific caregiver in that eligible pool?"
+  // rather than picking the top-ranked candidate from it. Declined,
+  // timed out, or never eligible in the first place are all the same
+  // outcome from here: preferred_declined, a pause the parent must
+  // explicitly clear (POST .../dispatch/continue) — CareLink never
+  // silently moves on to someone else.
+  if (careRequest.preferred_staff_profile_id && !careRequest.preferred_dispatch_done) {
+    const preferredOutcome = await findEligibleCaregivers(
       supabase,
       {
-        // Round 0 = the requested area, exact match; round 1 drops the
-        // area filter entirely. Only used when the request has no
-        // resolved coordinates — see maxDistanceKm below otherwise.
-        area: !hasCoordinates && round === 0 ? careRequest.location : undefined,
+        area: !hasCoordinates ? careRequest.location : undefined,
         latitude: hasCoordinates ? careRequest.service_latitude! : undefined,
         longitude: hasCoordinates ? careRequest.service_longitude! : undefined,
         date: careRequest.date,
@@ -216,29 +236,92 @@ export async function advanceDispatch(
       weights,
       {
         caregiverType: careRequest.caregiver_type,
-        excludeStaffProfileIds,
-        maxDistanceKm: hasCoordinates ? DISPATCH_VICINITY_RADII_KM[round] : undefined,
-        // CareLink's current dispatch rule (superseding the comment this
-        // replaced): an approved, active caregiver is automatically
-        // dispatch-eligible — accepting_bookings (default true at
-        // profile creation) plus the same hard filters ordinary search
-        // already applies (caregiver type, schedule/conflicts, skills,
-        // verification via public_caregivers), no separate manual
-        // "go available" action required. Distance still prefers a live
-        // dispatch fix (staff_dispatch_locations) when the caregiver has
-        // location sharing on, falling back to their base/service
-        // location (staff_profiles.base_latitude/longitude) otherwise —
-        // nearby_caregiver_distances already does this coalesce, so nothing
-        // here has to choose between the two. requireDispatchAvailable
-        // stays available in caregiver-search.ts but is deliberately not
-        // passed anymore.
+        maxDistanceKm: hasCoordinates ? DISPATCH_VICINITY_RADII_KM[0] : undefined,
       },
     );
-    if (outcome.results.length > 0) {
-      next = outcome.results[0];
-      break;
+    const preferredMatch = preferredOutcome.results.find(
+      (r) => r.staff_profile_id === careRequest.preferred_staff_profile_id,
+    );
+    await supabase
+      .from("care_requests")
+      .update({ preferred_dispatch_done: true })
+      .eq("id", careRequestId);
+    if (preferredMatch) {
+      next = preferredMatch;
+    } else {
+      await supabase
+        .from("care_requests")
+        .update({ dispatch_status: "preferred_declined" })
+        .eq("id", careRequestId);
+      return summarize(supabase, { dispatch_status: "preferred_declined", vicinity_round: round });
     }
-    round += 1;
+  }
+
+  // The preferred caregiver's own offer (created on a previous call)
+  // has just been declined or timed out — activeBooking above found
+  // nothing pending, and the branch immediately above was skipped
+  // because preferred_dispatch_done is already true. This is the one
+  // moment that distinguishes "just concluded, pause here" from "the
+  // parent already clicked Find another caregiver, proceed normally" —
+  // preferred_continue_authorized is what continuePreferredDispatch
+  // sets to tell the two apart; without it, both look identical
+  // (preferred_dispatch_done = true, no active booking).
+  if (
+    !next &&
+    careRequest.preferred_staff_profile_id &&
+    careRequest.preferred_dispatch_done &&
+    !careRequest.preferred_continue_authorized
+  ) {
+    await supabase
+      .from("care_requests")
+      .update({ dispatch_status: "preferred_declined" })
+      .eq("id", careRequestId);
+    return summarize(supabase, { dispatch_status: "preferred_declined", vicinity_round: round });
+  }
+
+  if (!next) {
+    while (round <= MAX_VICINITY_ROUND) {
+      const outcome = await findEligibleCaregivers(
+        supabase,
+        {
+          // Round 0 = the requested area, exact match; round 1 drops the
+          // area filter entirely. Only used when the request has no
+          // resolved coordinates — see maxDistanceKm below otherwise.
+          area: !hasCoordinates && round === 0 ? careRequest.location : undefined,
+          latitude: hasCoordinates ? careRequest.service_latitude! : undefined,
+          longitude: hasCoordinates ? careRequest.service_longitude! : undefined,
+          date: careRequest.date,
+          startTime: careRequest.start_time.slice(0, 5),
+          endTime: careRequest.end_time.slice(0, 5),
+          skills: careRequest.skills?.length ? careRequest.skills : undefined,
+        },
+        weights,
+        {
+          caregiverType: careRequest.caregiver_type,
+          excludeStaffProfileIds,
+          maxDistanceKm: hasCoordinates ? DISPATCH_VICINITY_RADII_KM[round] : undefined,
+          // CareLink's current dispatch rule (superseding the comment this
+          // replaced): an approved, active caregiver is automatically
+          // dispatch-eligible — accepting_bookings (default true at
+          // profile creation) plus the same hard filters ordinary search
+          // already applies (caregiver type, schedule/conflicts, skills,
+          // verification via public_caregivers), no separate manual
+          // "go available" action required. Distance still prefers a live
+          // dispatch fix (staff_dispatch_locations) when the caregiver has
+          // location sharing on, falling back to their base/service
+          // location (staff_profiles.base_latitude/longitude) otherwise —
+          // nearby_caregiver_distances already does this coalesce, so nothing
+          // here has to choose between the two. requireDispatchAvailable
+          // stays available in caregiver-search.ts but is deliberately not
+          // passed anymore.
+        },
+      );
+      if (outcome.results.length > 0) {
+        next = outcome.results[0];
+        break;
+      }
+      round += 1;
+    }
   }
 
   if (round !== careRequest.vicinity_round) {
@@ -313,6 +396,33 @@ export async function advanceDispatch(
     .eq("id", careRequestId);
 
   return summarize(supabase, { dispatch_status: dispatchStatus, vicinity_round: round }, booking);
+}
+
+// "Find another caregiver" — the parent's explicit choice to move past
+// a preferred caregiver who declined, didn't respond, or wasn't
+// eligible. Only legal from the paused preferred_declined state (never
+// silently resumes anything else). Clearing it back to not_started lets
+// the very next advanceDispatch fall straight into the normal
+// sequential queue — preferred_dispatch_done is already true by this
+// point, so the preferred-caregiver check above is never re-entered.
+export async function continuePreferredDispatch(
+  supabase: SupabaseClient,
+  careRequestId: string,
+): Promise<DispatchStatusResult> {
+  const { data: cr, error } = await supabase
+    .from("care_requests")
+    .select("dispatch_status")
+    .eq("id", careRequestId)
+    .single();
+  if (error || !cr) throw error ?? new Error("Care request not found");
+  if (cr.dispatch_status !== "preferred_declined") {
+    throw new Error("This request isn't waiting on a preferred-caregiver decision");
+  }
+  await supabase
+    .from("care_requests")
+    .update({ dispatch_status: "not_started", preferred_continue_authorized: true })
+    .eq("id", careRequestId);
+  return advanceDispatch(supabase, careRequestId);
 }
 
 export async function cancelDispatch(
