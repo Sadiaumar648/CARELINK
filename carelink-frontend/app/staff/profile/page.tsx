@@ -191,8 +191,7 @@ export default function StaffSettingsPage() {
           Location &amp; Service Area
         </h2>
         <p className="-mt-2 text-[12.5px] text-ink-muted">
-          Moved when you relocate — update these any time you move to a new base or want to serve
-          different areas.
+          Update these any time you move to a new base or want to serve different areas.
         </p>
         <LocationSettingsSection />
       </section>
