@@ -39,7 +39,11 @@ export type StaffProfile = {
   base_place_id: string | null;
 };
 
-async function patchProfile(
+// Exported for components/staff-location-settings.tsx — base location
+// editing round-trips the same full-profile shape as everything else
+// on this page, so it reuses this fetch/patch pair rather than a second
+// implementation of it.
+export async function patchProfile(
   current: StaffProfile,
   patch: Partial<StaffProfile>,
 ): Promise<StaffProfile> {
@@ -62,7 +66,7 @@ async function patchProfile(
   return res.profile;
 }
 
-function useOwnProfile() {
+export function useOwnProfile() {
   const [profile, setProfile] = useState<StaffProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {

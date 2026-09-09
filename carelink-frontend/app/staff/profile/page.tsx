@@ -21,6 +21,7 @@ import {
   ProfessionalInfoSection,
   EmergencyContactSection,
 } from "@/components/staff-profile-setup";
+import { LocationSettingsSection } from "@/components/staff-location-settings";
 
 function MenuRow({
   icon: IconComponent,
@@ -183,6 +184,17 @@ export default function StaffSettingsPage() {
           Professional Information
         </h2>
         <ProfessionalInfoSection />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+          Location &amp; Service Area
+        </h2>
+        <p className="-mt-2 text-[12.5px] text-ink-muted">
+          Moved when you relocate — update these any time you move to a new base or want to serve
+          different areas.
+        </p>
+        <LocationSettingsSection />
       </section>
 
       <section className="flex flex-col gap-3">
