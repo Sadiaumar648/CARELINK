@@ -12,7 +12,11 @@ export type EmailSendResult =
   { status: "sent"; providerMessageId: string } | { status: "failed"; error: string };
 
 export interface EmailProvider {
-  send(to: string, subject: string, body: string): Promise<EmailSendResult>;
+  // `html` is optional and additive — every existing call site that only
+  // ever passed plain text keeps working unchanged (Resend accepts text-
+  // only, html-only, or both together; the recipient's client picks
+  // whichever it prefers to render).
+  send(to: string, subject: string, body: string, html?: string): Promise<EmailSendResult>;
 }
 
 class LoggingEmailProvider implements EmailProvider {
@@ -40,7 +44,7 @@ class ResendEmailProvider implements EmailProvider {
     this.from = from;
   }
 
-  async send(to: string, subject: string, body: string): Promise<EmailSendResult> {
+  async send(to: string, subject: string, body: string, html?: string): Promise<EmailSendResult> {
     // The EmailProvider interface promises a resolved EmailSendResult,
     // never a rejection — notify.ts's own try/catch would also absorb a
     // throw here, but catching it at the source keeps that contract
@@ -51,6 +55,7 @@ class ResendEmailProvider implements EmailProvider {
         to,
         subject,
         text: body,
+        ...(html ? { html } : {}),
       });
       if (error) {
         return { status: "failed", error: error.message };
