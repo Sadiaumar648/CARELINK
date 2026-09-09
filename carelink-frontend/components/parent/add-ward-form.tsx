@@ -28,8 +28,6 @@ const CARE_NEEDS = [
   "School pickup",
   "Bedtime routine",
 ];
-const ACTIVITIES = ["Reading", "Drawing", "Outdoor play", "Homework"];
-
 function toggle(list: string[], value: string): string[] {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 }
@@ -52,7 +50,6 @@ export function AddWardForm({
   const [ageYears, setAgeYears] = useState("");
   const [careStage, setCareStage] = useState<string | null>(null);
   const [careNeeds, setCareNeeds] = useState<string[]>([]);
-  const [activities, setActivities] = useState<string[]>([]);
   const [allergies, setAllergies] = useState("");
   const [medications, setMedications] = useState("");
   const [specialNeeds, setSpecialNeeds] = useState("");
@@ -79,7 +76,7 @@ export function AddWardForm({
           generalNotes: serializeWardGeneralNotes({
             careStage,
             careNeeds,
-            activities,
+            activities: [],
             other: null,
           }),
         },
@@ -139,20 +136,6 @@ export function AddWardForm({
               label={need}
               selected={careNeeds.includes(need)}
               onClick={() => setCareNeeds((prev) => toggle(prev, need))}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <p className="text-[13px] font-semibold text-ink">Activities</p>
-        <div className="flex flex-wrap gap-2">
-          {ACTIVITIES.map((activity) => (
-            <SelectableChip
-              key={activity}
-              label={activity}
-              selected={activities.includes(activity)}
-              onClick={() => setActivities((prev) => toggle(prev, activity))}
             />
           ))}
         </div>

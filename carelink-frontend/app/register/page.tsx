@@ -57,6 +57,11 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkEmail, setCheckEmail] = useState(false);
+  const [code, setCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
 
   // A fresh object URL per selected file, computed during render rather
   // than via setState-in-an-effect — revoked in the cleanup-only effect
@@ -173,6 +178,56 @@ export default function RegisterPage() {
     }
   }
 
+  // Supabase's "Confirm signup" email template sends a real 6-digit
+  // code (the same {{ .Token }} it always generates — only the template
+  // content changed to show it instead of the confirmation link).
+  // verifyOtp with type "signup" is the exact same confirmation the old
+  // link performed, just entered here instead of clicked — on success it
+  // returns a real session immediately, same as clicking the link would
+  // have handed back to /sign-in.
+  async function verifyCode(e: React.FormEvent) {
+    e.preventDefault();
+    if (!code.trim()) {
+      setVerifyError("Enter the code we sent you.");
+      return;
+    }
+    setVerifying(true);
+    setVerifyError(null);
+    try {
+      const { data, error: verifyErr } = await getSupabaseClient().auth.verifyOtp({
+        email,
+        token: code.trim(),
+        type: "signup",
+      });
+      if (verifyErr) throw new Error(verifyErr.message);
+      if (!data.session)
+        throw new Error("Verification succeeded, but signing you in failed — try logging in.");
+      router.replace("/parent");
+    } catch (err) {
+      setVerifyError(errorMessage(err));
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  async function resendCode() {
+    setResending(true);
+    setResendMessage(null);
+    setVerifyError(null);
+    try {
+      const { error: resendErr } = await getSupabaseClient().auth.resend({
+        type: "signup",
+        email,
+      });
+      if (resendErr) throw new Error(resendErr.message);
+      setResendMessage("We sent you a new code.");
+    } catch (err) {
+      setVerifyError(errorMessage(err));
+    } finally {
+      setResending(false);
+    }
+  }
+
   if (checkEmail) {
     return (
       <div className="flex flex-1 flex-col">
@@ -181,11 +236,34 @@ export default function RegisterPage() {
           <CheckCircle size={44} weight="fill" className="text-wisteria" />
           <h1 className="text-[24px] font-semibold font-heading">Check your email</h1>
           <p className="text-[15px] text-ink-muted">
-            We sent a confirmation link to <strong className="text-ink">{email}</strong>. Follow it,
-            then come back and log in to continue.
+            We sent a verification code to <strong className="text-ink">{email}</strong>. Enter it
+            below to confirm your account.
           </p>
+          <Sheet as="form" onSubmit={verifyCode} className="flex w-full flex-col gap-3 text-left">
+            <Field
+              label="Verification code"
+              placeholder="123456"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              error={verifyError ?? undefined}
+            />
+            <Button type="submit" disabled={verifying}>
+              {verifying ? "Verifying…" : "Verify and Continue"}
+            </Button>
+          </Sheet>
+          {resendMessage && <p className="text-[13px] text-wisteria-pressed">{resendMessage}</p>}
+          <button
+            type="button"
+            onClick={() => void resendCode()}
+            disabled={resending}
+            className="text-[13px] font-semibold text-wisteria hover:text-wisteria-hover disabled:opacity-50"
+          >
+            {resending ? "Sending…" : "Didn't get a code? Resend"}
+          </button>
           <Link href="/sign-in" className="font-semibold text-wisteria hover:text-wisteria-hover">
-            Log in
+            Already verified? Log in
           </Link>
         </div>
       </div>
