@@ -844,6 +844,27 @@ export function RequestFlowPanel({
               </div>
             </section>
 
+            {/* ANYTHING ELSE — the same field "Other" reveals. If a parent
+              picks Other above, they type their specific need in here
+              directly; there's deliberately no second, duplicate input
+              for it. */}
+            {showOther && (
+              <section className="flex flex-col gap-2">
+                <label htmlFor="requirements" className="ml-7 text-[13px] font-semibold text-ink">
+                  Anything else? <span className="font-normal text-ink-muted">Optional</span>
+                </label>
+                <textarea
+                  id="requirements"
+                  rows={3}
+                  maxLength={1000}
+                  value={requirements}
+                  onChange={(e) => setRequirements(e.target.value)}
+                  placeholder="Tell us anything else your caregiver should know…"
+                  className="ml-7 rounded-[10px] border border-[var(--color-lavender-border)] bg-sheet px-3 py-2.5 text-[14px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
+                />
+              </section>
+            )}
+
             {/* PREFERRED CAREGIVER — optional. Real eligibility is only
               ever checked when dispatch actually runs (lib/services/
               dispatch.ts); nothing here is a promise. */}
@@ -932,24 +953,6 @@ export function RequestFlowPanel({
                 </Button>
               )}
             </section>
-
-            {/* 5. ANYTHING ELSE */}
-            {showOther && (
-              <section className="flex flex-col gap-2">
-                <label htmlFor="requirements" className="ml-7 text-[13px] font-semibold text-ink">
-                  Anything else? <span className="font-normal text-ink-muted">Optional</span>
-                </label>
-                <textarea
-                  id="requirements"
-                  rows={3}
-                  maxLength={1000}
-                  value={requirements}
-                  onChange={(e) => setRequirements(e.target.value)}
-                  placeholder="Tell us anything else your caregiver should know…"
-                  className="ml-7 rounded-[10px] border border-[var(--color-lavender-border)] bg-sheet px-3 py-2.5 text-[14px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
-                />
-              </section>
-            )}
 
             {/* 5. ESTIMATED COST — informational only, never what actually
               gets charged. The backend independently recomputes and
