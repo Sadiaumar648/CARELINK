@@ -8,7 +8,6 @@ import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
 import { RecommendationCard } from "@/components/parent/care-ai/recommendation-card";
-import { SCHEDULE_OPTIONS } from "@/components/parent/request-flow-panel";
 import type { CareRequestDraft } from "@carelink/shared";
 
 type ChatTurn = { role: "user" | "assistant"; content: string };
@@ -22,16 +21,6 @@ const SUGGESTED_PROMPTS = [
 
 const INTRO_MESSAGE =
   "Hi, I'm Nia 👋 Not sure whether you need a Nanny or a Babysitter? Tell me a bit about your situation — how often you need care, and for how long — and I'll help you decide.";
-
-// The same bucketing suggestedSkillForAge already uses (0 → newborn,
-// 1–2 → infant, 3–4 → toddler, 5+ → school-age), just mapped onto the
-// request form's own AGE_OPTIONS values instead of a skill tag.
-function ageOptionFor(age: number): string {
-  if (age === 0) return "0";
-  if (age <= 2) return "2";
-  if (age <= 4) return "4";
-  return "6";
-}
 
 function CareAiPage() {
   const router = useRouter();
@@ -106,26 +95,21 @@ function CareAiPage() {
     }
   }
 
-  // CareLink AI's one real job is done the moment a type is chosen —
-  // per the finalized product flow, it never creates a care request,
-  // searches, or dispatches itself. Tapping either recommendation
-  // option hands off to the same structured request form the direct
-  // Nanny/Babysitter cards use (RequestFlowPanel, on Home), prefilled
-  // with whatever the conversation already established. That form is
-  // what actually creates the request and starts real matching —
-  // exactly as it does for a parent who skipped the AI entirely.
+  // Nia's one real job is done the moment a type is chosen: recommend
+  // Nanny or Babysitter, nothing more. It never creates a care request,
+  // searches, or dispatches itself — and, just as deliberately, it never
+  // carries anything it learned in conversation into the request form
+  // either. Only `panel` is sent, so /parent's own ?panel= reader
+  // (app/parent/page.tsx) opens the exact same RequestFlowPanel a parent
+  // gets from the direct Nanny/Babysitter cards, completely empty —
+  // every field (child, date, time, duration, repeat, location, care
+  // needs, notes, preferred caregiver) is left for the parent to fill in
+  // themselves. Location especially: even if the parent told Nia "I need
+  // a babysitter in East Legon", that "East Legon" is never forwarded
+  // here — the parent must explicitly choose Use my current location or
+  // Enter a GPS address on the form itself.
   function chooseType(type: "nanny" | "babysitter") {
-    const params = new URLSearchParams();
-    params.set("panel", type);
-    if (draft.date) params.set("startDate", draft.date);
-    if (draft.startTime) {
-      const matched = SCHEDULE_OPTIONS.find((s) => s.startTime === draft.startTime);
-      if (matched) params.set("schedule", matched.value);
-    }
-    if (draft.location) params.set("area", draft.location);
-    if (draft.wardAgeYears != null) params.set("age", ageOptionFor(draft.wardAgeYears));
-    if (draft.notes) params.set("requirements", draft.notes);
-    router.push(`/parent?${params.toString()}`);
+    router.push(`/parent?panel=${type}`);
   }
 
   return (
