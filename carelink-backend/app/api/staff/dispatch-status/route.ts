@@ -2,11 +2,15 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authErrorResponse, requireRole } from "@/lib/auth/require-user";
 
-// "Go Available" / "Go Off Duty" (CareLink location system, Part 4).
-// Deliberately separate from staff_profiles.accepting_bookings (which
-// already gates ordinary search visibility, unaffected by this route)
-// — this is the live, caregiver-controlled signal that makes them
-// eligible for real-time dispatch specifically.
+// "Location Sharing" (CareLink location system, Part 4 — this route's
+// underlying mechanism is unchanged; only its meaning was narrowed).
+// Deliberately separate from staff_profiles.accepting_bookings
+// (/api/staff/accepting-bookings — "Receiving requests", what actually
+// gates eligibility now). Turning location sharing on/off no longer
+// makes or unmakes a caregiver dispatch-eligible — dispatch.ts stopped
+// requiring it — it only improves proximity accuracy: a live fix here
+// is preferred over the caregiver's static base location when both
+// exist (see nearby_caregiver_distances' coalesce).
 export async function GET(request: Request) {
   try {
     const { supabase, userId } = await requireRole(request, ["staff"]);

@@ -57,11 +57,13 @@ export type CaregiverSearchOptions = {
   // Dispatch-only: none of these are set by the existing search route.
   caregiverType?: "nanny" | "babysitter";
   excludeStaffProfileIds?: string[];
-  // CareLink location system, Part 4: require the caregiver to have
-  // explicitly gone Available for dispatch, with a location fix recent
-  // enough to trust — never applied to ordinary search, which must keep
-  // showing every accepting_bookings caregiver's profile regardless of
-  // whether they're live right now.
+  // CareLink location system, Part 4: require a live, fresh location
+  // fix (staff_dispatch_locations) rather than falling back to base
+  // location. No longer set by dispatch.ts (an approved, active
+  // caregiver is automatically dispatch-eligible via accepting_bookings
+  // now, whether or not they have location sharing on) — kept as a
+  // real, working option in case a future caller genuinely needs a
+  // live-fix-only filter, but nothing currently passes it.
   requireDispatchAvailable?: boolean;
   // CareLink location system, Part 7/8: a real distance ring, replacing
   // the area-string round for a request that has resolved coordinates.

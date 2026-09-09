@@ -9,11 +9,16 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { minutesAgoLabel } from "@/lib/relative-time";
 
 type Booking = {
   id: string;
   starts_at: string;
+  ends_at: string;
+  total_amount: number;
+  address: string | null;
+  careLocationGeneral?: string | null;
   status: string;
 };
 
@@ -32,8 +37,13 @@ function formatTodayLong(): string {
   });
 }
 
+function formatTimeRange(startsAt: string, endsAt: string): string {
+  const time = (d: Date) => d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return `${time(new Date(startsAt))} – ${time(new Date(endsAt))}`;
+}
+
 // The page header: greeting (real authenticated name, never hardcoded)
-// + supporting text + today's date where space permits.
+// + supporting text + today's date where space permits. Unchanged.
 function DashboardHeader() {
   const { user } = useAuth();
   const firstName = ((user?.user_metadata?.full_name as string | undefined) ?? "").split(" ")[0];
@@ -53,30 +63,90 @@ function DashboardHeader() {
   );
 }
 
-// How often the location fix is refreshed while Available — well under
-// MAX_DISPATCH_LOCATION_AGE_SECONDS (10 minutes, backend/dispatch-
-// config.ts) so a caregiver who leaves the tab open stays fresh, but
-// nowhere near continuous watchPosition tracking. Only runs at all
-// while dispatch_available is true; stops immediately on Off Duty or
-// leaving the page (Part 4/9's "no 24/7 tracking" rule).
+// CareLink's current dispatch rule: an approved, active caregiver is
+// automatically eligible for suitable care requests — agency approval,
+// caregiver type, schedule/conflicts, and service location are all
+// checked automatically by dispatch (lib/services/dispatch.ts), with no
+// manual "go available" step required. accepting_bookings (default
+// true) is the one thing a caregiver controls directly — pausing it
+// stops new requests without pretending they went "offline".
+function ReceivingRequestsControl() {
+  const [accepting, setAccepting] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    apiFetch<{ acceptingBookings: boolean }>("/api/staff/accepting-bookings")
+      .then((res) => setAccepting(res.acceptingBookings))
+      .catch((err) => setError(errorMessage(err)));
+  }, []);
+
+  function toggle() {
+    if (accepting === null) return;
+    const next = !accepting;
+    setBusy(true);
+    setError(null);
+    apiFetch<{ acceptingBookings: boolean }>("/api/staff/accepting-bookings", {
+      method: "PATCH",
+      body: { acceptingBookings: next },
+    })
+      .then((res) => setAccepting(res.acceptingBookings))
+      .catch((err) => setError(errorMessage(err)))
+      .finally(() => setBusy(false));
+  }
+
+  if (accepting === null) return <Skeleton className="h-32 w-full" />;
+
+  return (
+    <Sheet
+      className={`flex flex-col gap-3 ${accepting ? "border-[var(--color-success)]/40 bg-[var(--color-success)]/5" : "border-[var(--color-lavender-border)]"}`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted">
+            <span
+              className={`h-2 w-2 shrink-0 rounded-full ${accepting ? "bg-[var(--color-success)]" : "bg-ink-muted/40"}`}
+            />
+            {accepting ? "Receiving requests · On" : "Receiving requests · Paused"}
+          </span>
+          <h2 className="text-[16px] font-semibold text-ink">
+            {accepting ? "You're eligible for new care requests" : "New requests are paused"}
+          </h2>
+        </div>
+        <Button size="lg" variant="secondary" onClick={toggle} disabled={busy}>
+          {busy ? "Updating…" : accepting ? "Pause new requests" : "Resume new requests"}
+        </Button>
+      </div>
+      <p className="text-[13px] text-ink-muted">
+        {accepting
+          ? "CareLink automatically sends you suitable requests based on your type, schedule, and location."
+          : "You won't receive new care requests until you resume."}
+      </p>
+      {error && <p className="text-[13px] text-error">{error}</p>}
+    </Sheet>
+  );
+}
+
+// How often the location fix is refreshed while sharing is on — well
+// under MAX_DISPATCH_LOCATION_AGE_SECONDS (10 minutes, backend/
+// dispatch-config.ts). Only runs while dispatch_available is true;
+// stops immediately when turned off or on leaving the page (Part 4/9's
+// "no 24/7 tracking" rule) — unchanged from before this redesign.
 const LOCATION_REFRESH_INTERVAL_MS = 4 * 60 * 1000;
 
 type DispatchStatus = { available: boolean; updatedAt: string | null };
 
-// CareLink location system, Part 4 — the caregiver's own control for
-// live dispatch eligibility. Every bit of state/logic here is unchanged
-// from before this redesign: location is only ever requested once the
-// caregiver explicitly taps Go Available, same discipline as SafeTrack
-// (components/safe-track.tsx) — never on page load, never silently.
-// Only the returned JSX changed: availability and location are two
-// visually distinct cards (availability prominent, location secondary)
-// — no new state was introduced to do this.
-function GoAvailableControl() {
+// LOCATION SHARING — the underlying mechanism (staff_profiles.
+// dispatch_available + staff_dispatch_locations, real GPS, only ever
+// requested on an explicit tap) is unchanged. What changed: this no
+// longer gates whether a caregiver receives requests at all (that's
+// ReceivingRequestsControl above, and dispatch.ts's own automatic
+// eligibility checks) — sharing location just improves how precisely
+// nearby requests are matched, falling back to the caregiver's base
+// location otherwise.
+function LocationSharingCard() {
   const [status, setStatus] = useState<DispatchStatus | null>(null);
-  // Tracked separately from a plain boolean so the button can show a
-  // distinct "Getting you ready…" label specifically while obtaining a
-  // location for Go Available — not a generic busy state.
-  const [actionInProgress, setActionInProgress] = useState<"available" | "offDuty" | null>(null);
+  const [actionInProgress, setActionInProgress] = useState<"on" | "off" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const refreshTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -93,8 +163,6 @@ function GoAvailableControl() {
     }
   }
 
-  // The one shared step both the initial "Go Available" tap and every
-  // periodic refresh use — a fresh GPS fix, sent up immediately.
   function captureAndSend(onDone: (result: DispatchStatus | null) => void) {
     if (!navigator.geolocation) {
       onDone(null);
@@ -120,7 +188,7 @@ function GoAvailableControl() {
       (err) => {
         setError(
           err.code === err.PERMISSION_DENIED
-            ? "Location access is required to receive nearby dispatch requests. Enable location for this site in your browser settings, then tap Go Available again."
+            ? "Location access was denied. Enable location for this site in your browser settings to turn sharing on."
             : "We couldn't get your location right now. Try again in a moment.",
         );
         onDone(null);
@@ -129,14 +197,9 @@ function GoAvailableControl() {
     );
   }
 
-  // Only ever marks the caregiver Available once a real, current
-  // location has actually been obtained — an Available caregiver must
-  // have a fresh dispatch location, never an assumed one. If location
-  // fails or permission is denied, captureAndSend passes null and the
-  // caregiver simply stays Off Duty, with the reason shown above.
-  function goAvailable() {
+  function turnOn() {
     setError(null);
-    setActionInProgress("available");
+    setActionInProgress("on");
     captureAndSend((result) => {
       setActionInProgress(null);
       if (!result) return;
@@ -150,9 +213,9 @@ function GoAvailableControl() {
     });
   }
 
-  function goOffDuty() {
+  function turnOff() {
     setError(null);
-    setActionInProgress("offDuty");
+    setActionInProgress("off");
     stopRefreshing();
     apiFetch<{ available: boolean }>("/api/staff/dispatch-status", {
       method: "POST",
@@ -165,123 +228,178 @@ function GoAvailableControl() {
 
   useEffect(() => stopRefreshing, []);
 
-  // Same real card shells the loaded state below renders — not a
-  // separate loading screen, just this section's own two cards filling
-  // their already-visible space while their one fetch is in flight.
-  // Never absent: the rest of the page (header, stat cards, profile
-  // banner) is already visible at this point, and this is the one piece
-  // that used to be missing entirely, reading as a different, shorter
-  // page until it popped in.
-  if (!status) {
-    return (
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_320px]">
-        <Skeleton className="h-28 w-full" />
-        <Skeleton className="h-28 w-full" />
-      </div>
-    );
-  }
+  if (!status) return <Skeleton className="h-32 w-full" />;
 
   const busy = actionInProgress !== null;
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_320px]">
-      {/* AVAILABILITY — the most prominent section on the page. */}
-      <Sheet
-        className={`flex flex-col gap-3 ${status.available ? "border-[var(--color-success)]/40 bg-[var(--color-success)]/5" : "border-[var(--color-lavender-border)]"}`}
-      >
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            {status.available && (
-              <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--color-success)]">
-                <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--color-success)]" />
-                Available
-              </span>
-            )}
-            <h2 className="text-[16px] font-semibold text-ink">
-              {status.available ? "You're available for care" : "You're currently off duty"}
-            </h2>
-          </div>
-          <Button
-            size="lg"
-            variant={status.available ? "secondary" : "primary"}
-            onClick={status.available ? goOffDuty : goAvailable}
-            disabled={busy}
-          >
-            {actionInProgress === "available"
-              ? "Getting you ready…"
-              : busy
-                ? "Updating…"
-                : status.available
-                  ? "Go Off Duty"
-                  : "Go Available"}
-          </Button>
-        </div>
-        <p className="text-[13px] text-ink-muted">
-          {status.available
-            ? "CareLink can send you nearby care requests while you're available."
-            : "Go available to start receiving nearby care requests."}
-        </p>
-        {error && <p className="text-[13px] text-error">{error}</p>}
-      </Sheet>
-
-      {/* LOCATION — visually secondary, and only ever framed as tied to
-          being Available, never as continuous/background tracking. */}
-      <Sheet className="flex flex-col gap-2 border-hairline">
+    <Sheet className="flex flex-col gap-2 border-hairline">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <MapPin size={16} className={status.available ? "text-wisteria" : "text-ink-muted"} />
           <p className="text-[13px] font-semibold text-ink">
-            Location sharing: {status.available ? "On" : "Off"}
+            Location Sharing · {status.available ? "On" : "Off"}
           </p>
         </div>
-        <p className="text-[12px] leading-relaxed text-ink-muted">
-          {status.available
-            ? "Your current location is being used for nearby care requests while you're available."
-            : "Your location is used to find care requests near you while you're available."}
-        </p>
-        {status.available && status.updatedAt && (
-          <p className="text-[11.5px] text-ink-muted">
-            Last updated {minutesAgoLabel(status.updatedAt)}
-          </p>
-        )}
-        <Link
-          href="/staff/profile"
-          className="self-start text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
+        <button
+          type="button"
+          onClick={status.available ? turnOff : turnOn}
+          disabled={busy}
+          className="text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover disabled:opacity-50"
         >
-          Manage
-        </Link>
-      </Sheet>
-    </div>
+          {actionInProgress === "on"
+            ? "Turning on…"
+            : busy
+              ? "Updating…"
+              : status.available
+                ? "Turn off"
+                : "Turn on"}
+        </button>
+      </div>
+      <p className="text-[12px] leading-relaxed text-ink-muted">
+        Your location helps CareLink find nearby care requests.
+      </p>
+      {status.available && status.updatedAt && (
+        <p className="text-[11.5px] text-ink-muted">
+          Last updated {minutesAgoLabel(status.updatedAt)}
+        </p>
+      )}
+      {error && <p className="text-[12px] text-error">{error}</p>}
+      <Link
+        href="/staff/profile"
+        className="self-start text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
+      >
+        Manage location
+      </Link>
+    </Sheet>
   );
 }
 
-// REQUESTS — a real count of pending offers, no fabricated number. The
-// full list with Accept/Decline lives on its own /staff/requests page
-// (Section 11 of the redesign); Home only ever shows the count.
-function RequestsStat() {
-  const [count, setCount] = useState<number | null>(null);
+// CARE REQUESTS — the real, actual pending offers (same
+// GET /api/bookings?status=pending the full /staff/requests list uses),
+// shown here as a short preview rather than duplicating that page's
+// Accept/Decline flow.
+function CareRequestsSection() {
+  const [bookings, setBookings] = useState<Booking[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     apiFetch<{ bookings: Booking[] }>("/api/bookings?status=pending")
-      .then((res) => setCount(res.bookings.length))
-      .catch(() => setCount(null));
+      .then((res) => setBookings(res.bookings))
+      .catch((err) => setError(errorMessage(err)));
   }, []);
 
   return (
-    <Link href="/staff/requests">
-      <Sheet className="flex flex-col gap-1.5 hover:border-wisteria/50">
-        <Tray size={18} className="text-wisteria" />
-        <span className="text-[22px] font-semibold tabular-nums text-ink">{count ?? "…"}</span>
-        <span className="text-[12px] font-semibold text-ink">Requests waiting</span>
-        <span className="text-[11.5px] font-semibold text-wisteria">View requests</span>
-      </Sheet>
-    </Link>
+    <section className="flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-[16px] font-semibold text-ink">Care Requests</h2>
+        {bookings && bookings.length > 0 && (
+          <Link
+            href="/staff/requests"
+            className="text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
+          >
+            View all
+          </Link>
+        )}
+      </div>
+      {error && <p className="text-[13px] text-error">{error}</p>}
+      {!error && bookings === null && <Skeleton className="h-20 w-full" />}
+      {!error && bookings?.length === 0 && (
+        <EmptyState
+          icon={Tray}
+          title="No new requests right now"
+          description="CareLink will automatically send you suitable care requests when they become available."
+        />
+      )}
+      {!error && bookings && bookings.length > 0 && (
+        <div className="flex flex-col gap-2.5">
+          {bookings.slice(0, 3).map((b) => (
+            <Link key={b.id} href="/staff/requests">
+              <Sheet className="flex items-center justify-between gap-3 hover:border-wisteria/50">
+                <div className="flex flex-col gap-0.5">
+                  <p className="text-[14px] font-semibold text-ink">
+                    {formatTimeRange(b.starts_at, b.ends_at)}
+                  </p>
+                  <p className="text-[12.5px] text-ink-muted">
+                    {b.address ?? b.careLocationGeneral ?? "Location shown once accepted"}
+                  </p>
+                </div>
+                <p className="text-[15px] font-semibold tabular-nums text-ink">
+                  GH₵{b.total_amount}
+                </p>
+              </Sheet>
+            </Link>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
-// UPCOMING — real, already-accepted sessions starting this week, from
-// the caregiver's own bookings (same GET /api/bookings the Schedule
-// page already calls). Deliberately excludes today alone; the full
-// schedule already has its own dedicated page (Section 12).
+// TODAY'S CARE — real confirmed/upcoming/in-progress bookings starting
+// today, from the caregiver's own GET /api/bookings (same data the
+// Schedule page uses).
+function TodaysCareSection() {
+  const [bookings, setBookings] = useState<Booking[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    apiFetch<{ bookings: Booking[] }>("/api/bookings")
+      .then((res) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const todays = res.bookings.filter((b) => {
+          if (!["accepted", "paid", "active"].includes(b.status)) return false;
+          const startsAt = new Date(b.starts_at);
+          return startsAt >= today && startsAt < tomorrow;
+        });
+        setBookings(todays);
+      })
+      .catch((err) => setError(errorMessage(err)));
+  }, []);
+
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-[16px] font-semibold text-ink">Today&apos;s Care</h2>
+      {error && <p className="text-[13px] text-error">{error}</p>}
+      {!error && bookings === null && <Skeleton className="h-20 w-full" />}
+      {!error && bookings?.length === 0 && (
+        <EmptyState
+          icon={CalendarCheck}
+          title="No care scheduled for today"
+          description="Confirmed bookings starting today will show up here."
+        />
+      )}
+      {!error && bookings && bookings.length > 0 && (
+        <div className="flex flex-col gap-2.5">
+          {bookings.map((b) => (
+            <Link key={b.id} href={`/staff/schedule/${b.id}`}>
+              <Sheet className="flex items-center justify-between gap-3 hover:border-wisteria/50">
+                <div className="flex flex-col gap-0.5">
+                  <p className="text-[14px] font-semibold text-ink">
+                    {formatTimeRange(b.starts_at, b.ends_at)}
+                  </p>
+                  <p className="text-[12.5px] text-ink-muted">
+                    {b.address ?? b.careLocationGeneral ?? "Address shared with confirmed bookings"}
+                  </p>
+                </div>
+                <span className="rounded-full bg-wisteria-tint px-2.5 py-1 text-[11.5px] font-semibold capitalize text-wisteria-pressed">
+                  {b.status}
+                </span>
+              </Sheet>
+            </Link>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// UPCOMING — real, already-accepted sessions starting this week.
+// Unchanged from before this redesign; a different granularity from
+// Today's Care above, and the full schedule still has its own page.
 function UpcomingStat() {
   const [count, setCount] = useState<number | null>(null);
 
@@ -314,8 +432,7 @@ function UpcomingStat() {
 }
 
 // EARNINGS — this month's real total, reusing the existing
-// GET /api/staff/earnings the Earnings page already calls; nothing new
-// on the backend.
+// GET /api/staff/earnings the Earnings page already calls. Unchanged.
 function EarningsStat() {
   const [monthTotal, setMonthTotal] = useState<number | null>(null);
 
@@ -339,9 +456,7 @@ function EarningsStat() {
   );
 }
 
-// "Caregiver profile/readiness" — a clean icon-in-circle treatment
-// rather than a stock photo, since there's no existing caregiver-facing
-// illustration asset in this project to reuse honestly.
+// "Caregiver profile/readiness" — unchanged.
 function ProfileReadinessBanner() {
   return (
     <Sheet className="flex flex-col items-center gap-4 border-[var(--color-lavender-border)] bg-wisteria-tint p-6 text-center sm:flex-row sm:items-center sm:text-left">
@@ -368,10 +483,15 @@ export default function StaffHomePage() {
     <div className="mx-auto flex max-w-4xl flex-col gap-8 p-6 md:p-8">
       <DashboardHeader />
 
-      <GoAvailableControl />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_320px]">
+        <ReceivingRequestsControl />
+        <LocationSharingCard />
+      </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <RequestsStat />
+      <CareRequestsSection />
+      <TodaysCareSection />
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <UpcomingStat />
         <EarningsStat />
       </div>
