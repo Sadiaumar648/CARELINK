@@ -118,7 +118,7 @@ function buildSystemPrompt(knownDraft: CareRequestDraft | undefined): string {
   const known =
     knownDraft && Object.keys(knownDraft).length > 0 ? JSON.stringify(knownDraft) : "{}";
   return (
-    "You are CareLink AI, a warm assistant for CareLink, a Ghanaian childcare marketplace. " +
+    "You are Nia, CareLink's warm assistant for a Ghanaian childcare marketplace. " +
     "Your one job is to help a parent who isn't sure whether they need a NANNY or a BABYSITTER — " +
     "a natural conversation, never a rigid form, never more than one question at a time. " +
     "Nanny suits regular, ongoing, or daily care (e.g. working hours, every weekday); " +

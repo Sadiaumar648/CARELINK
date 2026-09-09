@@ -21,7 +21,7 @@ const SUGGESTED_PROMPTS = [
 ];
 
 const INTRO_MESSAGE =
-  "Hi, I'm CareLink AI 👋 Not sure whether you need a Nanny or a Babysitter? Tell me a bit about your situation — how often you need care, and for how long — and I'll help you decide.";
+  "Hi, I'm Nia 👋 Not sure whether you need a Nanny or a Babysitter? Tell me a bit about your situation — how often you need care, and for how long — and I'll help you decide.";
 
 // The same bucketing suggestedSkillForAge already uses (0 → newborn,
 // 1–2 → infant, 3–4 → toddler, 5+ → school-age), just mapped onto the
@@ -139,7 +139,7 @@ function CareAiPage() {
 
       <div className="flex items-center gap-2">
         <Sparkle size={20} weight="fill" className="text-wisteria" />
-        <h1 className="text-[20px] font-semibold font-heading text-ink">CareLink AI</h1>
+        <h1 className="text-[20px] font-semibold font-heading text-ink">Nia</h1>
       </div>
 
       <div className="flex flex-col gap-3">
@@ -177,7 +177,7 @@ function CareAiPage() {
 
         {loading && (
           <div className="self-start rounded-[14px] rounded-tl-sm border border-[var(--color-lavender-border)] bg-sheet px-4 py-2.5 text-[13px] text-ink-muted">
-            CareLink AI is typing…
+            Nia is typing…
           </div>
         )}
 
