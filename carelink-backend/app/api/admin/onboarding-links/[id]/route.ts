@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authErrorResponse, requireRole } from "@/lib/auth/require-user";
 
-// Only "deactivate" is implemented — "View registrations" isn't,
-// deliberately: no real registration ever happened through this link
-// (the /caregiver/join/[token] self-registration page doesn't exist
-// yet), so there is nothing real to show. Not built here rather than
-// faked.
+// Only "deactivate" is implemented — "View registrations" isn't. Real
+// registrations do now happen through this link (POST
+// /api/auth/join-onboarding-link), but nothing links a
+// caregiver_onboarding_links row back to the users it created — that's
+// a genuinely separate feature (an audit/detail view), not built here
+// rather than faked.
 const patchSchema = z.object({
   action: z.literal("deactivate"),
 });

@@ -9,7 +9,10 @@ export const staffAreaSchema = z.object({
 });
 
 export const staffAreasSchema = z.object({
-  areas: z.array(staffAreaSchema).min(1, "Add at least one service area"),
+  areas: z
+    .array(staffAreaSchema)
+    .min(1, "Add at least one service area")
+    .max(3, "Add up to 3 service areas"),
 });
 
 export type StaffAreasInput = z.infer<typeof staffAreasSchema>;

@@ -15,6 +15,15 @@ const UNSET_CAREGIVER_TYPE_PLACEHOLDER_RATE = Math.min(...Object.values(CARELINK
 
 // Task 2.1. staff_profiles doesn't exist until the caregiver's first
 // save, so PATCH upserts on user_id rather than requiring a prior row.
+//
+// yearsExperience/emergencyContactName/emergencyContactPhone are all
+// optional in staffProfileSchema now (see packages/shared) — when a
+// caller omits one, body.<field> is undefined, and Supabase's upsert
+// drops undefined keys from the outgoing JSON entirely (same pattern
+// already used for baseAddress/baseLatitude/etc. below). That means an
+// omitted field is left at its existing value on update, or its column
+// default (now nullable for all three) on the caregiver's first-ever
+// save during onboarding — never overwritten with a fabricated value.
 export async function GET(request: Request) {
   try {
     const { supabase, userId } = await requireRole(request, ["staff"]);
