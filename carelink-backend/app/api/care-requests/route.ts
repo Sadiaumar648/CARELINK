@@ -44,6 +44,25 @@ export async function POST(request: Request) {
       if (!ward) return NextResponse.json({ error: "Ward not found" }, { status: 404 });
     }
 
+    // A light existence/type sanity check only — real eligibility (date/
+    // time/schedule conflicts/service area) is checked for real when
+    // dispatch actually tries this caregiver (lib/services/dispatch.ts),
+    // never here.
+    if (body.preferredStaffProfileId) {
+      const { data: preferred, error: preferredErr } = await supabase
+        .from("public_caregivers")
+        .select("staff_profile_id, caregiver_type")
+        .eq("staff_profile_id", body.preferredStaffProfileId)
+        .maybeSingle();
+      if (preferredErr) return NextResponse.json({ error: preferredErr.message }, { status: 500 });
+      if (!preferred || preferred.caregiver_type !== body.caregiverType) {
+        return NextResponse.json(
+          { error: "That caregiver isn't available as a preferred choice for this request" },
+          { status: 400 },
+        );
+      }
+    }
+
     // Duration and session count, both computed from real inputs — never
     // trusted from the client — feeding the one authoritative price
     // formula (see packages/shared/src/pricing.ts).
@@ -72,6 +91,7 @@ export async function POST(request: Request) {
       .insert({
         parent_profile_id: parentProfileId,
         ward_id: body.wardId ?? null,
+        preferred_staff_profile_id: body.preferredStaffProfileId ?? null,
         source: body.source,
         caregiver_type: body.caregiverType,
         date: body.date,
