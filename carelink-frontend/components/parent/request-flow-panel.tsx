@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CaretRight, MagnifyingGlass, Plus, X } from "@phosphor-icons/react";
+import { ArrowLeft, CaretRight, MagnifyingGlass, Plus } from "@phosphor-icons/react";
 import { calculateTotalAmount, hourlyRateFor } from "@carelink/shared";
 import { Sheet } from "@/components/ui/sheet";
 import { Field } from "@/components/ui/field";
@@ -25,6 +25,11 @@ type CaregiverType = "nanny" | "babysitter";
 // with real lat/lng so it's genuinely proximity-sorted), filtered
 // client-side to this request's caregiver type — no new search endpoint.
 type PreferredCandidate = { staff_profile_id: string; full_name: string; caregiver_type: string };
+
+// Two real screens, not one — "Find Care" only ever validates and
+// submits the request *details*; picking who it's sent to is a second,
+// later step, once CareLink actually knows who's nearby and available.
+type FlowStep = "form" | "results";
 
 export type RequestFlowInitial = {
   startDate?: string;
@@ -254,25 +259,58 @@ export function RequestFlowPanel({
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const [step, setStep] = useState<FlowStep>("form");
+  // Set only once a card in the results list is actually clicked — while
+  // non-null and `submitting` is true, it's who the request is currently
+  // being sent to (drives the per-card "Sending…" state below).
   const [preferredCaregiver, setPreferredCaregiver] = useState<PreferredCandidate | null>(null);
-  const [preferredPickerOpen, setPreferredPickerOpen] = useState(false);
   const [preferredCandidates, setPreferredCandidates] = useState<PreferredCandidate[] | null>(null);
   const [preferredSearch, setPreferredSearch] = useState("");
 
-  function openPreferredPicker() {
-    setPreferredPickerOpen(true);
+  // "Find Care": validates every request-detail field, then fetches the
+  // real, eligible, nearby caregiver list and moves to the results
+  // screen — never submits the actual request itself. Mirrors
+  // chooseCaregiver's own required-field checks below, just surfaced
+  // before the click instead of after it.
+  function onFindCare(e: React.FormEvent) {
+    e.preventDefault();
+    if (!wardId) {
+      setFormError("Choose which child this request is for.");
+      return;
+    }
+    if (!startTime) {
+      setFormError("Choose a start time to continue.");
+      return;
+    }
+    if (requirementChips.size === 0 && !(showOther && requirements.trim())) {
+      setFormError("Choose at least one care need.");
+      return;
+    }
+    if (!startDate) {
+      setFormError("Choose a date to continue.");
+      return;
+    }
+    // CareLink's strict rule: no valid, map-resolved location, no
+    // caregiver search — enforced here and again by the backend
+    // (POST /api/care-requests requires the real coordinates, not just
+    // a non-empty string).
+    if (!location) {
+      setFormError(
+        "Where will care take place? Please provide an exact GPS location so we can find caregivers who can serve you.",
+      );
+      return;
+    }
+    setFormError(null);
+    setStep("results");
     setPreferredCandidates(null); // re-fetch every time — proximity depends on location, which can change
     const params = new URLSearchParams();
-    const area = location?.coarseArea ?? location?.formattedAddress;
+    const area = location.coarseArea ?? location.formattedAddress;
     if (area) params.set("area", area);
-    // Real coordinates, when the location step already resolved them —
-    // this is what makes the list genuinely sorted by proximity
-    // (computeProximityFit in lib/services/matching.ts) rather than just
-    // an area-string match.
-    if (location) {
-      params.set("latitude", String(location.latitude));
-      params.set("longitude", String(location.longitude));
-    }
+    // Real coordinates — this is what makes the list genuinely sorted by
+    // proximity (computeProximityFit in lib/services/matching.ts) rather
+    // than just an area-string match.
+    params.set("latitude", String(location.latitude));
+    params.set("longitude", String(location.longitude));
     apiFetch<{ results: PreferredCandidate[] }>(`/api/search/caregivers?${params.toString()}`)
       .then((res) => setPreferredCandidates(res.results.filter((c) => c.caregiver_type === type)))
       .catch(() => setPreferredCandidates([]));
@@ -324,40 +362,16 @@ export function RequestFlowPanel({
     });
   }
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!wardId) {
-      setFormError("Choose which child this request is for.");
-      return;
-    }
-    if (!startTime) {
-      setFormError("Choose a start time to continue.");
-      return;
-    }
-    if (requirementChips.size === 0 && !(showOther && requirements.trim())) {
-      setFormError("Choose at least one care need.");
-      return;
-    }
-    if (!startDate) {
-      setFormError("Choose a date to continue.");
-      return;
-    }
-    // CareLink's strict rule: no valid, map-resolved location, no
-    // caregiver search — enforced here and again by the backend
-    // (POST /api/care-requests requires the real coordinates, not just
-    // a non-empty string).
-    if (!location) {
-      setFormError(
-        "Where will care take place? Please provide an exact GPS location so we can find caregivers who can serve you.",
-      );
-      return;
-    }
-    // A parent must pick a specific caregiver from the real, eligible,
-    // nearby list — CareLink no longer auto-picks one on its own.
-    if (!preferredCaregiver) {
-      setFormError("Choose a caregiver to continue.");
-      return;
-    }
+  // Picking a caregiver off the results list *is* the real submit — the
+  // request and lib/services/dispatch.ts's existing preferred-caregiver
+  // path (offer to this one caregiver first, pause rather than
+  // auto-advance if they decline) both fire the moment a card is
+  // clicked. `location` is always resolved by the time this screen can
+  // even be reached (onFindCare above won't move past step "form"
+  // otherwise).
+  async function chooseCaregiver(c: PreferredCandidate) {
+    if (submitting || !location) return;
+    setPreferredCaregiver(c);
     setFormError(null);
     setSubmitting(true);
 
@@ -374,7 +388,7 @@ export function RequestFlowPanel({
         method: "POST",
         body: {
           wardId,
-          preferredStaffProfileId: preferredCaregiver.staff_profile_id,
+          preferredStaffProfileId: c.staff_profile_id,
           source: "direct",
           caregiverType: type,
           date: filters.date,
@@ -396,6 +410,7 @@ export function RequestFlowPanel({
     } catch (err) {
       setFormError(errorMessage(err));
       setSubmitting(false);
+      setPreferredCaregiver(null);
     }
   }
 
@@ -409,16 +424,17 @@ export function RequestFlowPanel({
     priceDurationHours > 0 ? calculateTotalAmount(type, priceDurationHours, 1) : null;
 
   // Find Care stays disabled until every field the backend will actually
-  // require is genuinely filled in — mirrors onSubmit's own checks above,
-  // just surfaced before the click instead of after it.
+  // require is genuinely filled in — mirrors onFindCare's own checks
+  // above, just surfaced before the click instead of after it. Choosing
+  // a caregiver happens on the next screen, so it's not part of this
+  // check.
   const hasCareNeed = requirementChips.size > 0 || (showOther && Boolean(requirements.trim()));
-  const canSubmit =
+  const canFindCare =
     Boolean(wardId) &&
     Boolean(startTime) &&
     Boolean(duration) &&
     Boolean(startDate) &&
     Boolean(location) &&
-    Boolean(preferredCaregiver) &&
     hasCareNeed;
 
   return (
@@ -455,10 +471,81 @@ export function RequestFlowPanel({
             }}
             onCancel={() => setAddingWard(false)}
           />
+        ) : step === "results" ? (
+          <Sheet className="flex flex-col gap-5 border-[var(--color-lavender-border)]">
+            <button
+              type="button"
+              onClick={() => setStep("form")}
+              className="flex items-center gap-1.5 self-start text-[13px] font-semibold text-ink-muted hover:text-ink"
+            >
+              <ArrowLeft size={14} /> Edit request details
+            </button>
+
+            <div>
+              <h2 className="text-[19px] font-semibold font-heading text-ink">
+                Choose a caregiver
+              </h2>
+              <p className="text-[13px] text-ink-muted">
+                These verified {copy.heading.toLowerCase()}s are near your requested location.
+                CareLink will send your request to the one you choose — if they&apos;re unavailable,
+                you can come back and try someone else.
+              </p>
+            </div>
+
+            <div className="relative">
+              <MagnifyingGlass
+                size={16}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted"
+              />
+              <input
+                value={preferredSearch}
+                onChange={(e) => setPreferredSearch(e.target.value)}
+                placeholder="Search by name"
+                className="w-full rounded-[10px] border border-[var(--color-lavender-border)] bg-sheet py-2 pl-9 pr-3 text-[14px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
+              />
+            </div>
+
+            {preferredCandidates === null && (
+              <p className="text-[13px] text-ink-muted">Loading caregivers near you…</p>
+            )}
+            {preferredCandidates !== null && filteredPreferredCandidates.length === 0 && (
+              <p className="text-[13px] text-ink-muted">
+                No {copy.heading.toLowerCase()}s found near this location yet. Try a different
+                location, or check back later.
+              </p>
+            )}
+            {filteredPreferredCandidates.length > 0 && (
+              <div className="flex flex-col gap-2">
+                {filteredPreferredCandidates.map((c) => {
+                  const sendingThisOne =
+                    submitting && preferredCaregiver?.staff_profile_id === c.staff_profile_id;
+                  return (
+                    <button
+                      key={c.staff_profile_id}
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => void chooseCaregiver(c)}
+                      className="flex items-center justify-between gap-3 rounded-[12px] border border-[var(--color-lavender-border)] p-3 text-left hover:border-wisteria disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Avatar photoUrl={null} name={c.full_name} size="sm" />
+                        <p className="text-[14px] font-medium text-ink">{c.full_name}</p>
+                      </div>
+                      <span className="text-[13px] font-semibold text-wisteria">
+                        {sendingThisOne ? "Sending…" : "Request"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {formError && <p className="text-[13px] text-error">{formError}</p>}
+          </Sheet>
         ) : (
           <Sheet
             as="form"
-            onSubmit={onSubmit}
+            onSubmit={onFindCare}
             className="flex flex-col gap-6 border-[var(--color-lavender-border)]"
           >
             {/* 1. WHO NEEDS CARE */}
@@ -653,102 +740,6 @@ export function RequestFlowPanel({
               </section>
             )}
 
-            {/* CHOOSE A CAREGIVER — required. CareLink shows every real,
-              eligible caregiver near the chosen location; the parent
-              picks one, and only that one caregiver is then sent the
-              request to accept or decline (lib/services/dispatch.ts's
-              existing preferred-caregiver path — reused as-is, just no
-              longer optional). If they decline, don't respond in time,
-              or turn out ineligible after all, the parent is asked
-              whether to try someone else — CareLink never auto-assigns
-              a caregiver on its own. */}
-            <section className="flex flex-col gap-3 border-t border-[var(--color-lavender-border)] pt-6">
-              <div>
-                <h2 className="text-[13px] font-bold uppercase tracking-[0.08em] text-ink">
-                  Choose a caregiver
-                </h2>
-                <p className="text-[12px] text-ink-muted">
-                  CareLink will send your request to the caregiver you choose. If they&apos;re
-                  unavailable, you can ask CareLink to find another suitable caregiver.
-                </p>
-              </div>
-
-              {preferredCaregiver ? (
-                <div className="flex items-center justify-between gap-3 rounded-[12px] border border-[var(--color-lavender-border)] p-3">
-                  <div className="flex items-center gap-3">
-                    <Avatar photoUrl={null} name={preferredCaregiver.full_name} size="sm" />
-                    <p className="text-[14px] font-semibold text-ink">
-                      {preferredCaregiver.full_name}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setPreferredCaregiver(null)}
-                    className="text-[13px] font-semibold text-wisteria hover:text-wisteria-hover"
-                  >
-                    Change
-                  </button>
-                </div>
-              ) : preferredPickerOpen ? (
-                <div className="flex flex-col gap-3 rounded-[12px] border border-[var(--color-lavender-border)] p-3">
-                  <div className="relative">
-                    <MagnifyingGlass
-                      size={16}
-                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted"
-                    />
-                    <input
-                      value={preferredSearch}
-                      onChange={(e) => setPreferredSearch(e.target.value)}
-                      placeholder="Search by name"
-                      className="w-full rounded-[10px] border border-[var(--color-lavender-border)] bg-sheet py-2 pl-9 pr-3 text-[14px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
-                    />
-                  </div>
-                  {preferredCandidates === null && (
-                    <p className="text-[13px] text-ink-muted">Loading caregivers near you…</p>
-                  )}
-                  {preferredCandidates !== null && filteredPreferredCandidates.length === 0 && (
-                    <p className="text-[13px] text-ink-muted">
-                      No caregivers found near this location yet.
-                    </p>
-                  )}
-                  {filteredPreferredCandidates.length > 0 && (
-                    <div className="flex max-h-56 flex-col gap-1.5 overflow-y-auto">
-                      {filteredPreferredCandidates.map((c) => (
-                        <button
-                          key={c.staff_profile_id}
-                          type="button"
-                          onClick={() => {
-                            setPreferredCaregiver(c);
-                            setPreferredPickerOpen(false);
-                          }}
-                          className="flex items-center gap-3 rounded-[10px] p-2 text-left hover:bg-paper"
-                        >
-                          <Avatar photoUrl={null} name={c.full_name} size="sm" />
-                          <p className="text-[14px] font-medium text-ink">{c.full_name}</p>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setPreferredPickerOpen(false)}
-                    className="flex w-fit items-center gap-1.5 text-[13px] font-semibold text-ink-muted hover:text-ink"
-                  >
-                    <X size={14} /> Cancel
-                  </button>
-                </div>
-              ) : (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={openPreferredPicker}
-                  className="w-fit"
-                >
-                  Choose a caregiver
-                </Button>
-              )}
-            </section>
-
             {/* 5. ESTIMATED COST — informational only, never what actually
               gets charged. The backend independently recomputes and
               charges this same figure at booking time; nothing here is
@@ -781,13 +772,13 @@ export function RequestFlowPanel({
               <Button
                 type="submit"
                 size="lg"
-                disabled={submitting || wards === null || wards.length === 0 || !canSubmit}
+                disabled={wards === null || wards.length === 0 || !canFindCare}
                 className="w-full justify-center"
               >
-                {submitting ? "Starting your search…" : "Find Care"}
+                Find Care
               </Button>
               <p className="text-[12px] text-ink-muted">
-                We&apos;ll find an available, verified caregiver near you.
+                We&apos;ll show you verified caregivers near you to choose from.
               </p>
             </div>
           </Sheet>
