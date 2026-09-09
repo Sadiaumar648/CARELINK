@@ -52,6 +52,27 @@ export default function ClaimInvitationPage() {
           // fall through to the normal dashboard redirect
         }
       }
+      if (me.role === "staff") {
+        // A caregiver claiming an invitation for the first time hasn't
+        // set a caregiver type yet (admin invites only create the login,
+        // not a staff_profiles row — see api/admin/staff) — send them
+        // through identity verification first, then caregiver type +
+        // service location (onboarding/identity's own nextHref chains
+        // to /onboarding/caregiver for a staff role). A caregiver who's
+        // already onboarded goes straight to their dashboard, same as
+        // everyone else.
+        try {
+          const { profile } = await apiFetch<{
+            profile: { caregiver_type: string | null } | null;
+          }>("/api/staff/profile");
+          if (!profile || !profile.caregiver_type) {
+            router.replace("/onboarding/identity");
+            return;
+          }
+        } catch {
+          // fall through to the normal dashboard redirect
+        }
+      }
       router.replace(`/${me.role}`);
     } catch (err) {
       setError(errorMessage(err));

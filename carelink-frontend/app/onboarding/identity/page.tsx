@@ -48,6 +48,13 @@ export default function IdentityVerificationPage() {
   // through CareLink to review. Checked separately from `submissions`
   // so that case still skips the document-upload wizard.
   const [agencyVerified, setAgencyVerified] = useState<boolean | null>(null);
+  // Shared by both onboarding tracks (see RequireRole in the layout) —
+  // a parent continues to the existing household/ward wizard, while a
+  // caregiver continues to /onboarding/caregiver (type + service
+  // location) since /onboarding/setup is parent-only content. Defaults
+  // to the parent destination until role is known, matching this page's
+  // pre-existing behavior for every parent.
+  const [nextHref, setNextHref] = useState("/onboarding/setup");
 
   // If the parent already gave a Ghana Card number and live photo at
   // registration (/register), pick it up here rather than asking again —
@@ -96,9 +103,11 @@ export default function IdentityVerificationPage() {
 
   useEffect(() => {
     let cancelled = false;
-    apiFetch<{ verificationStatus: string }>("/api/me")
+    apiFetch<{ role: string; verificationStatus: string }>("/api/me")
       .then((res) => {
-        if (!cancelled) setAgencyVerified(res.verificationStatus === "verified");
+        if (cancelled) return;
+        setAgencyVerified(res.verificationStatus === "verified");
+        if (res.role === "staff") setNextHref("/onboarding/caregiver");
       })
       .catch(() => {
         if (!cancelled) setAgencyVerified(false);
@@ -186,7 +195,7 @@ export default function IdentityVerificationPage() {
           <p className="max-w-sm text-[15px] text-ink-muted">
             Your identity has been successfully verified.
           </p>
-          <Button onClick={() => router.push("/onboarding/setup")}>Continue →</Button>
+          <Button onClick={() => router.push(nextHref)}>Continue</Button>
         </div>
       );
     }
@@ -223,7 +232,7 @@ export default function IdentityVerificationPage() {
           Your identity verification is being reviewed. This usually doesn&apos;t take long — you
           can continue setting up your profile in the meantime.
         </p>
-        <Button onClick={() => router.push("/onboarding/setup")}>Continue →</Button>
+        <Button onClick={() => router.push(nextHref)}>Continue</Button>
       </div>
     );
   }
@@ -236,7 +245,7 @@ export default function IdentityVerificationPage() {
         <p className="max-w-sm text-[15px] text-ink-muted">
           Your identity has already been verified by CareLink.
         </p>
-        <Button onClick={() => router.push("/onboarding/setup")}>Continue →</Button>
+        <Button onClick={() => router.push(nextHref)}>Continue</Button>
       </div>
     );
   }
@@ -249,7 +258,7 @@ export default function IdentityVerificationPage() {
         <p className="max-w-sm text-[15px] text-ink-muted">
           Your identity verification has been submitted and is being reviewed.
         </p>
-        <Button onClick={() => router.push("/onboarding/setup")}>Continue →</Button>
+        <Button onClick={() => router.push(nextHref)}>Continue</Button>
       </div>
     );
   }
@@ -294,7 +303,7 @@ export default function IdentityVerificationPage() {
             </div>
           </div>
           {loadError && <p className="text-[13px] text-error">{loadError}</p>}
-          <Button onClick={goUpload}>Continue →</Button>
+          <Button onClick={goUpload}>Continue</Button>
         </div>
       )}
 
@@ -355,7 +364,7 @@ export default function IdentityVerificationPage() {
           </div>
           {stepError && <p className="text-[13px] text-error">{stepError}</p>}
           <div className="flex gap-3">
-            <Button onClick={goPhoto}>Continue →</Button>
+            <Button onClick={goPhoto}>Continue</Button>
             <Button type="button" variant="secondary" onClick={() => setStep("intro")}>
               Back
             </Button>
@@ -380,7 +389,7 @@ export default function IdentityVerificationPage() {
                 Live photo captured
               </p>
               <div className="flex gap-3">
-                <Button onClick={goReview}>Continue →</Button>
+                <Button onClick={goReview}>Continue</Button>
                 <Button type="button" variant="secondary" onClick={() => setSelfieFile(null)}>
                   Retake
                 </Button>

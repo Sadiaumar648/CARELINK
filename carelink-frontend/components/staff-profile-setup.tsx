@@ -19,19 +19,20 @@ import { useAuth } from "@/lib/auth/auth-context";
 // no longer offers any self-verification, qualifications, skills,
 // service-area, or base-location management. What remains editable
 // (Emergency Contact) still goes through the exact same
-// PATCH /api/staff/profile and staffProfileSchema as before — that
-// schema requires the full set of fields together (years/emergency
-// contact are non-optional), so an edit here still submits the
-// complete current profile, just with its own field(s) changed. No
-// backend change, no new endpoint.
+// PATCH /api/staff/profile and staffProfileSchema as before. That
+// schema's fields are all optional now — years_experience and the
+// emergency contact are no longer collected anywhere in onboarding —
+// so an edit here still submits the complete current profile (merged
+// with whatever field just changed), matching whatever this caregiver
+// already has on file, including null for a field they haven't set yet.
 export type StaffProfile = {
   bio: string | null;
   caregiver_type: "nanny" | "babysitter" | null;
-  years_experience: number;
+  years_experience: number | null;
   hourly_rate: number;
   languages: string[];
-  emergency_contact_name: string;
-  emergency_contact_phone: string;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
   base_address: string | null;
   base_latitude: number | null;
   base_longitude: number | null;
@@ -48,10 +49,10 @@ async function patchProfile(
     body: {
       bio: merged.bio || undefined,
       caregiverType: merged.caregiver_type || undefined,
-      yearsExperience: merged.years_experience,
+      yearsExperience: merged.years_experience ?? undefined,
       languages: merged.languages,
-      emergencyContactName: merged.emergency_contact_name,
-      emergencyContactPhone: merged.emergency_contact_phone,
+      emergencyContactName: merged.emergency_contact_name ?? undefined,
+      emergencyContactPhone: merged.emergency_contact_phone ?? undefined,
       baseAddress: merged.base_address ?? undefined,
       baseLatitude: merged.base_latitude ?? undefined,
       baseLongitude: merged.base_longitude ?? undefined,
@@ -178,7 +179,7 @@ export function ProfessionalInfoSection() {
         <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
           Years of Experience
         </span>
-        <p className="text-[14.5px] text-ink">{profile.years_experience}</p>
+        <p className="text-[14.5px] text-ink">{profile.years_experience ?? "Not set"}</p>
       </div>
       <div className="flex flex-col gap-0.5">
         <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
@@ -215,8 +216,8 @@ export function EmergencyContactSection() {
 
   function startEditing() {
     if (!profile) return;
-    setContactName(profile.emergency_contact_name);
-    setContactPhone(profile.emergency_contact_phone);
+    setContactName(profile.emergency_contact_name ?? "");
+    setContactPhone(profile.emergency_contact_phone ?? "");
     setError(null);
     setSaved(false);
     setEditing(true);

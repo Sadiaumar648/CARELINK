@@ -12,16 +12,28 @@ import { z } from "zod";
 // but a caregiver no longer sets or sees an editable rate — the PATCH
 // route (app/api/staff/profile/route.ts) writes the fixed CareLink rate
 // for whatever caregiverType is chosen, server-side, every time.
+//
+// yearsExperience is deliberately optional and no longer collected
+// anywhere in caregiver onboarding or Settings — like the rate above,
+// it's agency-supplied data (ProfessionalInfoSection in
+// staff-profile-setup.tsx displays it read-only), not something a
+// caregiver declares about themselves. Existing values are untouched;
+// this only means a request no longer has to include one.
+// emergencyContactName/Phone are optional for the same reason
+// onboarding needs them to be: a newly-claimed caregiver completes
+// onboarding (caregiver type + base location) before ever setting an
+// emergency contact, which they still add afterwards from Settings —
+// mirrors parentHouseholdSchema's identical reasoning.
 export const caregiverTypeSchema = z.enum(["nanny", "babysitter"]);
 
 export const staffProfileSchema = z
   .object({
     bio: z.string().trim().max(2000).optional(),
     caregiverType: caregiverTypeSchema.optional(),
-    yearsExperience: z.number().int().min(0),
+    yearsExperience: z.number().int().min(0).optional(),
     languages: z.array(z.string().trim().min(1)).default([]),
-    emergencyContactName: z.string().trim().min(1, "Enter an emergency contact name"),
-    emergencyContactPhone: z.string().trim().min(1, "Enter an emergency contact phone number"),
+    emergencyContactName: z.string().trim().min(1).optional(),
+    emergencyContactPhone: z.string().trim().min(1).optional(),
     // Optional for now (an existing profile can be saved without one) —
     // the caregiver's map-resolved base/service location, distinct from
     // staff_areas' named-area list. If any of the three is sent, all

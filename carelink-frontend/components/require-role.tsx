@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import type { UserRole } from "@carelink/shared";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -24,7 +24,11 @@ export function RequireRole({
   children,
   loadingFallback,
 }: {
-  role: UserRole;
+  // A single role, or a list when the same page is legitimately shared
+  // by more than one role — e.g. /onboarding/identity, whose identity
+  // verification wizard is reused by both a parent and a caregiver
+  // completing onboarding after claim-invitation.
+  role: UserRole | UserRole[];
   children: ReactNode;
   // Optional per-role loading UI, shown for the exact same window the
   // default "Loading…" text covers — only Staff currently passes one
@@ -35,7 +39,12 @@ export function RequireRole({
   const { session, role: myRole, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const ready = !loading && !!session && myRole === role;
+  // Keyed off a stable string so a `role={["parent", "staff"]}` array
+  // literal (a fresh reference every render) doesn't retrigger the
+  // effect below on every render.
+  const roleKey = Array.isArray(role) ? role.join(",") : role;
+  const allowedRoles = useMemo(() => roleKey.split(","), [roleKey]) as UserRole[];
+  const ready = !loading && !!session && !!myRole && allowedRoles.includes(myRole);
 
   useEffect(() => {
     if (loading) return;
@@ -43,10 +52,10 @@ export function RequireRole({
       router.replace(`/sign-in?next=${encodeURIComponent(pathname)}`);
       return;
     }
-    if (myRole && myRole !== role) {
+    if (myRole && !allowedRoles.includes(myRole)) {
       router.replace(`/${myRole}`);
     }
-  }, [loading, session, myRole, role, router, pathname]);
+  }, [loading, session, myRole, allowedRoles, router, pathname]);
 
   if (!ready) {
     return (

@@ -3,7 +3,11 @@ import { RequireRole } from "@/components/require-role";
 
 export default function OnboardingLayout({ children }: LayoutProps<"/onboarding">) {
   return (
-    <RequireRole role="parent">
+    // Shared by both onboarding tracks: a parent's household/setup
+    // wizard, and a caregiver's post-claim onboarding (identity
+    // verification, reused as-is, plus /onboarding/caregiver for
+    // caregiver type + service location).
+    <RequireRole role={["parent", "staff"]}>
       <div className="flex min-h-dvh flex-col bg-paper">
         <header className="border-b border-hairline bg-sheet">
           <div className="mx-auto flex max-w-2xl items-center px-6 py-4">
