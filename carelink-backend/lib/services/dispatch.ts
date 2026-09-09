@@ -218,20 +218,20 @@ export async function advanceDispatch(
         caregiverType: careRequest.caregiver_type,
         excludeStaffProfileIds,
         maxDistanceKm: hasCoordinates ? DISPATCH_VICINITY_RADII_KM[round] : undefined,
-        // CareLink's finalized dispatch rule: only a caregiver who has
-        // actually gone Available (staff_profiles.dispatch_available)
-        // with a location fix recent enough to trust
-        // (caregiver_dispatch_freshness, MAX_DISPATCH_LOCATION_AGE_SECONDS
-        // in dispatch-config.ts) may enter the sequential queue — this
-        // option already existed in caregiver-search.ts but was never
-        // actually passed from here. A caregiver relying only on their
-        // base/service location (no live fix) has no row in
-        // caregiver_dispatch_freshness at all, so this filter excludes
-        // them too — base location alone never makes an otherwise-
-        // unavailable caregiver dispatch-eligible. accepting_bookings
-        // (ordinary search visibility) is untouched and still governs
-        // browsing separately from this live dispatch gate.
-        requireDispatchAvailable: true,
+        // CareLink's current dispatch rule (superseding the comment this
+        // replaced): an approved, active caregiver is automatically
+        // dispatch-eligible — accepting_bookings (default true at
+        // profile creation) plus the same hard filters ordinary search
+        // already applies (caregiver type, schedule/conflicts, skills,
+        // verification via public_caregivers), no separate manual
+        // "go available" action required. Distance still prefers a live
+        // dispatch fix (staff_dispatch_locations) when the caregiver has
+        // location sharing on, falling back to their base/service
+        // location (staff_profiles.base_latitude/longitude) otherwise —
+        // nearby_caregiver_distances already does this coalesce, so nothing
+        // here has to choose between the two. requireDispatchAvailable
+        // stays available in caregiver-search.ts but is deliberately not
+        // passed anymore.
       },
     );
     if (outcome.results.length > 0) {
