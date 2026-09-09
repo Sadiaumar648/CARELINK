@@ -5,6 +5,7 @@ import { authErrorResponse, requireRole } from "@/lib/auth/require-user";
 import { getOwnParentProfileId } from "@/lib/parents";
 import { getPaymentProvider } from "@/lib/services/payment-provider";
 import { expirePaymentWindowIfPassed, isPaymentExpired } from "@/lib/services/payment-window";
+import { notifyCaregiverBookingConfirmed, notifyParentBookingPaid } from "@/lib/services/notify";
 
 // Task 3.7. The amount comes from the booking's locked total, never the
 // request body (doc 5 §4.10) — a mismatch is structurally impossible
@@ -91,11 +92,29 @@ export async function POST(request: Request, ctx: RouteContext<"/api/bookings/[i
       // in the moment between the check above and this update, this
       // simply matches zero rows rather than resurrecting a released
       // booking as paid.
-      await supabase
+      const { data: paidRow } = await supabase
         .from("bookings")
         .update({ status: "paid" })
         .eq("id", id)
-        .eq("status", "accepted");
+        .eq("status", "accepted")
+        .select("id, parent_profile_id, staff_profile_id")
+        .maybeSingle();
+
+      // Only fires when this call is genuinely what flipped the row —
+      // the race-safe .eq("status", "accepted") above matches zero rows
+      // (paidRow is null) if the payment window's own lazy sweep already
+      // released it first, and this never double-fires on a retry either
+      // way (sendEmail's own idempotency guard on booking_id+event_type).
+      if (paidRow) {
+        await notifyParentBookingPaid({
+          id: paidRow.id,
+          parent_profile_id: paidRow.parent_profile_id,
+        }).catch(() => {});
+        await notifyCaregiverBookingConfirmed({
+          id: paidRow.id,
+          staff_profile_id: paidRow.staff_profile_id,
+        }).catch(() => {});
+      }
     }
 
     return NextResponse.json({ payment: updated }, { status: 201 });

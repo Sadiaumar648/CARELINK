@@ -42,7 +42,7 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/bookings/[
     // (non-dispatch) booking. A decline during sequential dispatch is
     // silently absorbed by the next dispatch round — the parent is
     // already watching a live, polled search screen for that — so
-    // texting on every decline in that sequence would be exactly the
+    // emailing on every decline in that sequence would be exactly the
     // "a notification for every minor UI event" this feature is meant to avoid. A
     // direct booking has no automatic next step, so the parent
     // genuinely needs to know here.

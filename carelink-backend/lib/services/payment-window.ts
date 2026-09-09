@@ -2,11 +2,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { PAYMENT_WINDOW_SECONDS } from "@/lib/dispatch-config";
 import { notifyParentPaymentReminder, notifyPaymentWindowExpired } from "@/lib/services/notify";
 
-// CareLink's real phone/SMS notification system: how long before the
-// deadline a one-time reminder SMS goes out to the parent. Deliberately
+// CareLink's real email notification system: how long before the
+// deadline a one-time reminder email goes out to the parent. Deliberately
 // short relative to the 10-minute window itself — long enough to still
 // be actionable, short enough that it never fires immediately after
-// acceptance (that's what the separate "caregiver accepted" SMS is
+// acceptance (that's what the separate "caregiver accepted" email is
 // for).
 const PAYMENT_REMINDER_THRESHOLD_SECONDS = 3 * 60;
 
@@ -36,7 +36,7 @@ type ExpirableBooking = {
   id: string;
   status: string;
   terms_locked_at: string | null;
-  // Additive: needed so the SMS notifications below can resolve both
+  // Additive: needed so the email notifications below can resolve both
   // parties without a second query. Every real caller already selects
   // these columns (either via `.select("*")`, or — dispatch.ts — an
   // explicit column list widened for this exact purpose).
@@ -105,7 +105,7 @@ export async function expirePaymentWindowIfPassed<T extends ExpirableBooking>(
     .single();
 
   if (updated) {
-    // CareLink's real phone/SMS notification system: fires exactly once,
+    // CareLink's real email notification system: fires exactly once,
     // right after the booking was genuinely (not simulated) cancelled by
     // the window closing — both the parent (window expired, released)
     // and the caregiver (available for new requests again) are told.
