@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     if (!result) {
       return NextResponse.json(
         {
-          error: "CareLink AI isn't available right now — try the direct Nanny/Babysitter option.",
+          error: "Nia isn't available right now — try the direct Nanny/Babysitter option.",
         },
         { status: 503 },
       );

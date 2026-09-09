@@ -424,7 +424,7 @@ function FindCarePage() {
             action={
               <div className="flex flex-wrap items-center justify-center gap-3">
                 <LinkButton href="/parent/care-ai">
-                  <Sparkle size={16} weight="fill" /> Ask CareLink AI
+                  <Sparkle size={16} weight="fill" /> Ask Nia
                 </LinkButton>
                 <LinkButton href="/parent" variant="secondary">
                   Go to Home
@@ -505,11 +505,11 @@ function FindCarePage() {
           <EmptyState
             icon={Sparkle}
             title="Let's find the right care for your family"
-            description="Tell CareLink AI what you need, or go to Home to request a Nanny or Babysitter directly — we'll match you with a verified caregiver nearby."
+            description="Tell Nia what you need, or go to Home to request a Nanny or Babysitter directly — we'll match you with a verified caregiver nearby."
             action={
               <div className="flex flex-wrap items-center justify-center gap-3">
                 <LinkButton href="/parent/care-ai">
-                  <Sparkle size={16} weight="fill" /> Ask CareLink AI
+                  <Sparkle size={16} weight="fill" /> Ask Nia
                 </LinkButton>
                 <LinkButton href="/parent" variant="secondary">
                   Go to Home
