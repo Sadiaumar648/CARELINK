@@ -26,12 +26,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 // isn't a fabricated value, just not a queried one.
 //
 // The generated URL's actual destination — a public
-// /caregiver/join/[token] self-registration page — does not exist yet
-// (a separate, larger, not-yet-approved piece of work). Links are
-// genuinely created, listed, and deactivated for real; per the user's
-// explicit instruction, this implementation-status caveat is a
-// developer-facing note (here, in code) only — it does not surface as
-// UI copy shown to the Admin.
+// /caregiver/join/[token] self-registration page — now exists too
+// (migration 20260918000000_claim_onboarding_link_registration.sql,
+// POST /api/auth/join-onboarding-link): a caregiver opening the link
+// creates their own account directly and continues straight into the
+// same onboarding wizard as the code+phone claim-invitation flow
+// (identity verification, then caregiver type + service location).
 
 type OnboardingLink = {
   id: string;

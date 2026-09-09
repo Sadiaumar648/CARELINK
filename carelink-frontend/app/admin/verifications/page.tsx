@@ -15,8 +15,8 @@ type Submission = {
   id: string;
   id_document_type: string;
   id_document_number: string;
-  reference_name: string;
-  reference_phone: string;
+  reference_name: string | null;
+  reference_phone: string | null;
   photo_verdict: string;
   photo_rationale: string | null;
   status: string;
@@ -119,9 +119,16 @@ function ReviewPanel({ id, onDecided }: { id: string; onDecided: () => void }) {
         {detail.submission.id_document_type.replace(/_/g, " ")} ·{" "}
         {detail.submission.id_document_number}
       </p>
-      <p className="text-[13px] text-ink-muted">
-        Reference: {detail.submission.reference_name} · {detail.submission.reference_phone}
-      </p>
+      {detail.submission.reference_name ? (
+        <p className="text-[13px] text-ink-muted">
+          Reference: {detail.submission.reference_name} · {detail.submission.reference_phone}
+        </p>
+      ) : (
+        <p className="text-[13px] text-ink-muted">
+          Self-registered via a caregiver onboarding link — no ID document photo or reference
+          contact was collected, only the ID number and live photo above.
+        </p>
+      )}
       {detail.submission.rejection_reason && (
         <p className="text-[13px] text-error">Rejected: {detail.submission.rejection_reason}</p>
       )}
