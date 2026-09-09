@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft, CalendarBlank } from "@phosphor-icons/react";
 import { CARELINK_HOURLY_RATES } from "@carelink/shared";
 import { apiFetch } from "@/lib/api/client";
@@ -130,7 +131,22 @@ function BookingCard({
   );
 }
 
+// Schedule is linked from more than one place (Home's own stat card,
+// and Safety & Privacy's "Review a Parent" section) — the back link
+// used to always point to Home regardless, so arriving from Safety &
+// Privacy stranded you a page further from where you actually were.
+// The linker now says where it came from via ?from=, and this page
+// just reads it back; no other behavior changes for a plain /staff/
+// schedule visit (from defaults to Home, same as before).
+const BACK_DESTINATIONS: Record<string, { href: string; label: string }> = {
+  safety: { href: "/staff/safety", label: "Back to Safety & Privacy" },
+};
+
 export default function StaffSchedulePage() {
+  const searchParams = useSearchParams();
+  const from = searchParams.get("from");
+  const back = (from && BACK_DESTINATIONS[from]) || { href: "/staff", label: "Back to Home" };
+
   const [bookings, setBookings] = useState<EnrichedBooking[] | null>(null);
   const [payouts, setPayouts] = useState<Map<string, number | null>>(new Map());
   const [error, setError] = useState<string | null>(null);
@@ -174,10 +190,10 @@ export default function StaffSchedulePage() {
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-8 p-6 md:p-8">
       <Link
-        href="/staff"
+        href={back.href}
         className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-muted hover:text-ink"
       >
-        <ArrowLeft size={16} /> Back to Home
+        <ArrowLeft size={16} /> {back.label}
       </Link>
 
       <div className="flex flex-col gap-1">

@@ -63,7 +63,7 @@ export default function StaffSafetyPage() {
           <p className="text-[13px] leading-relaxed text-ink-muted">
             You can leave a rating and review from the completed booking in your{" "}
             <Link
-              href="/staff/schedule"
+              href="/staff/schedule?from=safety"
               className="font-semibold text-wisteria hover:text-wisteria-hover"
             >
               Schedule
