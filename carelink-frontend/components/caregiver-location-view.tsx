@@ -67,7 +67,7 @@ export function CaregiverLocationView({
             rel="noopener noreferrer"
             className="w-fit text-[13px] font-semibold text-wisteria hover:text-wisteria-hover"
           >
-            View on map →
+            View on map
           </a>
         </>
       ) : (

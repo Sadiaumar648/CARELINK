@@ -554,10 +554,11 @@ export function RequestFlowPanel({
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-      {/* The Recommended Nannies step has its own "Edit request details"
-          control that goes back to the form — no separate top Back
-          button there. */}
-      {step !== "results" && (
+      {/* Only the form step gets this top Back (out of the request flow).
+          The Recommended Nannies step has its own "Edit request details"
+          control, and the profile step has "Back to caregivers" — a
+          second Back button on either is just noise. */}
+      {step === "form" && (
         <button
           type="button"
           onClick={onBack}

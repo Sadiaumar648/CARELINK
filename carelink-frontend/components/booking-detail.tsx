@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   CheckCircle,
@@ -281,10 +282,10 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
       <Link
-        href={viewerRole === "parent" ? "/parent/bookings" : "/staff/schedule"}
+        href={viewerRole === "parent" ? "/parent/bookings" : "/staff"}
         className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-muted hover:text-ink"
       >
-        <ArrowLeft size={16} /> {viewerRole === "parent" ? "My Bookings" : "Schedule"}
+        <ArrowLeft size={16} /> {viewerRole === "parent" ? "My Bookings" : "Home"}
       </Link>
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -909,6 +910,7 @@ function CancelForm({ bookingId, onCancelled }: { bookingId: string; onCancelled
 }
 
 function ReviewForm({ bookingId }: { bookingId: string }) {
+  const router = useRouter();
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   const [done, setDone] = useState(false);
@@ -925,6 +927,8 @@ function ReviewForm({ bookingId }: { bookingId: string }) {
         body: { rating, comment: comment || undefined },
       });
       setDone(true);
+      // Straight back to the parent's home once the review is in.
+      router.push("/parent");
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -973,6 +977,7 @@ function ReviewForm({ bookingId }: { bookingId: string }) {
 // completed booking they've already reviewed should never see the
 // submission form again, per the CareLink review model.
 function CaregiverReviewForm({ bookingId }: { bookingId: string }) {
+  const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [alreadyReviewed, setAlreadyReviewed] = useState(false);
   const [rating, setRating] = useState(5);
@@ -1010,6 +1015,8 @@ function CaregiverReviewForm({ bookingId }: { bookingId: string }) {
         body: { rating, comment: comment || undefined },
       });
       setDone(true);
+      // Straight back to the caregiver's home once the review is in.
+      router.push("/staff");
     } catch (err) {
       setError(errorMessage(err));
     } finally {

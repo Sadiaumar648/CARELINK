@@ -19,7 +19,6 @@ import {
 } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
-import { Sheet } from "@/components/ui/sheet";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -28,7 +27,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 // dashboard. Revenue and every large top KPI card are gone entirely —
 // financial figures live in /admin/payments instead. Every section
 // below reads real, already-existing backend data: GET
-// /api/admin/bookings powers both Live Care and Today's Schedule;
+// /api/admin/bookings powers Live Care;
 // GET /api/admin/roster and GET /api/admin/parents supply caregiver/
 // family names for those rows; GET /api/admin/overview and
 // GET /api/admin/verifications supply Needs Attention's real counts;
@@ -91,21 +90,6 @@ const RECENT_ACTIVITY_HOME_COUNT = 4;
 const CAREGIVER_TYPE_LABEL: Record<"nanny" | "babysitter", string> = {
   nanny: "Nanny",
   babysitter: "Babysitter",
-};
-
-const SCHEDULE_STATUS_LABEL: Record<string, string> = {
-  paid: "Upcoming",
-  active: "In Progress",
-  completed: "Completed",
-  cancelled: "Cancelled",
-};
-
-// Green = In Progress, Blue = Upcoming, Grey = Completed, Red = Cancelled.
-const SCHEDULE_STATUS_TONE: Record<string, "neutral" | "positive" | "attention" | "info"> = {
-  paid: "info",
-  active: "positive",
-  completed: "neutral",
-  cancelled: "attention",
 };
 
 // One pastel accent per Quick Action card, drawn only from CareLink's
@@ -203,7 +187,7 @@ function SectionHeading({
   subtitle,
   action,
 }: {
-  icon: typeof UsersThree;
+  icon?: typeof UsersThree;
   title: string;
   subtitle: string;
   action?: { href: string; label: string };
@@ -211,9 +195,11 @@ function SectionHeading({
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="flex items-start gap-2.5">
-        <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] bg-wisteria-tint text-wisteria-pressed">
-          <Icon size={13} weight="bold" />
-        </span>
+        {Icon && (
+          <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] bg-wisteria-tint text-wisteria-pressed">
+            <Icon size={13} weight="bold" />
+          </span>
+        )}
         <div className="flex flex-col gap-1">
           <h2 className="text-[15px] font-semibold text-ink">{title}</h2>
           <p className="text-[12.5px] text-ink-muted">{subtitle}</p>
@@ -323,16 +309,8 @@ export default function AdminOverviewPage() {
 
   const rosterByStaffProfileId = new Map((roster ?? []).map((r) => [r.staffProfileId, r]));
   const parentsByProfileId = new Map((parents ?? []).map((p) => [p.parentProfileId, p]));
-  const today = new Date().toISOString().slice(0, 10);
 
   const liveCare = (bookings ?? []).filter((b) => b.status === "active");
-  const todaysSchedule = (bookings ?? [])
-    .filter(
-      (b) =>
-        ["paid", "active", "completed", "cancelled"].includes(b.status) &&
-        b.starts_at.slice(0, 10) === today,
-    )
-    .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
   const recentActivity = (activity ?? []).slice(0, RECENT_ACTIVITY_HOME_COUNT);
 
   function caregiverName(staffProfileId: string): string {
@@ -361,7 +339,6 @@ export default function AdminOverviewPage() {
         <>
           <section className="flex flex-col gap-4">
             <SectionHeading
-              icon={LinkIcon}
               title="Quick Actions"
               subtitle="Common tasks for managing your agency."
             />
@@ -411,129 +388,76 @@ export default function AdminOverviewPage() {
             </div>
           </section>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-            <section className="flex flex-col gap-3 lg:col-span-3">
-              <LiveCareHeading
-                action={{ href: "/admin/bookings?status=active", label: "View all live care" }}
+          <section className="flex flex-col gap-3">
+            <LiveCareHeading
+              action={{ href: "/admin/bookings?status=active", label: "View all live care" }}
+            />
+
+            {bookings === null && (
+              <div className="flex flex-col gap-2">
+                <Skeleton className="h-14 w-full" />
+                <Skeleton className="h-14 w-full" />
+              </div>
+            )}
+
+            {bookings && liveCare.length === 0 && (
+              <EmptyState
+                icon={ClockCounterClockwise}
+                title="No care sessions in progress"
+                description="Active care sessions will appear here when a care session begins."
               />
+            )}
 
-              {bookings === null && (
-                <div className="flex flex-col gap-2">
-                  <Skeleton className="h-14 w-full" />
-                  <Skeleton className="h-14 w-full" />
-                </div>
-              )}
-
-              {bookings && liveCare.length === 0 && (
-                <EmptyState
-                  icon={ClockCounterClockwise}
-                  title="No care sessions in progress"
-                  description="Active care sessions will appear here when a care session begins."
-                />
-              )}
-
-              {bookings && liveCare.length > 0 && (
-                <div className="overflow-x-auto rounded-[16px] border border-hairline bg-sheet">
-                  <table className="w-full text-[13px]">
-                    <thead>
-                      <tr className="border-b border-hairline text-left text-[11px] uppercase tracking-[0.08em] text-ink-muted">
-                        <th className="whitespace-nowrap px-4 py-2.5 font-semibold">Caregiver</th>
-                        <th className="whitespace-nowrap px-4 py-2.5 font-semibold">Care Type</th>
-                        <th className="whitespace-nowrap px-4 py-2.5 font-semibold">Family</th>
-                        <th className="whitespace-nowrap px-4 py-2.5 font-semibold">Started</th>
-                        <th className="whitespace-nowrap px-4 py-2.5 font-semibold">
-                          Expected End
-                        </th>
-                        <th className="whitespace-nowrap px-4 py-2.5 font-semibold">Status</th>
-                        <th className="whitespace-nowrap px-4 py-2.5 font-semibold"></th>
+            {bookings && liveCare.length > 0 && (
+              <div className="overflow-x-auto rounded-[16px] border border-hairline bg-sheet">
+                <table className="w-full text-[13px]">
+                  <thead>
+                    <tr className="border-b border-hairline text-left text-[11px] uppercase tracking-[0.08em] text-ink-muted">
+                      <th className="whitespace-nowrap px-4 py-2.5 font-semibold">Caregiver</th>
+                      <th className="whitespace-nowrap px-4 py-2.5 font-semibold">Care Type</th>
+                      <th className="whitespace-nowrap px-4 py-2.5 font-semibold">Family</th>
+                      <th className="whitespace-nowrap px-4 py-2.5 font-semibold">Started</th>
+                      <th className="whitespace-nowrap px-4 py-2.5 font-semibold">Expected End</th>
+                      <th className="whitespace-nowrap px-4 py-2.5 font-semibold">Status</th>
+                      <th className="whitespace-nowrap px-4 py-2.5 font-semibold"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {liveCare.map((b) => (
+                      <tr key={b.id} className="border-b border-hairline last:border-b-0">
+                        <td className="whitespace-nowrap px-4 py-2.5 text-ink">
+                          {caregiverName(b.staff_profile_id)}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-ink-muted">
+                          {caregiverTypeLabel(b.staff_profile_id)}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-ink-muted">
+                          {familyLabel(parentsByProfileId.get(b.parent_profile_id)?.fullName)}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-ink-muted">
+                          {formatTime(b.session_started_at ?? b.starts_at)}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-ink-muted">
+                          {formatTime(b.ends_at)}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2.5">
+                          <StatusBadge label="In Progress" tone="positive" />
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2.5">
+                          <Link
+                            href="/admin/bookings?status=active"
+                            className="text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
+                          >
+                            View Details
+                          </Link>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {liveCare.map((b) => (
-                        <tr key={b.id} className="border-b border-hairline last:border-b-0">
-                          <td className="whitespace-nowrap px-4 py-2.5 text-ink">
-                            {caregiverName(b.staff_profile_id)}
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-2.5 text-ink-muted">
-                            {caregiverTypeLabel(b.staff_profile_id)}
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-2.5 text-ink-muted">
-                            {familyLabel(parentsByProfileId.get(b.parent_profile_id)?.fullName)}
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-2.5 text-ink-muted">
-                            {formatTime(b.session_started_at ?? b.starts_at)}
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-2.5 text-ink-muted">
-                            {formatTime(b.ends_at)}
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-2.5">
-                            <StatusBadge label="In Progress" tone="positive" />
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-2.5">
-                            <Link
-                              href="/admin/bookings?status=active"
-                              className="text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
-                            >
-                              View Details
-                            </Link>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </section>
-
-            <section className="flex flex-col gap-3 lg:col-span-2">
-              <SectionHeading
-                icon={CalendarCheck}
-                title="Today's Schedule"
-                subtitle="Confirmed and upcoming care sessions for today."
-                action={{ href: "/admin/bookings", label: "View full schedule" }}
-              />
-
-              {bookings === null && (
-                <div className="flex flex-col gap-2">
-                  <Skeleton className="h-14 w-full" />
-                  <Skeleton className="h-14 w-full" />
-                </div>
-              )}
-
-              {bookings && todaysSchedule.length === 0 && (
-                <EmptyState
-                  icon={CalendarCheck}
-                  title="Nothing scheduled for today"
-                  description="Today's confirmed care sessions will appear here."
-                />
-              )}
-
-              {bookings && todaysSchedule.length > 0 && (
-                <div className="flex flex-col gap-2">
-                  {todaysSchedule.slice(0, 8).map((b) => (
-                    <Sheet key={b.id} className="flex flex-col gap-1.5 py-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[13px] font-semibold text-ink">
-                          {formatTime(b.starts_at)}
-                        </span>
-                        <StatusBadge
-                          label={SCHEDULE_STATUS_LABEL[b.status] ?? b.status}
-                          tone={SCHEDULE_STATUS_TONE[b.status] ?? "neutral"}
-                        />
-                      </div>
-                      <span className="text-[13px] font-medium text-ink">
-                        {caregiverName(b.staff_profile_id)}
-                      </span>
-                      <span className="text-[12px] text-ink-muted">
-                        {caregiverTypeLabel(b.staff_profile_id)} ·{" "}
-                        {familyLabel(parentsByProfileId.get(b.parent_profile_id)?.fullName)}
-                      </span>
-                    </Sheet>
-                  ))}
-                </div>
-              )}
-            </section>
-          </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <section className="flex flex-col gap-3">
