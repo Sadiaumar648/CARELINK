@@ -50,8 +50,6 @@ function displayRate(c: CaregiverProfile): number {
 // so the parent sees exactly the same thing either way.
 export function CaregiverProfileView({ caregiver }: { caregiver: CaregiverProfile }) {
   const [verificationInfoOpen, setVerificationInfoOpen] = useState(false);
-  const primaryArea =
-    caregiver.areas?.find((a) => a.isPrimary)?.area ?? caregiver.areas?.[0]?.area ?? null;
   const isVerified = caregiver.verification_status === "verified";
 
   return (
@@ -97,7 +95,6 @@ export function CaregiverProfileView({ caregiver }: { caregiver: CaregiverProfil
           </p>
           <p className="text-[13px] text-ink-muted">
             {typeLabel(caregiver.caregiver_type)} · {caregiver.years_experience ?? 0} yrs experience
-            {primaryArea ? ` · ${primaryArea}` : ""}
           </p>
           <p className="text-[24px] font-semibold tabular-nums">
             GH₵{displayRate(caregiver)}
