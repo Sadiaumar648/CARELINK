@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ArrowSquareOut, Check, MagnifyingGlass, Plus } from "@phosphor-icons/react";
-import { calculateTotalAmount, hourlyRateFor } from "@carelink/shared";
+import {
+  CARE_DAY_HOURS,
+  MAX_CARE_DAYS,
+  calculateTotalAmount,
+  hourlyRateFor,
+} from "@carelink/shared";
 import { Sheet } from "@/components/ui/sheet";
 import { Field } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
@@ -78,6 +83,7 @@ export type RequestFlowRestore = {
   date: string;
   startTime: string;
   endTime: string;
+  durationDays: number;
   location: string;
   serviceAddress: string;
   serviceLatitude: number;
@@ -107,15 +113,6 @@ function extractFreeTextNotes(notes: string | null | undefined): string {
   return (idx === -1 ? notes : notes.slice(0, idx)).trim();
 }
 
-// The restored duration is derived from the two real timestamps rather
-// than stored separately — rounded defensively, though every duration
-// this form itself ever sends is already a whole number of hours.
-function hoursBetween(startTime: string, endTime: string): number {
-  const [sh, sm] = startTime.slice(0, 5).split(":").map(Number);
-  const [eh, em] = endTime.slice(0, 5).split(":").map(Number);
-  return Math.round((eh * 60 + em - (sh * 60 + sm)) / 60);
-}
-
 // Nanny and Babysitter are merged into one "Nanny" concept for parents
 // — this heading is always "Nanny" regardless of the real, historical
 // `type` value a restored request might carry (see the `type` prop
@@ -142,9 +139,11 @@ export const SCHEDULE_OPTIONS = [
   },
 ] as const;
 
-const DURATION_OPTIONS = [1, 2, 3, 4, 6, 8].map((n) => ({
+// Duration is a number of days now — each day a standard CARE_DAY_HOURS
+// care day starting at the chosen start time.
+const DAYS_OPTIONS = Array.from({ length: MAX_CARE_DAYS }, (_, i) => i + 1).map((n) => ({
   value: String(n),
-  label: `${n} hour${n === 1 ? "" : "s"}`,
+  label: `${n} day${n === 1 ? "" : "s"}`,
 }));
 
 // The 7 real, existing skill_tag values this app's matching already
@@ -248,12 +247,13 @@ export function RequestFlowPanel({
     const matched = SCHEDULE_OPTIONS.find((s) => s.value === initial?.schedule);
     return matched?.startTime ?? "";
   });
-  // initial?.days ("N days a week", a frequency) is a different unit
-  // than duration ("N hours") and is deliberately not reused here — only
-  // a genuine hour count prefills this.
-  const [duration, setDuration] = useState(() => {
-    if (restoreFrom) return String(hoursBetween(restoreFrom.startTime, restoreFrom.endTime));
-    return initial?.hours ?? "4";
+  // How many consecutive days of care (each a standard CARE_DAY_HOURS
+  // day starting at startTime). initial?.days from the CareLink AI flow
+  // is "N days a week" — a frequency, not a run length — so it isn't
+  // reused here.
+  const [days, setDays] = useState(() => {
+    if (restoreFrom) return String(restoreFrom.durationDays || 1);
+    return "1";
   });
   const [location, setLocation] = useState<ResolvedLocation | null>(() =>
     restoreFrom
@@ -396,7 +396,8 @@ export function RequestFlowPanel({
     // outside their usual weekly hours.
     params.set("date", startDate);
     params.set("startTime", startTime);
-    params.set("endTime", addHours(startTime, Number(duration)));
+    params.set("endTime", addHours(startTime, CARE_DAY_HOURS));
+    params.set("durationDays", days);
     params.set("availability", "conflicts");
     apiFetch<{ results: PreferredCandidate[] }>(`/api/search/caregivers?${params.toString()}`)
       // Every real, eligible caregiver the search returns — no client-
@@ -473,7 +474,7 @@ export function RequestFlowPanel({
     setSubmitting(true);
 
     try {
-      const endTime = addHours(startTime, Number(duration));
+      const endTime = addHours(startTime, CARE_DAY_HOURS);
       // The coarse area — never the full address — is what still feeds
       // the existing area-string search/dispatch filters, exactly as a
       // typed area name did before.
@@ -497,6 +498,7 @@ export function RequestFlowPanel({
           date: filters.date,
           startTime: filters.startTime,
           endTime: filters.endTime,
+          durationDays: Number(days),
           location: searchArea,
           serviceAddress: location.formattedAddress,
           serviceLatitude: location.latitude,
@@ -517,17 +519,14 @@ export function RequestFlowPanel({
     }
   }
 
-  // CareLink's finalized fixed-rate model: this is informational only —
-  // exactly the formula the backend independently recomputes and
-  // charges from (POST /api/care-requests, never trusting this figure).
-  // Every request is a single session; the regular rate is charged once
-  // per child. Hidden until there's a real, positive duration to price.
-  const priceDurationHours = Number(duration);
+  // CareLink's finalized fixed-rate model: informational only — exactly
+  // the formula the backend independently recomputes and charges from
+  // (POST /api/care-requests, never trusting this figure). A standard
+  // CARE_DAY_HOURS-hour care day, the regular rate charged once per
+  // child per day.
+  const priceDays = Math.max(1, Number(days));
   const priceChildCount = Math.max(1, wardIds.length);
-  const priceTotal =
-    priceDurationHours > 0
-      ? calculateTotalAmount(type, priceDurationHours, 1, priceChildCount)
-      : null;
+  const priceTotal = calculateTotalAmount(type, CARE_DAY_HOURS, priceDays, priceChildCount);
 
   // Find Care stays disabled until every field the backend will actually
   // require is genuinely filled in — mirrors onFindCare's own checks
@@ -538,7 +537,7 @@ export function RequestFlowPanel({
   const canFindCare =
     wardIds.length > 0 &&
     Boolean(startTime) &&
-    Boolean(duration) &&
+    Boolean(days) &&
     Boolean(startDate) &&
     Boolean(location) &&
     hasCareNeed;
@@ -861,12 +860,16 @@ export function RequestFlowPanel({
                   className="border-[var(--color-lavender-border)] focus:border-wisteria focus:ring-wisteria/15"
                 />
                 <SelectField
-                  label="Duration"
-                  value={duration}
-                  onChange={setDuration}
-                  options={DURATION_OPTIONS}
+                  label="Number of days"
+                  value={days}
+                  onChange={setDays}
+                  options={DAYS_OPTIONS}
                 />
               </div>
+              <p className="text-[12px] text-ink-muted">
+                Each day is a standard {CARE_DAY_HOURS}-hour care day starting at your chosen start
+                time.
+              </p>
             </section>
 
             {/* 3. WHERE */}
@@ -955,15 +958,15 @@ export function RequestFlowPanel({
               charges this same figure at booking time; nothing here is
               ever trusted as the final amount, and submitting this form
               never charges the parent. */}
-            {startTime && priceTotal !== null && (
+            {startTime && (
               <section className="flex flex-col gap-2 border-t border-[var(--color-lavender-border)] pt-6">
                 <h2 className="text-[13px] font-bold uppercase tracking-[0.08em] text-ink">
                   Estimated cost
                 </h2>
                 <div className="flex flex-col gap-1 rounded-[12px] border border-[var(--color-lavender-border)] bg-wisteria-tint p-4">
                   <p className="text-[12.5px] text-ink-muted">
-                    {priceDurationHours} hour{priceDurationHours === 1 ? "" : "s"} × GH₵
-                    {hourlyRateFor(type)}/hour
+                    {CARE_DAY_HOURS} hrs/day × GH₵{hourlyRateFor(type)}/hr × {priceDays} day
+                    {priceDays === 1 ? "" : "s"}
                     {priceChildCount > 1 ? ` × ${priceChildCount} children` : ""}
                   </p>
                   <p className="text-[19px] font-bold tabular-nums text-ink">

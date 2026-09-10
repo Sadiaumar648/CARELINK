@@ -17,6 +17,10 @@ export const searchCaregiversQuerySchema = z
     // changes just because this field exists.
     latitude: z.coerce.number().min(-90).max(90).optional(),
     longitude: z.coerce.number().min(-180).max(180).optional(),
+    // The pick-list's conflict check extends the requested window by
+    // (durationDays - 1) days, so a caregiver already booked on any day
+    // of a multi-day request is treated as clashing.
+    durationDays: z.coerce.number().int().min(1).max(7).optional(),
     date: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD")

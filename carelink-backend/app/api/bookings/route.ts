@@ -137,6 +137,7 @@ export async function POST(request: Request) {
         staff_profile_id: body.staffProfileId,
         ward_id: body.wardId,
         ward_ids: [body.wardId],
+        duration_days: 1,
         starts_at: startsAt.toISOString(),
         ends_at: endsAt.toISOString(),
         hourly_rate: fixedRate,

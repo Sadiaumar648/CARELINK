@@ -214,7 +214,7 @@ export async function notifyCaregiverNewOffer(booking: {
   const [{ data: bookingRow }, { data: staffProfile }] = await Promise.all([
     admin
       .from("bookings")
-      .select("starts_at, ends_at, duration_hours, address")
+      .select("starts_at, ends_at, duration_hours, duration_days, address")
       .eq("id", booking.id)
       .maybeSingle(),
     admin
@@ -229,7 +229,12 @@ export async function notifyCaregiverNewOffer(booking: {
     : "care";
   const dateLine = bookingRow ? formatDateLong(bookingRow.starts_at) : null;
   const timeLine = bookingRow ? formatTimeRange(bookingRow.starts_at, bookingRow.ends_at) : null;
-  const durationLine = bookingRow ? `${bookingRow.duration_hours} hours` : null;
+  const days = bookingRow?.duration_days ?? 1;
+  const durationLine = bookingRow
+    ? days > 1
+      ? `${bookingRow.duration_hours} hours/day for ${days} days`
+      : `${bookingRow.duration_hours} hours`
+    : null;
   const areaLine = bookingRow?.address ?? null;
 
   const detailLines = [

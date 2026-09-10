@@ -17,6 +17,7 @@ export async function GET(request: Request) {
       // schema coerces these from strings and requires both or neither.
       latitude: url.searchParams.get("latitude") ?? undefined,
       longitude: url.searchParams.get("longitude") ?? undefined,
+      durationDays: url.searchParams.get("durationDays") ?? undefined,
       date: url.searchParams.get("date") ?? undefined,
       startTime: url.searchParams.get("startTime") ?? undefined,
       endTime: url.searchParams.get("endTime") ?? undefined,

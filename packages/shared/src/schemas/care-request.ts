@@ -30,6 +30,10 @@ export const createCareRequestSchema = z
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD"),
     startTime: timeString,
     endTime: timeString,
+    // How many consecutive days of care, each a standard care day
+    // (CARE_DAY_HOURS) starting at startTime. `date` is day one.
+    // Defaults to 1 for the CareLink AI flow and any older caller.
+    durationDays: z.number().int().min(1).max(7).default(1),
     // The enforced rule: no location, no request. Real backend
     // validation, not a UI-only check. Kept as the coarse area/suburb
     // string (never a full street address) so it keeps exact-matching

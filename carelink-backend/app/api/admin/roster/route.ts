@@ -52,15 +52,24 @@ export async function GET(request: Request) {
       staffProfileIds.length > 0
         ? await supabase
             .from("bookings")
-            .select("staff_profile_id, duration_hours")
+            .select("staff_profile_id, duration_hours, duration_days")
             .eq("status", "completed")
             .in("staff_profile_id", staffProfileIds)
-        : { data: [] as { staff_profile_id: string; duration_hours: number }[] };
+        : {
+            data: [] as {
+              staff_profile_id: string;
+              duration_hours: number;
+              duration_days: number | null;
+            }[],
+          };
     const hoursByProfileId = new Map<string, number>();
     for (const b of completedBookings ?? []) {
+      // duration_hours is one day's window; a multi-day engagement's
+      // real hours are that × duration_days.
       hoursByProfileId.set(
         b.staff_profile_id,
-        (hoursByProfileId.get(b.staff_profile_id) ?? 0) + Number(b.duration_hours),
+        (hoursByProfileId.get(b.staff_profile_id) ?? 0) +
+          Number(b.duration_hours) * (b.duration_days ?? 1),
       );
     }
 

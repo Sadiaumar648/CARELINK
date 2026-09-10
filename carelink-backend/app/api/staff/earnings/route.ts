@@ -14,7 +14,9 @@ export async function GET(request: Request) {
 
     const { data: bookings, error: bookingsErr } = await supabase
       .from("bookings")
-      .select("id, reference, starts_at, ends_at, duration_hours, hourly_rate, total_amount")
+      .select(
+        "id, reference, starts_at, ends_at, duration_hours, duration_days, hourly_rate, total_amount",
+      )
       .eq("staff_profile_id", staffProfileId)
       .eq("status", "completed")
       .order("starts_at", { ascending: false });
@@ -39,8 +41,11 @@ export async function GET(request: Request) {
         date: b.starts_at,
         // Additive: already-existing columns, not previously selected by
         // this route — needed so the Earnings page can show care type
-        // and duration without a second per-booking fetch.
-        durationHours: b.duration_hours,
+        // and duration without a second per-booking fetch. durationHours
+        // is the total across all days of the engagement (per-day window
+        // × duration_days).
+        durationHours: Number(b.duration_hours) * (b.duration_days ?? 1),
+        durationDays: b.duration_days ?? 1,
         hourlyRate: b.hourly_rate,
         totalAmount: b.total_amount,
         payoutAmount: payment?.payout_amount ?? null,

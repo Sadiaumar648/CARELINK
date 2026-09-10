@@ -82,19 +82,26 @@ export async function POST(request: Request) {
       }
     }
 
-    // Duration and session count, both computed from real inputs — never
+    // Duration, day count and child count — all from real inputs, never
     // trusted from the client — feeding the one authoritative price
-    // formula (see packages/shared/src/pricing.ts).
+    // formula (see packages/shared/src/pricing.ts). startsAt/endsAt
+    // describe day one's window; durationDays is how many consecutive
+    // days it runs. total_amount is the whole engagement.
     const startsAt = new Date(`${body.date}T${body.startTime}:00Z`);
     const endsAt = new Date(`${body.date}T${body.endTime}:00Z`);
     const durationHours = (endsAt.getTime() - startsAt.getTime()) / 3_600_000;
-    const sessionCount = sessionCountFor(
+    const durationDays = body.durationDays;
+    // sessionCountFor still runs (repeat_mode defaults to "once" → 1) so
+    // the legacy repeat columns stay internally consistent; the real
+    // "how many sessions" figure for pricing and the stored
+    // session_count is durationDays now.
+    const repeatSessionCount = sessionCountFor(
       body.repeatMode,
       body.repeatWeekdays,
       body.repeatStartDate ?? null,
       body.repeatEndDate ?? null,
     );
-    if (sessionCount < 1) {
+    if (repeatSessionCount < 1) {
       return NextResponse.json(
         {
           error:
@@ -106,7 +113,7 @@ export async function POST(request: Request) {
     const totalAmount = calculateTotalAmount(
       body.caregiverType,
       durationHours,
-      sessionCount,
+      durationDays,
       wardIds.length || 1,
     );
 
@@ -122,6 +129,7 @@ export async function POST(request: Request) {
         date: body.date,
         start_time: body.startTime,
         end_time: body.endTime,
+        duration_days: durationDays,
         location: body.location,
         service_address: body.serviceAddress,
         service_latitude: body.serviceLatitude,
@@ -138,7 +146,7 @@ export async function POST(request: Request) {
         repeat_weekdays: body.repeatWeekdays,
         repeat_start_date: body.repeatStartDate ?? null,
         repeat_end_date: body.repeatEndDate ?? null,
-        session_count: sessionCount,
+        session_count: durationDays,
         total_amount: totalAmount,
       })
       .select()

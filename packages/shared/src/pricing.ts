@@ -26,6 +26,14 @@ export function hourlyRateFor(caregiverType: CaregiverType): number {
   return CARELINK_HOURLY_RATES[caregiverType];
 }
 
+// A "Request a Nanny" request is measured in days, not hours: the parent
+// picks how many consecutive days they need care, each a standard care
+// day of this many hours starting at their chosen start time. Used for
+// the informational estimate on the form and the authoritative
+// server-side total alike.
+export const CARE_DAY_HOURS = 8;
+export const MAX_CARE_DAYS = 7;
+
 // The one calculation every real charge in this app is built from:
 // fixed hourly rate × duration × how many sessions it covers × how many
 // children are being cared for. A real `bookings` row is always exactly

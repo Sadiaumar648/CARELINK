@@ -35,6 +35,7 @@ type Booking = {
   starts_at: string;
   ends_at: string;
   duration_hours: number;
+  duration_days: number | null;
   address: string | null;
   one_off_notes: string | null;
   hourly_rate: number;
@@ -429,7 +430,12 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
           <p className="text-[13px] text-ink-muted">{booking.one_off_notes}</p>
         )}
         <div className="flex flex-wrap items-center gap-x-6 gap-y-1 border-t border-hairline pt-3 text-[13px] text-ink-muted">
-          <span>Duration: {booking.duration_hours} hrs</span>
+          <span>
+            Duration:{" "}
+            {(booking.duration_days ?? 1) > 1
+              ? `${booking.duration_hours} hrs/day · ${booking.duration_days} days`
+              : `${booking.duration_hours} hrs`}
+          </span>
           <span>Rate: GH₵{booking.hourly_rate}/hr</span>
           {booking.status === "accepted" && <span>Payment: Pending</span>}
           {["paid", "active", "completed"].includes(booking.status) && <span>Payment: Paid</span>}

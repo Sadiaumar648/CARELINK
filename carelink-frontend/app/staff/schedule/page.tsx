@@ -19,6 +19,7 @@ type Booking = {
   starts_at: string;
   ends_at: string;
   duration_hours: number;
+  duration_days: number | null;
   hourly_rate: number;
   total_amount: number;
   address: string | null;
@@ -110,6 +111,7 @@ function BookingCard({
             <p className="text-[13.5px] text-ink-muted">
               {formatTime(booking.starts_at)} – {formatTime(booking.ends_at)} ·{" "}
               {booking.duration_hours} {booking.duration_hours === 1 ? "hr" : "hrs"}
+              {(booking.duration_days ?? 1) > 1 ? `/day · ${booking.duration_days} days` : ""}
             </p>
           </div>
           <StatusBadge

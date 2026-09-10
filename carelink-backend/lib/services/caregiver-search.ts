@@ -248,9 +248,15 @@ export async function findEligibleCaregivers(
 
   let requestedRange: { starts: Date; ends: Date } | null = null;
   if (query.date && query.startTime && query.endTime) {
+    const ends = new Date(`${query.date}T${query.endTime}:00Z`);
+    // A multi-day request occupies the caregiver from day one's start
+    // through the last day's end — extend the window by (days - 1) so a
+    // caregiver already booked on any day of it counts as clashing.
+    const extraDays = Math.max(0, (query.durationDays ?? 1) - 1);
+    if (extraDays > 0) ends.setUTCDate(ends.getUTCDate() + extraDays);
     requestedRange = {
       starts: new Date(`${query.date}T${query.startTime}:00Z`),
-      ends: new Date(`${query.date}T${query.endTime}:00Z`),
+      ends,
     };
   }
 

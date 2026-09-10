@@ -60,6 +60,7 @@ type CareRequestRow = {
   date: string;
   start_time: string;
   end_time: string;
+  duration_days: number;
   location: string;
   service_latitude: number | null;
   service_longitude: number | null;
@@ -333,23 +334,24 @@ export async function advanceDispatch(
   const startsAt = new Date(`${careRequest.date}T${careRequest.start_time.slice(0, 5)}:00Z`);
   const endsAt = new Date(`${careRequest.date}T${careRequest.end_time.slice(0, 5)}:00Z`);
   const durationHours = (endsAt.getTime() - startsAt.getTime()) / 3_600_000;
-  // CareLink's finalized fixed-rate model: every real booking is exactly
-  // one session, priced from the care request's caregiver_type — never
-  // from the offered caregiver's own staff_profiles.hourly_rate (which
-  // no longer prices any new booking). sessionCount defaults to 1;
-  // childCount is how many children the request covers (regular rate ×
-  // hours per child).
+  // CareLink's finalized fixed-rate model: priced from the care
+  // request's caregiver_type — never the offered caregiver's own
+  // staff_profiles.hourly_rate. The booking's starts_at/ends_at are day
+  // one's window; duration_days is how many consecutive days it runs,
+  // and total_amount is the whole engagement (daily hours × rate × days
+  // × children).
   const wardIds =
     careRequest.ward_ids && careRequest.ward_ids.length > 0
       ? careRequest.ward_ids
       : careRequest.ward_id
         ? [careRequest.ward_id]
         : [];
+  const durationDays = careRequest.duration_days || 1;
   const fixedRate = hourlyRateFor(careRequest.caregiver_type);
   const totalAmount = calculateTotalAmount(
     careRequest.caregiver_type,
     durationHours,
-    1,
+    durationDays,
     wardIds.length || 1,
   );
   const expiresAt = new Date(Date.now() + careRequest.response_window_seconds * 1000);
@@ -362,6 +364,7 @@ export async function advanceDispatch(
       staff_profile_id: next.staff_profile_id,
       ward_id: wardIds[0] ?? careRequest.ward_id,
       ward_ids: wardIds,
+      duration_days: durationDays,
       starts_at: startsAt.toISOString(),
       ends_at: endsAt.toISOString(),
       hourly_rate: fixedRate,

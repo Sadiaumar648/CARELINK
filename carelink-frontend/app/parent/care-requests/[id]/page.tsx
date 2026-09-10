@@ -19,6 +19,7 @@ type OfferBooking = {
   starts_at: string;
   ends_at: string;
   duration_hours: number;
+  duration_days: number | null;
   hourly_rate: number;
   total_amount: number;
   status: string;
@@ -438,7 +439,11 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
               </div>
               <div className="flex justify-between">
                 <span className="text-ink-muted">Duration</span>
-                <span className="font-semibold">{offerBooking.duration_hours} hours</span>
+                <span className="font-semibold">
+                  {(offerBooking.duration_days ?? 1) > 1
+                    ? `${offerBooking.duration_hours} hrs/day · ${offerBooking.duration_days} days`
+                    : `${offerBooking.duration_hours} hours`}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-ink-muted">Rate</span>
