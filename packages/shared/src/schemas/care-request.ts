@@ -152,3 +152,29 @@ export const careAssistantMessageSchema = z.object({
 });
 
 export type CareAssistantMessageInput = z.infer<typeof careAssistantMessageSchema>;
+
+// "Help me pick" — the parent is looking at the real caregiver list from
+// their Request a Nanny flow and asks Nia to choose one. The client
+// sends what the parent typed plus the exact list on screen (ids +
+// public facts only); the route returns one recommended id (validated
+// against this list) and a reason. Nia never searches or books here.
+export const recommendCaregiverSchema = z.object({
+  message: z.string().trim().min(1).max(1000),
+  candidates: z
+    .array(
+      z.object({
+        staffProfileId: z.string().uuid(),
+        fullName: z.string().min(1).max(200),
+        yearsExperience: z.number().int().min(0).max(80).nullable().optional(),
+        ratingAvg: z.number().min(0).max(5).nullable().optional(),
+        ratingCount: z.number().int().min(0).optional(),
+        bio: z.string().max(2000).nullable().optional(),
+        skills: z.array(z.string().max(60)).max(20).optional(),
+        primaryArea: z.string().max(120).nullable().optional(),
+      }),
+    )
+    .min(1)
+    .max(10),
+});
+
+export type RecommendCaregiverInput = z.infer<typeof recommendCaregiverSchema>;

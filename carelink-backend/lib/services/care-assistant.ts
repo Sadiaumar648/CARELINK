@@ -169,3 +169,87 @@ export async function runCareAssistantTurn(
     return null;
   }
 }
+
+// ── "Help me pick" — Nia choosing from a concrete caregiver list ──────
+// A separate, single-shot job from the conversation above: the parent is
+// already looking at the real, eligible caregiver list CareLink produced
+// for their request, and isn't sure which one to pick. They describe
+// what matters to them; Nia recommends exactly ONE caregiver from the
+// list, by id, with a one-sentence reason. It never invents a caregiver,
+// never searches, never books — the recommendation is advice the parent
+// still acts on themselves by pressing Request. The returned id is
+// validated against the candidate list by the caller before it's
+// trusted.
+
+export type CaregiverCandidateForPick = {
+  staffProfileId: string;
+  fullName: string;
+  yearsExperience: number | null;
+  ratingAvg: number | null;
+  ratingCount: number;
+  bio: string | null;
+  skills: string[];
+  primaryArea: string | null;
+};
+
+export type CaregiverPick = { staffProfileId: string; reason: string };
+
+export async function recommendCaregiverFromList(
+  message: string,
+  candidates: CaregiverCandidateForPick[],
+): Promise<CaregiverPick | null> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey || candidates.length === 0) return null;
+
+  const client = new Anthropic({ apiKey, timeout: 20000, maxRetries: 1 });
+  const validIds = new Set(candidates.map((c) => c.staffProfileId));
+
+  const roster = candidates
+    .map((c, i) => {
+      const rating =
+        c.ratingAvg != null
+          ? `${c.ratingAvg.toFixed(1)}★ (${c.ratingCount} reviews)`
+          : "no reviews yet";
+      const exp =
+        c.yearsExperience != null ? `${c.yearsExperience} yrs experience` : "experience not stated";
+      const skills = c.skills.length ? `skills: ${c.skills.join(", ")}` : "no listed skills";
+      return `${i + 1}. id=${c.staffProfileId} — ${c.fullName}; ${exp}; ${rating}; ${c.primaryArea ?? "area not stated"}; ${skills}${c.bio ? `; bio: ${c.bio.slice(0, 240)}` : ""}`;
+    })
+    .join("\n");
+
+  const system =
+    "You are Nia, CareLink's warm assistant for a Ghanaian childcare marketplace. " +
+    "A parent is looking at this exact list of verified, available caregivers (Nannies) that " +
+    "CareLink already matched to their request, and isn't sure who to pick. Based only on what " +
+    "the parent tells you and the facts in this list, recommend EXACTLY ONE caregiver from the " +
+    "list. Never invent a caregiver or a fact about one; never suggest searching again or booking " +
+    "— the parent presses Request themselves. If the parent's note doesn't clearly favour anyone, " +
+    "pick the strongest all-round match and say so plainly.\n\nThe caregivers:\n" +
+    roster +
+    "\n\nRespond with raw JSON only — no markdown, no other text — in this exact shape: " +
+    '{"staffProfileId": "<the id, copied exactly from the list>", "reason": "<one short, warm sentence naming the caregiver and why they fit>"}';
+
+  try {
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 300,
+      system,
+      messages: [{ role: "user", content: message.slice(0, 1000) }],
+    });
+    const textBlock = response.content.find((b): b is Anthropic.TextBlock => b.type === "text");
+    const parsed: unknown = JSON.parse(extractJsonText(textBlock?.text ?? ""));
+    if (typeof parsed !== "object" || parsed === null) return null;
+    const p = parsed as Record<string, unknown>;
+    if (
+      typeof p.staffProfileId === "string" &&
+      validIds.has(p.staffProfileId) &&
+      typeof p.reason === "string" &&
+      p.reason.trim()
+    ) {
+      return { staffProfileId: p.staffProfileId, reason: p.reason.trim().slice(0, 400) };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}

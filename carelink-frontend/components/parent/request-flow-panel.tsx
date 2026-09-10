@@ -299,6 +299,49 @@ export function RequestFlowPanel({
   const [preferredCandidates, setPreferredCandidates] = useState<PreferredCandidate[] | null>(null);
   const [preferredSearch, setPreferredSearch] = useState("");
 
+  // "Ask Nia to help me pick" — only ever a suggestion the parent still
+  // acts on themselves. Nia recommends one caregiver from exactly the
+  // list on screen (POST /api/care-assistant/recommend-caregiver).
+  const [niaOpen, setNiaOpen] = useState(false);
+  const [niaMessage, setNiaMessage] = useState("");
+  const [niaLoading, setNiaLoading] = useState(false);
+  const [niaError, setNiaError] = useState<string | null>(null);
+  const [niaPick, setNiaPick] = useState<{ staffProfileId: string; reason: string } | null>(null);
+
+  async function askNia() {
+    const text = niaMessage.trim();
+    if (!text || niaLoading || !preferredCandidates) return;
+    setNiaLoading(true);
+    setNiaError(null);
+    setNiaPick(null);
+    try {
+      const res = await apiFetch<{ staffProfileId: string; reason: string }>(
+        "/api/care-assistant/recommend-caregiver",
+        {
+          method: "POST",
+          body: {
+            message: text,
+            candidates: preferredCandidates.slice(0, 10).map((c) => ({
+              staffProfileId: c.staff_profile_id,
+              fullName: c.full_name,
+              yearsExperience: c.years_experience ?? null,
+              ratingAvg: c.rating_avg ?? null,
+              ratingCount: c.rating_count ?? 0,
+              bio: c.bio ?? null,
+              skills: [] as string[],
+              primaryArea: c.areas?.find((a) => a.isPrimary)?.area ?? c.areas?.[0]?.area ?? null,
+            })),
+          },
+        },
+      );
+      setNiaPick(res);
+    } catch (err) {
+      setNiaError(errorMessage(err));
+    } finally {
+      setNiaLoading(false);
+    }
+  }
+
   // "Find Care": validates every request-detail field, then fetches the
   // real, eligible, nearby caregiver list and moves to the results
   // screen — never submits the actual request itself. Mirrors
@@ -335,6 +378,8 @@ export function RequestFlowPanel({
     setFormError(null);
     setStep("results");
     setPreferredCandidates(null); // re-fetch every time — proximity depends on location, which can change
+    setNiaPick(null);
+    setNiaError(null);
     const params = new URLSearchParams();
     // Only real coordinates are sent — never the coarse area string.
     // The area string was an exact-match hard filter (a caregiver whose
@@ -566,6 +611,64 @@ export function RequestFlowPanel({
               />
             </div>
 
+            {/* ASK NIA TO HELP PICK — advice only; the parent still
+              presses Request on whoever they choose. Nia only ever
+              recommends someone from this exact on-screen list. */}
+            {filteredPreferredCandidates.length > 1 && (
+              <div className="rounded-[12px] border border-[var(--color-lavender-border)] bg-wisteria-tint p-3">
+                {!niaOpen ? (
+                  <button
+                    type="button"
+                    onClick={() => setNiaOpen(true)}
+                    className="text-[13px] font-semibold text-wisteria hover:text-wisteria-hover"
+                  >
+                    Not sure who to pick? Ask Nia →
+                  </button>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-[12.5px] font-semibold text-ink">
+                      Tell Nia what matters to you and she&apos;ll suggest one of the caregivers
+                      above.
+                    </p>
+                    <textarea
+                      rows={2}
+                      maxLength={1000}
+                      value={niaMessage}
+                      onChange={(e) => setNiaMessage(e.target.value)}
+                      placeholder="e.g. My son is 1 and shy — I'd like someone gentle with lots of infant experience"
+                      className="rounded-[10px] border border-[var(--color-lavender-border)] bg-sheet px-3 py-2 text-[13.5px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
+                    />
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        onClick={() => void askNia()}
+                        disabled={niaLoading || !niaMessage.trim()}
+                      >
+                        {niaLoading ? "Nia is thinking…" : "Ask Nia"}
+                      </Button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNiaOpen(false);
+                          setNiaError(null);
+                        }}
+                        className="text-[13px] font-semibold text-ink-muted hover:text-ink"
+                      >
+                        Close
+                      </button>
+                    </div>
+                    {niaError && <p className="text-[13px] text-error">{niaError}</p>}
+                    {niaPick && (
+                      <p className="rounded-[10px] bg-sheet px-3 py-2 text-[13px] text-ink">
+                        <span className="font-semibold text-wisteria">Nia suggests: </span>
+                        {niaPick.reason}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {preferredCandidates === null && (
               <p className="text-[13px] text-ink-muted">Loading caregivers near you…</p>
             )}
@@ -583,11 +686,21 @@ export function RequestFlowPanel({
                     submitting && preferredCaregiver?.staff_profile_id === c.staff_profile_id;
                   const primaryArea =
                     c.areas?.find((a) => a.isPrimary)?.area ?? c.areas?.[0]?.area ?? null;
+                  const isNiaPick = niaPick?.staffProfileId === c.staff_profile_id;
                   return (
                     <div
                       key={c.staff_profile_id}
-                      className="flex flex-col gap-3 rounded-[12px] border border-[var(--color-lavender-border)] p-3"
+                      className={`flex flex-col gap-3 rounded-[12px] border p-3 ${
+                        isNiaPick
+                          ? "border-wisteria bg-wisteria-tint"
+                          : "border-[var(--color-lavender-border)]"
+                      }`}
                     >
+                      {isNiaPick && (
+                        <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-wisteria">
+                          Nia&apos;s suggestion
+                        </p>
+                      )}
                       <div className="flex items-start gap-3">
                         <Avatar
                           photoUrl={caregiverPhotoUrl(c.photo_path ?? null)}
