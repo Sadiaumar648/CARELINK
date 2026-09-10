@@ -44,18 +44,22 @@ export async function POST(request: Request) {
       if (!ward) return NextResponse.json({ error: "Ward not found" }, { status: 404 });
     }
 
-    // A light existence/type sanity check only — real eligibility (date/
-    // time/schedule conflicts/service area) is checked for real when
-    // dispatch actually tries this caregiver (lib/services/dispatch.ts),
-    // never here.
+    // A light existence check only — real eligibility (date/time/
+    // schedule conflicts/service area) is checked for real when dispatch
+    // actually tries this caregiver (lib/services/dispatch.ts), never
+    // here. The caregiver just has to exist and be bookable
+    // (public_caregivers already means verified + accepting). Type is
+    // no longer matched: CareLink presents every caregiver as a Nanny,
+    // so a caregiver whose stored caregiver_type is a historical
+    // "babysitter" (or not set yet) is still a valid preferred choice.
     if (body.preferredStaffProfileId) {
       const { data: preferred, error: preferredErr } = await supabase
         .from("public_caregivers")
-        .select("staff_profile_id, caregiver_type")
+        .select("staff_profile_id")
         .eq("staff_profile_id", body.preferredStaffProfileId)
         .maybeSingle();
       if (preferredErr) return NextResponse.json({ error: preferredErr.message }, { status: 500 });
-      if (!preferred || preferred.caregiver_type !== body.caregiverType) {
+      if (!preferred) {
         return NextResponse.json(
           { error: "That caregiver isn't available as a preferred choice for this request" },
           { status: 400 },

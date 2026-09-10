@@ -12,6 +12,11 @@ export async function GET(request: Request) {
 
     const query = searchCaregiversQuerySchema.parse({
       area: url.searchParams.get("area") ?? undefined,
+      // Real coordinates for proximity scoring, when the caller has
+      // them (the request flow's map-resolved service location). The
+      // schema coerces these from strings and requires both or neither.
+      latitude: url.searchParams.get("latitude") ?? undefined,
+      longitude: url.searchParams.get("longitude") ?? undefined,
       date: url.searchParams.get("date") ?? undefined,
       startTime: url.searchParams.get("startTime") ?? undefined,
       endTime: url.searchParams.get("endTime") ?? undefined,

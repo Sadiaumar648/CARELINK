@@ -32,7 +32,7 @@ type CaregiverType = "nanny" | "babysitter";
 type PreferredCandidate = {
   staff_profile_id: string;
   full_name: string;
-  caregiver_type: "nanny" | "babysitter";
+  caregiver_type: "nanny" | "babysitter" | null;
 };
 
 // Two real screens, not one — "Find Care" only ever validates and
@@ -318,19 +318,21 @@ export function RequestFlowPanel({
     setStep("results");
     setPreferredCandidates(null); // re-fetch every time — proximity depends on location, which can change
     const params = new URLSearchParams();
-    const area = location.coarseArea ?? location.formattedAddress;
-    if (area) params.set("area", area);
-    // Real coordinates — this is what makes the list genuinely sorted by
-    // proximity (computeProximityFit in lib/services/matching.ts) rather
-    // than just an area-string match.
+    // Only real coordinates are sent — never the coarse area string.
+    // The area string was an exact-match hard filter (a caregiver whose
+    // service area didn't spell the parent's suburb identically was
+    // dropped entirely); this flow instead shows every eligible
+    // caregiver and lets the coordinates sort them by real distance
+    // (computeProximityFit in lib/services/matching.ts). A parent picks
+    // one regardless of how their typed areas happen to be worded.
     params.set("latitude", String(location.latitude));
     params.set("longitude", String(location.longitude));
     apiFetch<{ results: PreferredCandidate[] }>(`/api/search/caregivers?${params.toString()}`)
-      // Every real, eligible caregiver near this location — Nanny and
-      // Babysitter alike, since CareLink no longer asks the parent to
-      // pick a type first. Only excludes a profile with no type on file
-      // at all, which the request-submission schema can't accept.
-      .then((res) => setPreferredCandidates(res.results.filter((c) => c.caregiver_type != null)))
+      // Every real, eligible caregiver the search returns — no client-
+      // side filtering by type at all. CareLink no longer asks the
+      // parent to pick a type, and a caregiver with no type on file yet
+      // is still shown (treated as a Nanny on submit, see chooseCaregiver).
+      .then((res) => setPreferredCandidates(res.results))
       .catch(() => setPreferredCandidates([]));
   }
 
@@ -409,11 +411,12 @@ export function RequestFlowPanel({
           preferredStaffProfileId: c.staff_profile_id,
           source: "direct",
           // The chosen caregiver's own real type — never a value the
-          // parent picked, since they never see this distinction. Keeps
-          // POST /api/care-requests' existing "preferred caregiver's
-          // type must match the request's caregiverType" validation
-          // (app/api/care-requests/route.ts) satisfied unchanged.
-          caregiverType: c.caregiver_type,
+          // parent picked, since they never see this distinction. A
+          // caregiver with no type on file yet defaults to "nanny"
+          // (every caregiver is a Nanny to parents now). The backend's
+          // preferred-caregiver-type check (app/api/care-requests/
+          // route.ts) allows a null-typed preferred caregiver through.
+          caregiverType: c.caregiver_type ?? "nanny",
           date: filters.date,
           startTime: filters.startTime,
           endTime: filters.endTime,
@@ -509,7 +512,7 @@ export function RequestFlowPanel({
                 Choose a caregiver
               </h2>
               <p className="text-[13px] text-ink-muted">
-                These verified {HEADING.toLowerCase()}s are near your requested location. CareLink
+                Verified {HEADING.toLowerCase()}s who can serve your area, closest first. CareLink
                 will send your request to the one you choose — if they&apos;re unavailable, you can
                 come back and try someone else.
               </p>
@@ -533,8 +536,9 @@ export function RequestFlowPanel({
             )}
             {preferredCandidates !== null && filteredPreferredCandidates.length === 0 && (
               <p className="text-[13px] text-ink-muted">
-                No {HEADING.toLowerCase()}s found near this location yet. Try a different location,
-                or check back later.
+                {preferredSearch.trim()
+                  ? `No ${HEADING.toLowerCase()}s match “${preferredSearch.trim()}”.`
+                  : `No verified ${HEADING.toLowerCase()}s are available right now. Please check back later.`}
               </p>
             )}
             {filteredPreferredCandidates.length > 0 && (
