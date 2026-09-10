@@ -211,34 +211,24 @@ export async function advanceDispatch(
     careRequest.service_latitude != null && careRequest.service_longitude != null;
 
   // Preferred caregiver: tried exactly once, before the normal
-  // sequential queue, and never automatically falls through to it. The
-  // eligibility check is the exact same round-0 standard (caregiver
-  // type, schedule/conflicts, skills, service area) ordinary dispatch
-  // already applies — findEligibleCaregivers itself, unchanged — just
-  // asking "is this one specific caregiver in that eligible pool?"
-  // rather than picking the top-ranked candidate from it. Declined,
-  // timed out, or never eligible in the first place are all the same
-  // outcome from here: preferred_declined, a pause the parent must
-  // explicitly clear (POST .../dispatch/continue) — CareLink never
-  // silently moves on to someone else.
+  // sequential queue, and never automatically falls through to it.
+  //
+  // The parent explicitly picked this one caregiver from the list
+  // CareLink showed them, so their pick is honoured directly — the
+  // offer goes straight to that caregiver without re-checking whether
+  // they pass this request's area / time-window / type / skills
+  // filters. The caregiver themselves is the authority on whether they
+  // can take it (they accept or decline), and a genuine scheduling
+  // clash is still caught by the bookings_no_overlap constraint at
+  // insert. The only thing still verified here is "is this a real,
+  // bookable caregiver" (verified, accepting bookings, not currently
+  // mid-session) — an empty query to findEligibleCaregivers is exactly
+  // that check. If the caregiver isn't bookable at all, or later
+  // declines / times out, the outcome is the same: preferred_declined,
+  // a pause the parent must explicitly clear (POST .../dispatch/continue)
+  // — CareLink never silently moves on to someone else.
   if (careRequest.preferred_staff_profile_id && !careRequest.preferred_dispatch_done) {
-    const preferredOutcome = await findEligibleCaregivers(
-      supabase,
-      {
-        area: !hasCoordinates ? careRequest.location : undefined,
-        latitude: hasCoordinates ? careRequest.service_latitude! : undefined,
-        longitude: hasCoordinates ? careRequest.service_longitude! : undefined,
-        date: careRequest.date,
-        startTime: careRequest.start_time.slice(0, 5),
-        endTime: careRequest.end_time.slice(0, 5),
-        skills: careRequest.skills?.length ? careRequest.skills : undefined,
-      },
-      weights,
-      {
-        caregiverType: careRequest.caregiver_type,
-        maxDistanceKm: hasCoordinates ? DISPATCH_VICINITY_RADII_KM[0] : undefined,
-      },
-    );
+    const preferredOutcome = await findEligibleCaregivers(supabase, {}, weights);
     const preferredMatch = preferredOutcome.results.find(
       (r) => r.staff_profile_id === careRequest.preferred_staff_profile_id,
     );

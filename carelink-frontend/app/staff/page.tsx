@@ -76,10 +76,27 @@ function NewRequestsAlert({ onChange }: { onChange: () => void }) {
   const [bookings, setBookings] = useState<StaffRequestBooking[] | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
+  // Re-fetch on mount, after the caregiver responds to one, and on a
+  // 20s poll so a request that lands while Home is open shows up on its
+  // own — the "it pops up on your homepage" behaviour — without needing
+  // a manual refresh.
   useEffect(() => {
-    apiFetch<{ bookings: StaffRequestBooking[] }>("/api/bookings?status=pending")
-      .then((res) => setBookings(res.bookings))
-      .catch(() => setBookings([]));
+    let cancelled = false;
+    function load() {
+      apiFetch<{ bookings: StaffRequestBooking[] }>("/api/bookings?status=pending")
+        .then((res) => {
+          if (!cancelled) setBookings(res.bookings);
+        })
+        .catch(() => {
+          if (!cancelled) setBookings((prev) => prev ?? []);
+        });
+    }
+    load();
+    const interval = setInterval(load, 20_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [reloadKey]);
 
   if (!bookings || bookings.length === 0) return null;
