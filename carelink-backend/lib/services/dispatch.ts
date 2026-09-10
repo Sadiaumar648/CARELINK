@@ -49,6 +49,14 @@ export type DispatchStatusResult = {
   dispatchStatus: string;
   vicinityRound: number;
   activeOffer: ActiveOfferSummary | null;
+  // The one nanny the parent picked for this request — resolved from
+  // care_requests.preferred_staff_profile_id so the parent-facing
+  // "Request sent to <name>" / "<name> isn't available" screens always
+  // have the name, even once there's no active offer (preferred_declined).
+  preferredCaregiverName: string | null;
+  // On preferred_declined: whether the picked nanny actively declined or
+  // simply let the response window lapse — drives which message shows.
+  preferredOutcome: "declined" | "expired" | null;
 };
 
 type CareRequestRow = {
@@ -92,7 +100,10 @@ type SummarizedBooking = {
 
 async function summarize(
   supabase: SupabaseClient,
-  cr: Pick<CareRequestRow, "dispatch_status" | "vicinity_round">,
+  cr: Pick<
+    CareRequestRow,
+    "id" | "dispatch_status" | "vicinity_round" | "preferred_staff_profile_id"
+  >,
   booking?: SummarizedBooking | null,
 ): Promise<DispatchStatusResult> {
   let activeOffer: ActiveOfferSummary | null = null;
@@ -116,7 +127,39 @@ async function summarize(
       paymentExpired: isPaymentExpired(booking),
     };
   }
-  return { dispatchStatus: cr.dispatch_status, vicinityRound: cr.vicinity_round, activeOffer };
+
+  let preferredCaregiverName: string | null = activeOffer?.caregiverName ?? null;
+  if (!preferredCaregiverName && cr.preferred_staff_profile_id) {
+    const { data } = await supabase
+      .from("public_caregivers")
+      .select("full_name")
+      .eq("staff_profile_id", cr.preferred_staff_profile_id)
+      .maybeSingle();
+    preferredCaregiverName = data?.full_name ?? null;
+  }
+
+  let preferredOutcome: "declined" | "expired" | null = null;
+  if (cr.dispatch_status === "preferred_declined") {
+    const { data: lastOffer } = await supabase
+      .from("bookings")
+      .select("status")
+      .eq("care_request_id", cr.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    // "expired" only when there really was an offer that timed out;
+    // a decline, or a nanny who turned out ineligible before any offer
+    // was ever made, both read as "isn't available".
+    preferredOutcome = lastOffer && lastOffer.status !== "declined" ? "expired" : "declined";
+  }
+
+  return {
+    dispatchStatus: cr.dispatch_status,
+    vicinityRound: cr.vicinity_round,
+    activeOffer,
+    preferredCaregiverName,
+    preferredOutcome,
+  };
 }
 
 const TERMINAL_STATUSES = new Set(["accepted", "exhausted", "cancelled"]);
@@ -212,26 +255,32 @@ export async function advanceDispatch(
   const hasCoordinates =
     careRequest.service_latitude != null && careRequest.service_longitude != null;
 
-  // Preferred caregiver: tried exactly once, before the normal
-  // sequential queue, and never automatically falls through to it.
-  //
-  // The parent explicitly picked this one caregiver from the list
-  // CareLink showed them, so their pick is honoured directly — the
-  // offer goes straight to that caregiver without re-checking whether
-  // they pass this request's area / time-window / type / skills
-  // filters. The caregiver themselves is the authority on whether they
-  // can take it (they accept or decline), and a genuine scheduling
-  // clash is still caught by the bookings_no_overlap constraint at
-  // insert. The only thing still verified here is "is this a real,
-  // bookable caregiver" (verified, accepting bookings, not currently
-  // mid-session) — an empty query to findEligibleCaregivers is exactly
-  // that check. If the caregiver isn't bookable at all, or later
-  // declines / times out, the outcome is the same: preferred_declined,
-  // a pause the parent must explicitly clear (POST .../dispatch/continue)
-  // — CareLink never silently moves on to someone else.
+  // The one nanny the parent picked. CareLink offers the request only
+  // to them — it never falls through to a sequential queue or contacts
+  // anyone else. The eligibility check here is exactly the one the
+  // "Recommended Nannies" list used to produce them (public_caregivers
+  // membership = active + CareLink-verified + accepting; plus a
+  // conflicts-only availability check = no clashing booking, no
+  // marked-unavailable date — never their declared weekly hours), so a
+  // nanny who was recommended for this slot is offered it. If they've
+  // become unavailable since, or later decline / don't respond, the
+  // request pauses at preferred_declined and the parent picks another
+  // nanny themselves (POST .../dispatch/reselect) — never automatic.
   if (careRequest.preferred_staff_profile_id && !careRequest.preferred_dispatch_done) {
-    const preferredOutcome = await findEligibleCaregivers(supabase, {}, weights);
-    const preferredMatch = preferredOutcome.results.find(
+    const eligible = await findEligibleCaregivers(
+      supabase,
+      {
+        latitude: hasCoordinates ? careRequest.service_latitude! : undefined,
+        longitude: hasCoordinates ? careRequest.service_longitude! : undefined,
+        date: careRequest.date,
+        startTime: careRequest.start_time.slice(0, 5),
+        endTime: careRequest.end_time.slice(0, 5),
+        durationDays: careRequest.duration_days,
+      },
+      weights,
+      { availabilityCheck: "conflicts" },
+    );
+    const preferredMatch = eligible.results.find(
       (r) => r.staff_profile_id === careRequest.preferred_staff_profile_id,
     );
     await supabase
@@ -245,7 +294,7 @@ export async function advanceDispatch(
         .from("care_requests")
         .update({ dispatch_status: "preferred_declined" })
         .eq("id", careRequestId);
-      return summarize(supabase, { dispatch_status: "preferred_declined", vicinity_round: round });
+      return summarize(supabase, { ...careRequest, dispatch_status: "preferred_declined" });
     }
   }
 
@@ -268,7 +317,7 @@ export async function advanceDispatch(
       .from("care_requests")
       .update({ dispatch_status: "preferred_declined" })
       .eq("id", careRequestId);
-    return summarize(supabase, { dispatch_status: "preferred_declined", vicinity_round: round });
+    return summarize(supabase, { ...careRequest, dispatch_status: "preferred_declined" });
   }
 
   if (!next) {
@@ -328,7 +377,7 @@ export async function advanceDispatch(
       .from("care_requests")
       .update({ dispatch_status: "exhausted" })
       .eq("id", careRequestId);
-    return summarize(supabase, { dispatch_status: "exhausted", vicinity_round: round });
+    return summarize(supabase, { ...careRequest, dispatch_status: "exhausted" });
   }
 
   const startsAt = new Date(`${careRequest.date}T${careRequest.start_time.slice(0, 5)}:00Z`);
@@ -403,7 +452,11 @@ export async function advanceDispatch(
     .update({ dispatch_status: dispatchStatus })
     .eq("id", careRequestId);
 
-  return summarize(supabase, { dispatch_status: dispatchStatus, vicinity_round: round }, booking);
+  return summarize(
+    supabase,
+    { ...careRequest, dispatch_status: dispatchStatus, vicinity_round: round },
+    booking,
+  );
 }
 
 // "Find another caregiver" — the parent's explicit choice to move past
@@ -430,6 +483,68 @@ export async function continuePreferredDispatch(
     .from("care_requests")
     .update({ dispatch_status: "not_started", preferred_continue_authorized: true })
     .eq("id", careRequestId);
+  return advanceDispatch(supabase, careRequestId);
+}
+
+// "Choose Another Nanny" — the parent picked a different nanny after
+// their first pick declined or didn't respond. This re-targets the SAME
+// care request at the new nanny and offers it to them (and only them);
+// it never starts a sequential queue. Only legal from preferred_declined
+// (the paused state the two "isn't available" / "didn't respond" screens
+// show). Re-validates eligibility for the requested slot first, exactly
+// like POST /api/care-requests does on the first send — a nanny who
+// can't take it is refused here, not offered.
+export async function reselectPreferredCaregiver(
+  supabase: SupabaseClient,
+  careRequestId: string,
+  staffProfileId: string,
+): Promise<DispatchStatusResult> {
+  const { data: cr, error } = await supabase
+    .from("care_requests")
+    .select("*")
+    .eq("id", careRequestId)
+    .single();
+  if (error || !cr) throw error ?? new Error("Care request not found");
+  const careRequest = cr as CareRequestRow;
+  if (careRequest.dispatch_status !== "preferred_declined") {
+    throw new Error("This request isn't waiting for you to choose another nanny");
+  }
+
+  const hasCoordinates =
+    careRequest.service_latitude != null && careRequest.service_longitude != null;
+  const weights = await loadMatchWeights(supabase);
+  const eligible = await findEligibleCaregivers(
+    supabase,
+    {
+      latitude: hasCoordinates ? careRequest.service_latitude! : undefined,
+      longitude: hasCoordinates ? careRequest.service_longitude! : undefined,
+      date: careRequest.date,
+      startTime: careRequest.start_time.slice(0, 5),
+      endTime: careRequest.end_time.slice(0, 5),
+      durationDays: careRequest.duration_days,
+    },
+    weights,
+    { availabilityCheck: "conflicts" },
+  );
+  if (!eligible.results.some((r) => r.staff_profile_id === staffProfileId)) {
+    const err = new Error(
+      "This nanny is no longer available for your selected time. Please choose another nanny.",
+    );
+    err.name = "NannyUnavailable";
+    throw err;
+  }
+
+  await supabase
+    .from("care_requests")
+    .update({
+      preferred_staff_profile_id: staffProfileId,
+      preferred_dispatch_done: false,
+      preferred_continue_authorized: false,
+      dispatch_status: "not_started",
+      vicinity_round: 0,
+    })
+    .eq("id", careRequestId);
+
   return advanceDispatch(supabase, careRequestId);
 }
 

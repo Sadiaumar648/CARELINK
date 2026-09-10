@@ -1,20 +1,24 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { ChatCircleText, CheckCircle, MagnifyingGlass, MapPin, X } from "@phosphor-icons/react";
-import { apiFetch } from "@/lib/api/client";
+import {
+  ArrowLeft,
+  ChatCircleText,
+  CheckCircle,
+  Clock,
+  PaperPlaneTilt,
+} from "@phosphor-icons/react";
+import { apiFetch, ApiError } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Sheet } from "@/components/ui/sheet";
 import { Button, LinkButton } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/empty-state";
-import { caregiverTypeLabel } from "@/components/find-care/types";
 import { useCountdown } from "@/lib/use-countdown";
+import { NannyCard, type RecommendedNanny } from "@/components/parent/nanny-card";
 
-// The real, locked terms of the one booking dispatch created for this
-// offer — fetched from the existing GET /api/bookings/[id] (the same
-// route booking-detail.tsx already uses), never recomputed here. This
-// is what makes the "Caregiver found!" card's price/date/time real
-// instead of guessed: it's the exact row payment will later charge.
+// The real, locked terms of the one booking this request created —
+// fetched from the existing GET /api/bookings/[id], never recomputed
+// here.
 type OfferBooking = {
   starts_at: string;
   ends_at: string;
@@ -32,9 +36,6 @@ type ActiveOffer = {
   hourlyRate: number;
   expiresAt: string | null;
   status: string;
-  // CareLink's finalized payment workflow, Part 4 — see
-  // lib/services/payment-window.ts (backend) for where these are
-  // actually computed and enforced; never derived on this page.
   paymentDeadline: string | null;
   paymentExpired: boolean;
 };
@@ -50,13 +51,23 @@ type DispatchStatus = {
     | "preferred_declined";
   vicinityRound: number;
   activeOffer: ActiveOffer | null;
+  // The one nanny the parent picked for this request.
+  preferredCaregiverName: string | null;
+  // On preferred_declined: did the nanny decline, or let the window lapse.
+  preferredOutcome: "declined" | "expired" | null;
 };
 
-// Polls the dispatch status endpoint — the poll itself is what advances
-// the queue server-side (expiring a timed-out offer, moving to the next
-// caregiver, expanding the vicinity), the same pattern this app already
-// uses for payment status (usePaymentPolling in booking-detail.tsx) and
-// SafeTrack location, rather than introducing a new realtime channel.
+// The saved request row — used to build the "choose another nanny" list
+// with the same date/time/location the request already has.
+type CareRequestRow = {
+  date: string;
+  start_time: string;
+  end_time: string;
+  duration_days: number | null;
+  service_latitude: number | null;
+  service_longitude: number | null;
+};
+
 function useDispatchPolling(
   careRequestId: string,
   onUpdate: (s: DispatchStatus) => void,
@@ -99,166 +110,246 @@ function formatTimeRange(startsAt: string, endsAt: string): string {
   return `${time(startsAt)} – ${time(endsAt)}`;
 }
 
-// Fetches the one real booking this offer created, plus the caregiver's
-// declared type — both from existing routes (GET /api/bookings/[id],
-// already used by booking-detail.tsx; GET /api/caregivers/[id], already
-// used by the caregiver profile page) rather than trusting or
-// recomputing anything on this page.
-function useOfferDetails(bookingId: string | null, staffProfileId: string | null) {
+// Fetches the one real booking this request created — from the existing
+// GET /api/bookings/[id], never recomputed on this page.
+function useOfferBooking(bookingId: string | null) {
   const [booking, setBooking] = useState<OfferBooking | null>(null);
-  const [caregiverType, setCaregiverType] = useState<"nanny" | "babysitter" | null>(null);
-
   useEffect(() => {
     if (!bookingId) return;
+    let cancelled = false;
     apiFetch<{ booking: OfferBooking }>(`/api/bookings/${bookingId}`)
-      .then((res) => setBooking(res.booking))
+      .then((res) => {
+        if (!cancelled) setBooking(res.booking);
+      })
       .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
   }, [bookingId]);
-
-  useEffect(() => {
-    if (!staffProfileId) return;
-    apiFetch<{ caregiver: { caregiver_type: "nanny" | "babysitter" | null } }>(
-      `/api/caregivers/${staffProfileId}`,
-    )
-      .then((res) => setCaregiverType(res.caregiver.caregiver_type))
-      .catch(() => undefined);
-  }, [staffProfileId]);
-
-  return { booking, caregiverType };
+  // Only meaningful while there IS a bookingId — callers gate on that.
+  return bookingId ? booking : null;
 }
 
-const TERMINAL = new Set(["accepted", "exhausted", "cancelled"]);
-
-// The last step names the caregiver the parent actually picked and sent
-// the request to (from the live offer), falling back to a generic label
-// only before that name is known or once the search has widened past
-// them.
-function checklistLabels(status: DispatchStatus): string[] {
-  const name = status.activeOffer?.caregiverName;
-  const last =
-    name && status.dispatchStatus !== "expanding" && status.dispatchStatus !== "exhausted"
-      ? `Contacting ${name}`
-      : "Caregiver confirmation";
-  return [
-    "Care request received",
-    "Contacting available caregivers",
-    "Expanding search if needed",
-    last,
-  ];
-}
-
-// A step is "done" (✓), "active" (●), or "pending" (○) purely from the
-// real dispatchStatus/vicinityRound already being polled — no separate
-// client-side state to drift out of sync with the backend.
-function checklistStates(status: DispatchStatus): ("done" | "active" | "pending")[] {
-  const { dispatchStatus, vicinityRound } = status;
-  if (dispatchStatus === "cancelled") return ["done", "pending", "pending", "pending"];
-  if (dispatchStatus === "accepted") return ["done", "done", "done", "done"];
-  if (dispatchStatus === "exhausted") return ["done", "done", "done", "pending"];
-  if (dispatchStatus === "expanding") return ["done", "done", "active", "pending"];
-  // searching / not_started
-  return vicinityRound > 0
-    ? ["done", "done", "active", "pending"]
-    : ["done", "active", "pending", "pending"];
-}
-
-// Purely a rendering of checklistStates() above — every visual state
-// here (which step is filled, which is highlighted, which is still
-// outlined) is a direct function of the real polled dispatchStatus/
-// vicinityRound, never a separate animation or timer of its own.
-// Shown for the not_started/searching states, AND before the very
-// first poll has resolved at all — genuinely the same real state from
-// the parent's perspective (CareLink is actively searching), so there
-// is no separate "loading" screen distinct from "We're finding your
-// caregiver": this renders identically whether real status hasn't
-// arrived yet or the backend has confirmed it's still searching.
-function SearchingCard({
-  status,
-  cancelling,
-  onCancel,
+// A fixed 3-step progress card for contacting the one nanny the parent
+// picked — no "available caregivers", no expanding search. Step 2 is
+// active while the offer is being placed; once it's placed and we're
+// waiting on the nanny, step 2 completes and step 3 goes active.
+function ContactingProgress({
+  nannyName,
+  offerPlaced,
 }: {
-  status: DispatchStatus | null;
-  cancelling: boolean;
-  onCancel: () => void;
+  nannyName: string;
+  offerPlaced: boolean;
 }) {
+  const steps: { label: string; state: "done" | "active" | "pending" }[] = [
+    { label: "Care request received", state: "done" },
+    { label: `Contacting ${nannyName}`, state: offerPlaced ? "done" : "active" },
+    { label: "Waiting for caregiver response", state: offerPlaced ? "active" : "pending" },
+  ];
   return (
-    <Sheet className="flex flex-col items-center gap-5 border-[var(--color-lavender-border)] px-6 py-12 text-center">
-      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-wisteria-tint text-wisteria">
-        <MagnifyingGlass size={26} weight="bold" />
-      </span>
-      <div className="flex flex-col gap-1.5">
-        <h1 className="text-[19px] font-bold font-heading text-ink">
-          We&apos;re finding your caregiver
-        </h1>
-        <p className="text-[13.5px] leading-relaxed text-ink-muted">
-          CareLink is checking available caregivers near your care location, one at a time.
-          We&apos;ll update you as soon as we find a match.
-        </p>
-      </div>
-      {status?.activeOffer && (
-        <p className="flex items-center gap-1.5 rounded-full bg-wisteria-tint px-3.5 py-1.5 text-[13px] font-semibold text-wisteria-pressed">
-          <MapPin size={14} weight="fill" /> Contacting {status.activeOffer.caregiverName}…
-        </p>
-      )}
-      <ProgressChecklist
-        status={status ?? { dispatchStatus: "not_started", vicinityRound: 0, activeOffer: null }}
-      />
-      <p className="text-[12px] text-ink-muted">
-        You can stay on this page while we search. We&apos;ll update you as soon as we find a
-        caregiver.
-      </p>
-      <Button
-        variant="secondary"
-        onClick={onCancel}
-        disabled={cancelling}
-        className="border-wisteria bg-sheet text-wisteria hover:bg-wisteria-tint hover:text-wisteria-pressed"
-      >
-        <X size={15} /> Cancel Search
-      </Button>
-    </Sheet>
+    <div className="flex w-full flex-col gap-3 rounded-[14px] border border-hairline bg-paper p-4 text-left">
+      {steps.map((s, i) => (
+        <div key={i} className="flex items-center gap-3">
+          <span
+            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
+              s.state === "done"
+                ? "bg-[var(--color-success)] text-white"
+                : s.state === "active"
+                  ? "bg-wisteria text-white"
+                  : "border border-hairline bg-sheet"
+            }`}
+          >
+            {s.state === "done" ? (
+              <CheckCircle size={13} weight="fill" />
+            ) : s.state === "active" ? (
+              <span className="h-2 w-2 rounded-full bg-white" />
+            ) : (
+              <span className="h-1.5 w-1.5 rounded-full bg-ink-muted/40" />
+            )}
+          </span>
+          <span
+            className={`text-[13px] ${
+              s.state === "pending"
+                ? "text-ink-muted"
+                : s.state === "active"
+                  ? "font-semibold text-ink"
+                  : "text-ink"
+            }`}
+          >
+            {s.label}
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }
 
-function ProgressChecklist({ status }: { status: DispatchStatus }) {
-  const states = checklistStates(status);
-  const labels = checklistLabels(status);
+function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex w-full flex-col gap-3 rounded-[14px] border border-hairline bg-paper p-4 text-left">
-      {labels.map((label, i) => {
-        const state = states[i];
-        return (
-          <div key={i} className="flex items-center gap-3">
-            <span
-              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
-                state === "done"
-                  ? "bg-[var(--color-success)] text-white"
-                  : state === "active"
-                    ? "bg-wisteria text-white"
-                    : "border border-hairline bg-sheet"
-              }`}
-            >
-              {state === "done" ? (
-                <CheckCircle size={13} weight="fill" />
-              ) : state === "active" ? (
-                <span className="h-2 w-2 rounded-full bg-white" />
-              ) : (
-                <span className="h-1.5 w-1.5 rounded-full bg-ink-muted/40" />
-              )}
-            </span>
-            <span
-              className={`text-[13px] ${
-                state === "pending"
-                  ? "text-ink-muted"
-                  : state === "active"
-                    ? "font-semibold text-ink"
-                    : "text-ink"
-              }`}
-            >
-              {label}
-            </span>
-          </div>
+    <div className="flex justify-between gap-3">
+      <span className="text-ink-muted">{label}</span>
+      <span className="font-semibold">{value}</span>
+    </div>
+  );
+}
+
+function RequestDetails({
+  nannyName,
+  booking,
+}: {
+  nannyName: string;
+  booking: OfferBooking | null;
+}) {
+  return (
+    <div className="flex w-full max-w-sm flex-col gap-1.5 rounded-[14px] border border-hairline p-4 text-left text-[13px]">
+      <DetailRow label="Nanny" value={nannyName} />
+      <DetailRow label="Care type" value="Nanny" />
+      {booking && (
+        <>
+          <DetailRow label="Date" value={formatDateLong(booking.starts_at)} />
+          <DetailRow label="Time" value={formatTimeRange(booking.starts_at, booking.ends_at)} />
+          <DetailRow
+            label="Duration"
+            value={
+              (booking.duration_days ?? 1) > 1
+                ? `${booking.duration_hours} hrs/day · ${booking.duration_days} days`
+                : `${booking.duration_hours} hours`
+            }
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+// The parent picked a different nanny after their first choice fell
+// through — this shows the same Recommended Nannies list, computed from
+// the request the parent already saved, and re-targets it at whoever
+// they pick (POST .../dispatch/reselect). Never automatic.
+function ChooseAnotherNanny({
+  careRequestId,
+  onReselected,
+  onBack,
+}: {
+  careRequestId: string;
+  onReselected: (s: DispatchStatus) => void;
+  onBack: () => void;
+}) {
+  const [nannies, setNannies] = useState<RecommendedNanny[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [sendingId, setSendingId] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch<{ careRequest: CareRequestRow }>(`/api/care-requests/${careRequestId}`)
+      .then((res) => {
+        const cr = res.careRequest;
+        const params = new URLSearchParams();
+        if (cr.service_latitude != null && cr.service_longitude != null) {
+          params.set("latitude", String(cr.service_latitude));
+          params.set("longitude", String(cr.service_longitude));
+        }
+        params.set("date", cr.date);
+        params.set("startTime", cr.start_time.slice(0, 5));
+        params.set("endTime", cr.end_time.slice(0, 5));
+        params.set("durationDays", String(cr.duration_days ?? 1));
+        params.set("availability", "conflicts");
+        return apiFetch<{ results: RecommendedNanny[] }>(
+          `/api/search/caregivers?${params.toString()}`,
         );
-      })}
+      })
+      .then((res) => {
+        if (!cancelled) setNannies(res.results);
+      })
+      .catch((err) => {
+        if (!cancelled) setLoadError(errorMessage(err));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [careRequestId]);
+
+  async function requestNanny(staffProfileId: string) {
+    setSendingId(staffProfileId);
+    setMessage(null);
+    try {
+      const res = await apiFetch<DispatchStatus>(
+        `/api/care-requests/${careRequestId}/dispatch/reselect`,
+        { method: "POST", body: { staffProfileId } },
+      );
+      onReselected(res);
+    } catch (err) {
+      setSendingId(null);
+      if (err instanceof ApiError && err.code === "nanny_unavailable") {
+        setMessage(errorMessage(err));
+        // Refresh the list so the unavailable nanny drops off.
+        setNannies(null);
+        apiFetch<{ careRequest: CareRequestRow }>(`/api/care-requests/${careRequestId}`)
+          .then((r) => {
+            const cr = r.careRequest;
+            const p = new URLSearchParams();
+            if (cr.service_latitude != null && cr.service_longitude != null) {
+              p.set("latitude", String(cr.service_latitude));
+              p.set("longitude", String(cr.service_longitude));
+            }
+            p.set("date", cr.date);
+            p.set("startTime", cr.start_time.slice(0, 5));
+            p.set("endTime", cr.end_time.slice(0, 5));
+            p.set("durationDays", String(cr.duration_days ?? 1));
+            p.set("availability", "conflicts");
+            return apiFetch<{ results: RecommendedNanny[] }>(`/api/search/caregivers?${p}`);
+          })
+          .then((r) => setNannies(r.results))
+          .catch(() => setNannies([]));
+        return;
+      }
+      setMessage(errorMessage(err));
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <button
+        type="button"
+        onClick={onBack}
+        className="flex items-center gap-1.5 self-start text-[13px] font-semibold text-ink-muted hover:text-ink"
+      >
+        <ArrowLeft size={14} /> Back
+      </button>
+      <div>
+        <h1 className="text-[19px] font-bold font-heading text-ink">Recommended Nannies</h1>
+        <p className="text-[13px] text-ink-muted">
+          Based on your care needs, location and schedule, these CareLink nannies may be a good fit.
+          Pick one and your request goes only to them.
+        </p>
+      </div>
+      {message && <p className="text-[13px] text-error">{message}</p>}
+      {loadError && <ErrorState onRetry={() => setNannies(null)} />}
+      {!loadError && nannies === null && (
+        <p className="text-[13px] text-ink-muted">Finding nannies for your request…</p>
+      )}
+      {nannies?.length === 0 && (
+        <p className="text-[13px] text-ink-muted">
+          No CareLink nannies are available for your requested time right now.
+        </p>
+      )}
+      {nannies && nannies.length > 0 && (
+        <div className="flex flex-col gap-3">
+          {nannies.map((n) => (
+            <NannyCard
+              key={n.staff_profile_id}
+              nanny={n}
+              disabled={sendingId !== null}
+              requesting={sendingId === n.staff_profile_id}
+              onRequest={() => void requestNanny(n.staff_profile_id)}
+              onViewProfile={() =>
+                window.open(`/parent/caregivers/${n.staff_profile_id}`, "_blank")
+              }
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -268,49 +359,38 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
   const [status, setStatus] = useState<DispatchStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [reselecting, setReselecting] = useState(false);
 
-  // Polling must keep running through the whole "accepted" state, not
-  // just stop the moment a caregiver accepts — the payment window's own
-  // expiry (or a successful payment) only ever becomes visible through
-  // another poll, since dispatch_status itself never changes again once
-  // it reaches 'accepted'. Only actually stops once the underlying
-  // booking has resolved away from 'accepted' (paid, or the payment
-  // window's own lazy sweep cancelled it).
   const active =
     !status ||
-    (!TERMINAL.has(status.dispatchStatus) && status.dispatchStatus !== "preferred_declined") ||
+    (!["accepted", "exhausted", "cancelled"].includes(status.dispatchStatus) &&
+      status.dispatchStatus !== "preferred_declined") ||
     (status.dispatchStatus === "accepted" && status.activeOffer?.status === "accepted");
-  useDispatchPolling(id, setStatus, setError, active);
-  const [findingAnother, setFindingAnother] = useState(false);
+  useDispatchPolling(id, setStatus, setError, active && !reselecting);
 
-  async function findAnotherCaregiver() {
-    setFindingAnother(true);
-    try {
-      const res = await apiFetch<DispatchStatus>(`/api/care-requests/${id}/dispatch/continue`, {
-        method: "POST",
-      });
-      setStatus(res);
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setFindingAnother(false);
-    }
-  }
+  const pendingOffer =
+    status &&
+    !["accepted", "exhausted", "cancelled", "preferred_declined"].includes(status.dispatchStatus)
+      ? status.activeOffer
+      : null;
+  const acceptedOffer = status?.dispatchStatus === "accepted" ? (status.activeOffer ?? null) : null;
+  const offerAwaitingPayment = acceptedOffer?.status === "accepted";
+  const offerPaymentExpired = Boolean(acceptedOffer?.paymentExpired);
 
-  const activeOffer = status?.dispatchStatus === "accepted" ? (status.activeOffer ?? null) : null;
-  const offerAwaitingPayment = activeOffer?.status === "accepted";
-  const offerPaymentExpired = Boolean(activeOffer?.paymentExpired);
-  const { booking: offerBooking, caregiverType } = useOfferDetails(
-    activeOffer?.bookingId ?? null,
-    activeOffer?.staffProfileId ?? null,
-  );
-  // The real countdown to the payment deadline — only ever ticking while
-  // the offer is genuinely still awaiting payment. The backend
-  // (lib/services/payment-window.ts) is what actually enforces this;
-  // this is a display only.
+  const offerBooking = useOfferBooking(pendingOffer?.bookingId ?? acceptedOffer?.bookingId ?? null);
+
+  // 120-second response window countdown — display only; the backend
+  // (advanceDispatch) is what actually expires the offer on the next poll.
+  const responseCountdown = useCountdown(pendingOffer?.expiresAt ?? null);
   const paymentCountdown = useCountdown(
-    offerAwaitingPayment ? (activeOffer?.paymentDeadline ?? null) : null,
+    offerAwaitingPayment ? (acceptedOffer?.paymentDeadline ?? null) : null,
   );
+
+  const nannyName =
+    status?.preferredCaregiverName ??
+    pendingOffer?.caregiverName ??
+    acceptedOffer?.caregiverName ??
+    "your nanny";
 
   async function cancel() {
     setCancelling(true);
@@ -332,89 +412,100 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
     );
   }
 
-  if (!status) {
+  if (reselecting && status) {
     return (
       <div className="mx-auto flex max-w-xl flex-col gap-6 p-6">
-        <SearchingCard status={null} cancelling={cancelling} onCancel={() => void cancel()} />
+        <ChooseAnotherNanny
+          careRequestId={id}
+          onReselected={(s) => {
+            setStatus(s);
+            setReselecting(false);
+          }}
+          onBack={() => setReselecting(false)}
+        />
       </div>
     );
   }
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6 p-6">
-      {(status.dispatchStatus === "not_started" || status.dispatchStatus === "searching") && (
-        <SearchingCard status={status} cancelling={cancelling} onCancel={() => void cancel()} />
-      )}
-
-      {/* The preferred caregiver declined, didn't respond in time, or
-          wasn't eligible — dispatch paused itself here rather than
-          silently moving on to someone else (lib/services/dispatch.ts).
-          Nothing happens until the parent explicitly asks CareLink to
-          search normally. */}
-      {status.dispatchStatus === "preferred_declined" && (
-        <Sheet className="flex flex-col items-center gap-4 border-[var(--color-lavender-border)] py-10 text-center">
-          <div>
-            <h1 className="text-[19px] font-bold font-heading text-ink">
-              Your preferred caregiver isn&apos;t available.
-            </h1>
-            <p className="mt-1 text-[13.5px] text-ink-muted">
-              Would you like us to find another suitable caregiver?
-            </p>
-          </div>
-          {error && <p className="text-[13px] text-error">{error}</p>}
-          <div className="flex flex-wrap justify-center gap-3">
-            <Button onClick={() => void findAnotherCaregiver()} disabled={findingAnother}>
-              {findingAnother ? "Searching…" : "Find another caregiver"}
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => void cancel()}
-              disabled={cancelling || findingAnother}
-            >
-              Cancel Search
-            </Button>
-          </div>
-        </Sheet>
-      )}
-
-      {status.dispatchStatus === "expanding" && (
-        <Sheet className="flex flex-col items-center gap-5 border-[var(--color-lavender-border)] px-6 py-12 text-center">
+      {/* Request sent — waiting for the one nanny the parent picked. */}
+      {(!status ||
+        status.dispatchStatus === "not_started" ||
+        status.dispatchStatus === "searching" ||
+        status.dispatchStatus === "expanding") && (
+        <Sheet className="flex flex-col items-center gap-5 border-[var(--color-lavender-border)] px-6 py-10 text-center">
           <span className="flex h-14 w-14 items-center justify-center rounded-full bg-wisteria-tint text-wisteria">
-            <MapPin size={26} weight="bold" />
+            <PaperPlaneTilt size={24} weight="fill" />
           </span>
           <div className="flex flex-col gap-1.5">
             <h1 className="text-[19px] font-bold font-heading text-ink">
-              We&apos;re expanding your search
+              We&apos;re contacting your caregiver
             </h1>
             <p className="text-[13.5px] leading-relaxed text-ink-muted">
-              We couldn&apos;t find an available caregiver nearby yet. CareLink is checking the next
-              closest eligible caregivers.
+              CareLink is contacting {nannyName} about your care request. We&apos;ll update you as
+              soon as we receive a response.
             </p>
           </div>
-          {status.activeOffer && (
-            <p className="flex items-center gap-1.5 rounded-full bg-wisteria-tint px-3.5 py-1.5 text-[13px] font-semibold text-wisteria-pressed">
-              <MapPin size={14} weight="fill" /> Contacting {status.activeOffer.caregiverName}…
-            </p>
-          )}
-          <ProgressChecklist status={status} />
+
+          <RequestDetails nannyName={nannyName} booking={offerBooking} />
+
+          <p className="flex items-center gap-1.5 rounded-full bg-wisteria-tint px-3.5 py-1.5 text-[13px] font-semibold text-wisteria-pressed">
+            <Clock size={14} weight="fill" /> Contacting {nannyName}…
+            {responseCountdown ? ` · ${responseCountdown}` : ""}
+          </p>
+
+          <ContactingProgress nannyName={nannyName} offerPlaced={Boolean(pendingOffer)} />
+
+          <p className="text-[12px] text-ink-muted">
+            You can stay on this page while you wait — it updates on its own.
+          </p>
+
           <Button
             variant="secondary"
             onClick={() => void cancel()}
             disabled={cancelling}
             className="border-wisteria bg-sheet text-wisteria hover:bg-wisteria-tint hover:text-wisteria-pressed"
           >
-            <X size={15} /> Cancel Search
+            {cancelling ? "Cancelling…" : "Cancel Search"}
           </Button>
         </Sheet>
       )}
 
-      {status.dispatchStatus === "accepted" && status.activeOffer && offerAwaitingPayment && (
+      {/* The picked nanny declined or didn't respond — the parent picks
+          another themselves; CareLink never auto-dispatches. */}
+      {status?.dispatchStatus === "preferred_declined" && (
+        <Sheet className="flex flex-col items-center gap-4 border-[var(--color-lavender-border)] py-10 text-center">
+          <div>
+            <h1 className="text-[19px] font-bold font-heading text-ink">
+              {status.preferredOutcome === "declined"
+                ? `${nannyName} isn't available for this request`
+                : `${nannyName} didn't respond in time`}
+            </h1>
+            <p className="mt-1 text-[13.5px] text-ink-muted">
+              You can choose another nanny from your recommended nannies.
+            </p>
+          </div>
+          {error && <p className="text-[13px] text-error">{error}</p>}
+          <div className="flex flex-wrap justify-center gap-3">
+            <Button onClick={() => setReselecting(true)}>Choose Another Nanny</Button>
+            <Button variant="secondary" onClick={() => void cancel()} disabled={cancelling}>
+              Cancel request
+            </Button>
+          </div>
+        </Sheet>
+      )}
+
+      {/* Nanny accepted → complete payment. Existing flow, unchanged. */}
+      {acceptedOffer && offerAwaitingPayment && (
         <Sheet className="flex flex-col items-center gap-4 border-[var(--color-lavender-border)] py-10 text-center">
           <CheckCircle size={40} weight="fill" className="text-[var(--color-success)]" />
           <div>
-            <h1 className="text-[19px] font-bold font-heading text-ink">Caregiver found!</h1>
+            <h1 className="text-[19px] font-bold font-heading text-ink">
+              {nannyName} accepted your request
+            </h1>
             <p className="mt-1 text-[13.5px] text-ink-muted">
-              Your caregiver has accepted this request. Complete payment to confirm your booking.
+              Complete payment to confirm your booking.
             </p>
           </div>
 
@@ -424,45 +515,24 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
             </p>
           )}
 
-          {/* The real, locked terms of this offer — every figure here
-              comes straight from the booking row payment will charge,
-              never recomputed on this page. */}
           {offerBooking && (
-            <div className="flex w-full max-w-xs flex-col gap-1.5 rounded-[14px] border border-hairline p-4 text-left text-[13px]">
-              <div className="flex justify-between">
-                <span className="text-ink-muted">Caregiver</span>
-                <span className="font-semibold">{status.activeOffer.caregiverName}</span>
-              </div>
-              {caregiverType && (
-                <div className="flex justify-between">
-                  <span className="text-ink-muted">Care type</span>
-                  <span className="font-semibold">{caregiverTypeLabel(caregiverType)}</span>
-                </div>
-              )}
-              <div className="flex justify-between">
-                <span className="text-ink-muted">Date</span>
-                <span className="font-semibold">{formatDateLong(offerBooking.starts_at)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-ink-muted">Time</span>
-                <span className="font-semibold">
-                  {formatTimeRange(offerBooking.starts_at, offerBooking.ends_at)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-ink-muted">Duration</span>
-                <span className="font-semibold">
-                  {(offerBooking.duration_days ?? 1) > 1
+            <div className="flex w-full max-w-sm flex-col gap-1.5 rounded-[14px] border border-hairline p-4 text-left text-[13px]">
+              <DetailRow label="Nanny" value={nannyName} />
+              <DetailRow label="Care type" value="Nanny" />
+              <DetailRow label="Date" value={formatDateLong(offerBooking.starts_at)} />
+              <DetailRow
+                label="Time"
+                value={formatTimeRange(offerBooking.starts_at, offerBooking.ends_at)}
+              />
+              <DetailRow
+                label="Duration"
+                value={
+                  (offerBooking.duration_days ?? 1) > 1
                     ? `${offerBooking.duration_hours} hrs/day · ${offerBooking.duration_days} days`
-                    : `${offerBooking.duration_hours} hours`}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-ink-muted">Rate</span>
-                <span className="font-semibold tabular-nums">
-                  GH₵{offerBooking.hourly_rate}/hour
-                </span>
-              </div>
+                    : `${offerBooking.duration_hours} hours`
+                }
+              />
+              <DetailRow label="Rate" value={`GH₵${offerBooking.hourly_rate}/hour`} />
               <div className="flex justify-between border-t border-hairline pt-1.5">
                 <span className="text-ink-muted">Total</span>
                 <span className="text-[16px] font-bold tabular-nums text-ink">
@@ -474,73 +544,56 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
 
           <div className="flex flex-wrap justify-center gap-3">
             <LinkButton
-              href={`/parent/caregivers/${status.activeOffer.staffProfileId}`}
+              href={`/parent/caregivers/${acceptedOffer.staffProfileId}`}
               variant="secondary"
             >
-              View Caregiver
+              View Nanny
             </LinkButton>
-            <LinkButton
-              href={`/parent/messages/${status.activeOffer.bookingId}`}
-              variant="secondary"
-            >
-              <ChatCircleText size={16} /> Message {status.activeOffer.caregiverName.split(" ")[0]}
+            <LinkButton href={`/parent/messages/${acceptedOffer.bookingId}`} variant="secondary">
+              <ChatCircleText size={16} /> Message {nannyName.split(" ")[0]}
             </LinkButton>
-            <LinkButton href={`/parent/bookings/${status.activeOffer.bookingId}`}>
-              Pay & Confirm Booking
+            <LinkButton href={`/parent/bookings/${acceptedOffer.bookingId}`}>
+              Pay &amp; Confirm Booking
             </LinkButton>
           </div>
         </Sheet>
       )}
 
-      {status.dispatchStatus === "accepted" && status.activeOffer && offerPaymentExpired && (
+      {acceptedOffer && offerPaymentExpired && (
         <Sheet className="flex flex-col items-center gap-4 border-[var(--color-lavender-border)] py-10 text-center">
           <h1 className="text-[19px] font-bold font-heading text-ink">Payment window expired</h1>
           <p className="mt-1 text-[13.5px] text-ink-muted">
-            This caregiver is no longer reserved for this booking. You can request care again when
+            {nannyName} is no longer reserved for this booking. You can request care again when
             you&apos;re ready.
           </p>
-          <LinkButton href="/parent">Request Care Again</LinkButton>
+          <LinkButton href={`/parent?retryCareRequestId=${id}`}>Request Care Again</LinkButton>
         </Sheet>
       )}
 
-      {/* The sequential dispatch queue genuinely ran out of eligible
-          caregivers to offer this request to — both vicinity rounds
-          exhausted (lib/services/dispatch.ts), not a frontend guess, so
-          the copy says so plainly rather than "still looking." CareLink's
-          finalized workflow never falls back to manual caregiver
-          browsing from here, and never sends the parent back to a blank
-          Home to start over — Request Care Again reopens the real,
-          saved request (via ?retryCareRequestId, read from GET
-          /api/care-requests/[id] — see app/parent/page.tsx), fully
-          editable, with Find Care still the one action that starts a
-          new search. Opening/refreshing/revisiting this link only ever
-          reads that record; nothing is created until the parent submits
-          the restored form. */}
-      {status.dispatchStatus === "exhausted" && (
+      {status?.dispatchStatus === "exhausted" && (
         <Sheet className="flex flex-col items-center gap-4 border-[var(--color-lavender-border)] py-10 text-center">
           <div>
             <h1 className="text-[19px] font-bold font-heading text-ink">
-              We couldn&apos;t find the right caregiver this time
+              This request couldn&apos;t be completed
             </h1>
             <p className="mt-1 text-[13.5px] text-ink-muted">
-              We couldn&apos;t secure an eligible caregiver for this request right now. Your request
-              details are saved, so you can review them and try again.
+              Your request details are saved, so you can review them and try again.
             </p>
           </div>
           <LinkButton href={`/parent?retryCareRequestId=${id}`}>Request Care Again</LinkButton>
         </Sheet>
       )}
 
-      {status.dispatchStatus === "cancelled" && (
+      {status?.dispatchStatus === "cancelled" && (
         <Sheet className="flex flex-col items-center gap-4 border-[var(--color-lavender-border)] py-10 text-center">
-          <h1 className="text-[19px] font-bold font-heading text-ink">Search cancelled</h1>
+          <h1 className="text-[19px] font-bold font-heading text-ink">Request cancelled</h1>
           <LinkButton href="/parent" variant="secondary">
             Back to Home
           </LinkButton>
         </Sheet>
       )}
 
-      {error && <p className="text-center text-[13px] text-error">{error}</p>}
+      {error && status && <p className="text-center text-[13px] text-error">{error}</p>}
     </div>
   );
 }

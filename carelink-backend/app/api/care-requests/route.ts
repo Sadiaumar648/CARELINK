@@ -3,6 +3,7 @@ import { z } from "zod";
 import { calculateTotalAmount, createCareRequestSchema, sessionCountFor } from "@carelink/shared";
 import { authErrorResponse, requireRole } from "@/lib/auth/require-user";
 import { getOwnParentProfileId } from "@/lib/parents";
+import { findEligibleCaregivers, loadMatchWeights } from "@/lib/services/caregiver-search";
 
 // Creates a care_requests row — a structured, storable record of what a
 // parent asked for (via CareLink AI or the direct Nanny/Babysitter
@@ -59,24 +60,37 @@ export async function POST(request: Request) {
       }
     }
 
-    // A light existence check only — real eligibility (date/time/
-    // schedule conflicts/service area) is checked for real when dispatch
-    // actually tries this caregiver (lib/services/dispatch.ts), never
-    // here. The caregiver just has to exist and be bookable
-    // (public_caregivers already means verified + accepting). Type is
-    // no longer matched: CareLink presents every caregiver as a Nanny,
-    // so a caregiver whose stored caregiver_type is a historical
-    // "babysitter" (or not set yet) is still a valid preferred choice.
+    // The nanny the parent picked from Recommended Nannies must still be
+    // eligible for this exact slot at the moment they press Send Request
+    // — even though they were recommended a moment ago. This runs the
+    // same check the Recommended Nannies list used to produce them
+    // (public_caregivers membership = active + CareLink-verified +
+    // accepting, plus a conflicts-only availability check = no clashing
+    // booking, no marked-unavailable date). If they've since become
+    // unavailable, the request is NOT created — the parent is sent back
+    // to Recommended Nannies to pick someone else.
     if (body.preferredStaffProfileId) {
-      const { data: preferred, error: preferredErr } = await supabase
-        .from("public_caregivers")
-        .select("staff_profile_id")
-        .eq("staff_profile_id", body.preferredStaffProfileId)
-        .maybeSingle();
-      if (preferredErr) return NextResponse.json({ error: preferredErr.message }, { status: 500 });
-      if (!preferred) {
+      const weights = await loadMatchWeights(supabase);
+      const eligible = await findEligibleCaregivers(
+        supabase,
+        {
+          latitude: body.serviceLatitude,
+          longitude: body.serviceLongitude,
+          date: body.date,
+          startTime: body.startTime,
+          endTime: body.endTime,
+          durationDays: body.durationDays,
+        },
+        weights,
+        { availabilityCheck: "conflicts" },
+      );
+      if (!eligible.results.some((r) => r.staff_profile_id === body.preferredStaffProfileId)) {
         return NextResponse.json(
-          { error: "That caregiver isn't available as a preferred choice for this request" },
+          {
+            error:
+              "This nanny is no longer available for your selected time. Please choose another nanny.",
+            code: "nanny_unavailable",
+          },
           { status: 400 },
         );
       }

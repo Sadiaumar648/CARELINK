@@ -4,9 +4,13 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  // An optional machine-readable code from the response body (e.g.
+  // "nanny_unavailable"), when a route sends one alongside `error`.
+  code?: string;
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -41,11 +45,10 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
   const data: unknown = text ? JSON.parse(text) : null;
 
   if (!res.ok) {
-    const message =
-      data && typeof data === "object" && "error" in data && typeof data.error === "string"
-        ? data.error
-        : res.statusText;
-    throw new ApiError(res.status, message);
+    const obj = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+    const message = obj && typeof obj.error === "string" ? obj.error : res.statusText;
+    const code = obj && typeof obj.code === "string" ? obj.code : undefined;
+    throw new ApiError(res.status, message, code);
   }
   return data as T;
 }
