@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { ArrowRight, MapPin, ShieldCheck } from "@phosphor-icons/react";
+import { MapPin, ShieldCheck } from "@phosphor-icons/react";
 import { Sheet } from "@/components/ui/sheet";
 
 // The one real entry point into a request now that Nanny and Babysitter
@@ -40,7 +40,6 @@ export function RequestCareHero({ onClick }: { onClick: () => void }) {
           </div>
           <span className="mt-auto flex items-center gap-2 text-[13.5px] font-semibold text-wisteria">
             <MapPin size={15} weight="fill" /> Find Care
-            <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />
           </span>
         </div>
       </button>
