@@ -8,16 +8,19 @@ import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Stepper } from "@/components/onboarding/stepper";
-import { SelectableCard } from "@/components/onboarding/selectable-card";
 import { LocationPicker, type ResolvedLocation } from "@/components/location-picker";
 
 // The onboarding step a caregiver reaches after creating their account
 // (see claim-invitation/page.tsx and caregiver/join/[token]/page.tsx —
-// both continue here). Three things — caregiver type, base location,
-// and service area — nothing about experience, qualifications, or
-// rate: those stay agency-controlled (staff-profile-setup.tsx's
-// ProfessionalInfoSection), never something a caregiver declares about
-// themselves here or anywhere else.
+// both continue here). Two things — base location and service area —
+// nothing about experience, qualifications, or rate: those stay
+// agency-controlled (staff-profile-setup.tsx's ProfessionalInfoSection),
+// never something a caregiver declares about themselves here or
+// anywhere else. Every caregiver is presented to parents simply as a
+// "Nanny" (Nanny/Babysitter merged into one concept), so there's no
+// longer a type choice here either — every new profile is created with
+// caregiverType "nanny" below; `staff_profiles.caregiver_type` keeps
+// the enum internally, it's just never asked about or shown to anyone.
 //
 // Base location reuses LocationPicker exactly as its own comment
 // already anticipates ("reused as-is... see Phase 3") — real, geocoded
@@ -28,22 +31,12 @@ import { LocationPicker, type ResolvedLocation } from "@/components/location-pic
 // already had a real column/table/route but no caller anywhere; this
 // is its first real UI.
 
-const CAREGIVER_TYPES = [
-  { value: "nanny" as const, title: "Nanny", description: "Regular or extended childcare." },
-  {
-    value: "babysitter" as const,
-    title: "Babysitter",
-    description: "Occasional or short-term childcare.",
-  },
-];
-
 const MAX_SERVICE_AREAS = 3;
-const STEPS = ["Caregiver type", "Base location", "Service area"];
+const STEPS = ["Base location", "Service area"];
 
 export default function CaregiverOnboardingPage() {
   const router = useRouter();
-  const [step, setStep] = useState<0 | 1 | 2>(0);
-  const [caregiverType, setCaregiverType] = useState<"nanny" | "babysitter" | null>(null);
+  const [step, setStep] = useState<0 | 1>(0);
   const [location, setLocation] = useState<ResolvedLocation | null>(null);
   const [serviceAreas, setServiceAreas] = useState<string[]>([""]);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +66,7 @@ export default function CaregiverOnboardingPage() {
       await apiFetch("/api/staff/profile", {
         method: "PATCH",
         body: {
-          caregiverType,
+          caregiverType: "nanny",
           baseAddress: location?.formattedAddress,
           baseLatitude: location?.latitude,
           baseLongitude: location?.longitude,
@@ -100,40 +93,6 @@ export default function CaregiverOnboardingPage() {
       {step === 0 && (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
-            <h1 className="text-[24px] font-semibold font-heading">
-              What type of caregiver are you?
-            </h1>
-            <p className="text-[15px] text-ink-muted">
-              This is how parents will find and book you on CareLink.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {CAREGIVER_TYPES.map((t) => (
-              <SelectableCard
-                key={t.value}
-                title={t.title}
-                description={t.description}
-                selected={caregiverType === t.value}
-                onClick={() => setCaregiverType(t.value)}
-              />
-            ))}
-          </div>
-          {error && <p className="text-[13px] text-error">{error}</p>}
-          <Button
-            onClick={() => {
-              if (!caregiverType) return setError("Choose a caregiver type to continue.");
-              setError(null);
-              setStep(1);
-            }}
-          >
-            Continue
-          </Button>
-        </div>
-      )}
-
-      {step === 1 && (
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-2">
             <h1 className="text-[24px] font-semibold font-heading">Where is your base location?</h1>
             <p className="text-[15px] text-ink-muted">
               This is where you normally start from. CareLink uses it to dispatch you to nearby
@@ -149,24 +108,19 @@ export default function CaregiverOnboardingPage() {
             confirmedLabel="Base location confirmed"
           />
           {error && <p className="text-[13px] text-error">{error}</p>}
-          <div className="flex gap-3">
-            <Button
-              onClick={() => {
-                if (!location) return setError("Confirm your base location to continue.");
-                setError(null);
-                setStep(2);
-              }}
-            >
-              Continue
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => setStep(0)}>
-              Back
-            </Button>
-          </div>
+          <Button
+            onClick={() => {
+              if (!location) return setError("Confirm your base location to continue.");
+              setError(null);
+              setStep(1);
+            }}
+          >
+            Continue
+          </Button>
         </div>
       )}
 
-      {step === 2 && (
+      {step === 1 && (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <h1 className="text-[24px] font-semibold font-heading">
@@ -216,7 +170,7 @@ export default function CaregiverOnboardingPage() {
               <MapPin size={16} weight="fill" />
               {saving ? "Saving…" : "Finish"}
             </Button>
-            <Button type="button" variant="secondary" onClick={() => setStep(1)}>
+            <Button type="button" variant="secondary" onClick={() => setStep(0)}>
               Back
             </Button>
           </div>

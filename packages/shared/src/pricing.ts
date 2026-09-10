@@ -3,19 +3,22 @@ import type { caregiverTypeSchema } from "./schemas/staff-profile";
 
 type CaregiverType = z.infer<typeof caregiverTypeSchema>;
 
-// CareLink's finalized fixed-rate pricing model: every Nanny costs the
-// same GH₵45/hour, every Babysitter GH₵37/hour — caregivers do not set
-// or override this. Kept here, in the one package both workspaces
-// already import shared enums/schemas from, so the frontend
-// (informational display only) and the backend (the authoritative
-// calculation — every booking-creation call site in carelink-backend)
-// read from the exact same numbers instead of two copies that could
-// drift apart. staff_profiles.hourly_rate still exists in the database
-// for historical bookings created before this model; nothing here reads
-// it, and no new booking is priced from it.
+// CareLink's finalized fixed-rate pricing model: every caregiver costs
+// the same GH₵45/hour — Nanny and Babysitter are no longer priced
+// differently (CareLink now presents every caregiver as a "Nanny";
+// `caregiver_type` still exists on staff_profiles/care_requests as a
+// historical/internal value, but nothing charges differently based on
+// it any more). Kept here, in the one package both workspaces already
+// import shared enums/schemas from, so the frontend (informational
+// display only) and the backend (the authoritative calculation — every
+// booking-creation call site in carelink-backend) read from the exact
+// same number instead of two copies that could drift apart.
+// staff_profiles.hourly_rate still exists in the database for
+// historical bookings created before this model; nothing here reads it,
+// and no new booking is priced from it.
 export const CARELINK_HOURLY_RATES: Record<CaregiverType, number> = {
   nanny: 45,
-  babysitter: 37,
+  babysitter: 45,
 };
 
 /** The one fixed rate for a care type — never a caregiver-specific value. */

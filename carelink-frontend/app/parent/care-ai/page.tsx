@@ -7,20 +7,19 @@ import { ArrowLeft, PaperPlaneRight, Sparkle } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
-import { RecommendationCard } from "@/components/parent/care-ai/recommendation-card";
+import { ContinueToRequestCard } from "@/components/parent/care-ai/continue-to-request-card";
 import type { CareRequestDraft } from "@carelink/shared";
 
 type ChatTurn = { role: "user" | "assistant"; content: string };
-type Recommendation = { type: "nanny" | "babysitter"; reason: string };
 
 const SUGGESTED_PROMPTS = [
   "I work 8am to 5pm and need someone to care for my 2-year-old while I'm at work.",
   "I need someone to watch my daughter for four hours while I'm at an event on Saturday.",
-  "Not sure what I need — help me decide.",
+  "Not sure where to start — help me figure out what I need.",
 ];
 
 const INTRO_MESSAGE =
-  "Hi, I'm Nia 👋 Not sure whether you need a Nanny or a Babysitter? Tell me a bit about your situation — how often you need care, and for how long — and I'll help you decide.";
+  "Hi, I'm Nia 👋 Tell me a bit about the care you need — who it's for, and how often or how long — and I'll help you get your request ready.";
 
 function CareAiPage() {
   const router = useRouter();
@@ -28,8 +27,7 @@ function CareAiPage() {
 
   const [messages, setMessages] = useState<ChatTurn[]>([]);
   const [draft, setDraft] = useState<CareRequestDraft>({});
-  const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
-  const [chosenType, setChosenType] = useState<"nanny" | "babysitter" | null>(null);
+  const [readyToConfirm, setReadyToConfirm] = useState(false);
 
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -46,8 +44,7 @@ function CareAiPage() {
     const startTime = searchParams.get("startTime");
     const endTime = searchParams.get("endTime");
     const skills = searchParams.get("skills");
-    const type = searchParams.get("type");
-    if (!area && !date && !startTime && !endTime && !skills && !type) return;
+    if (!area && !date && !startTime && !endTime && !skills) return;
 
     void Promise.resolve().then(() => {
       setDraft({
@@ -59,7 +56,6 @@ function CareAiPage() {
           ? (skills.split(",").filter(Boolean) as CareRequestDraft["skills"])
           : undefined,
       });
-      if (type === "nanny" || type === "babysitter") setChosenType(type);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- read once, from the initial URL only
   }, []);
@@ -80,14 +76,14 @@ function CareAiPage() {
       const res = await apiFetch<{
         reply: string;
         draft: CareRequestDraft;
-        recommendation: Recommendation | null;
+        readyToConfirm: boolean;
       }>("/api/care-assistant/message", {
         method: "POST",
         body: { messages: nextMessages, draft },
       });
       setMessages((m) => [...m, { role: "assistant", content: res.reply }]);
       setDraft(res.draft);
-      setRecommendation(res.recommendation);
+      setReadyToConfirm(res.readyToConfirm);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -95,21 +91,28 @@ function CareAiPage() {
     }
   }
 
-  // Nia's one real job is done the moment a type is chosen: recommend
-  // Nanny or Babysitter, nothing more. It never creates a care request,
-  // searches, or dispatches itself — and, just as deliberately, it never
-  // carries anything it learned in conversation into the request form
-  // either. Only `panel` is sent, so /parent's own ?panel= reader
-  // (app/parent/page.tsx) opens the exact same RequestFlowPanel a parent
-  // gets from the direct Nanny/Babysitter cards, completely empty —
-  // every field (child, date, time, duration, repeat, location, care
-  // needs, notes, preferred caregiver) is left for the parent to fill in
-  // themselves. Location especially: even if the parent told Nia "I need
-  // a babysitter in East Legon", that "East Legon" is never forwarded
-  // here — the parent must explicitly choose Use my current location or
-  // Enter a GPS address on the form itself.
-  function chooseType(type: "nanny" | "babysitter") {
-    router.push(`/parent?panel=${type}`);
+  // Nia's one real job: help a parent put their care needs into words.
+  // She never creates a care request, searches, or dispatches herself —
+  // and, just as deliberately, never carries the location she learned
+  // in conversation onto the request form either. Only the fields
+  // below (care needs, timing, notes) are handed off; `panel` alone
+  // opens the exact same RequestFlowPanel a parent gets from Find Care
+  // directly (app/parent/page.tsx's own ?panel= reader), with location
+  // and everything else still left for the parent to fill in themselves.
+  function continueToRequest() {
+    const params = new URLSearchParams({ panel: "nanny" });
+    if (draft.date) params.set("startDate", draft.date);
+    if (draft.startTime && draft.endTime) {
+      const hours = Math.round(
+        (new Date(`2000-01-01T${draft.endTime}`).getTime() -
+          new Date(`2000-01-01T${draft.startTime}`).getTime()) /
+          3_600_000,
+      );
+      if (hours > 0) params.set("hours", String(hours));
+    }
+    if (draft.wardAgeYears !== undefined) params.set("age", String(draft.wardAgeYears));
+    if (draft.notes) params.set("requirements", draft.notes);
+    router.push(`/parent?${params.toString()}`);
   }
 
   return (
@@ -177,15 +180,13 @@ function CareAiPage() {
                 Try again
               </button>
               <Link href="/parent" className="font-semibold underline">
-                Use the direct Nanny/Babysitter option
+                Go to Find Care instead
               </Link>
             </div>
           </div>
         )}
 
-        {recommendation && !chosenType && (
-          <RecommendationCard recommendation={recommendation} onChoose={chooseType} />
-        )}
+        {readyToConfirm && <ContinueToRequestCard onContinue={continueToRequest} />}
 
         <div ref={bottomRef} />
       </div>

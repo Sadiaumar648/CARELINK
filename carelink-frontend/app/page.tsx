@@ -35,7 +35,7 @@ const STEPS = [
   {
     number: "01",
     title: "Tell us what you need",
-    body: "Choose a nanny or babysitter, tell us when you need care, and share your care location.",
+    body: "Tell us when you need care and share your care location — we'll find you a Nanny.",
   },
   {
     number: "02",
@@ -61,7 +61,7 @@ const DEMO_CAREGIVERS = [
     name: "Efua Owusu",
     photoUrl: "/demo/efua-owusu.jpeg",
     yearsExperience: 3,
-    careType: "Babysitter",
+    careType: "Nanny",
     area: "Osu",
   },
   {
@@ -148,9 +148,9 @@ export default function Home() {
                 Trusted care, closer to home.
               </h1>
               <p className="max-w-[52ch] text-[16px] leading-relaxed text-ink-muted">
-                Tell us what you need and your location, and CareLink will find a suitable nanny or
-                babysitter for you from our trusted agency caregivers. We handle the search, so you
-                can focus on what matters most.
+                Tell us what you need and your location, and CareLink will find a suitable Nanny for
+                you from our trusted agency caregivers. We handle the search, so you can focus on
+                what matters most.
               </p>
               <ul className="flex flex-wrap gap-x-6 gap-y-2 pt-2 text-[13px] text-ink-muted">
                 <li className="flex items-center gap-1.5">

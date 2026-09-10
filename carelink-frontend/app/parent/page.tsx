@@ -10,7 +10,7 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { Sheet } from "@/components/ui/sheet";
 import { LinkButton } from "@/components/ui/button";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
-import { CareTypeCard } from "@/components/parent/care-type-card";
+import { RequestCareHero } from "@/components/parent/request-care-hero";
 import {
   RequestFlowPanel,
   type RequestFlowInitial,
@@ -248,11 +248,20 @@ function ParentDashboard() {
         </p>
       )}
 
-      {/* CARELINK AI — for a parent who isn't sure which service type they
-          need. Advisory only: it never picks, searches for, or books a
-          caregiver — it only recommends Nanny or Babysitter, then hands
-          off to the same structured request flow the direct cards below
-          use. Matching and dispatch happen only after that request. */}
+      {/* FIND CARE — the one real entry point into a request. A parent no
+          longer chooses Nanny vs Babysitter up front; who to send the
+          request to is chosen afterwards, from a real, nearby, verified
+          list (request-flow-panel.tsx's own two-step flow). */}
+      <RequestCareHero onClick={() => openPanel("nanny")} />
+
+      {/* NIA — a general care assistant for a parent who'd rather
+          describe their situation in conversation than fill in a form
+          from scratch. Advisory and preparatory only: she never picks,
+          searches for, or books a caregiver, and never learns or
+          forwards a care location — she just helps put care needs,
+          timing, and notes into words, then hands off to the same
+          structured request form Find Care above uses, pre-filled with
+          whatever she gathered. */}
       <Sheet className="flex flex-col gap-4 border-[var(--color-lavender-border)] bg-wisteria-tint sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sheet text-wisteria shadow-[var(--shadow-card)]">
@@ -260,44 +269,17 @@ function ParentDashboard() {
           </span>
           <div>
             <p className="text-[17px] font-bold font-heading text-ink">Nia</p>
-            <p className="text-[14px] font-semibold text-ink">
-              Not sure what type of care you need?
-            </p>
+            <p className="text-[14px] font-semibold text-ink">Not sure where to start?</p>
             <p className="text-[13.5px] text-ink-muted">
-              Tell Nia about your situation and she&apos;ll help you decide between a Nanny or
-              Babysitter.
+              Describe your situation to Nia in your own words and she&apos;ll help get your request
+              ready.
             </p>
           </div>
         </div>
         <LinkButton href="/parent/care-ai" className="w-full shrink-0 justify-center sm:w-auto">
-          Start with Nia
+          Chat with Nia
         </LinkButton>
       </Sheet>
-
-      {/* CARE TYPE SELECTION — secondary/direct path, for a parent who
-          already knows what they need. Two fully independent cards, not
-          nested inside a combined wrapper card. */}
-      <div className="flex flex-col gap-5">
-        <div>
-          <h2 className="text-[15px] font-semibold text-ink-muted">Already know what you need?</h2>
-        </div>
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-          <CareTypeCard
-            title="Nanny"
-            description="Long-term care and daily support"
-            imageSrc="/demo/hero-reading.jpeg"
-            imageAlt="A nanny reading with a child"
-            onClick={() => openPanel("nanny")}
-          />
-          <CareTypeCard
-            title="Babysitter"
-            description="Short-term care and occasional support"
-            imageSrc="/demo/ward-activity.jpeg"
-            imageAlt="A babysitter playing with a child"
-            onClick={() => openPanel("babysitter")}
-          />
-        </div>
-      </div>
 
       {/* RECENT ACTIVITY + SAFETY */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">

@@ -17,14 +17,23 @@ import { suggestedSkillForAge, type SearchFilters, type Ward } from "@/component
 type CaregiverType = "nanny" | "babysitter";
 
 // The parent's required pick of one specific caregiver — CareLink no
-// longer auto-selects one. Real eligibility (type, date/time, service
-// area) is always checked server-side when dispatch actually runs
+// longer auto-selects one. Real eligibility (date/time, service area) is
+// always checked server-side when dispatch actually runs
 // (lib/services/dispatch.ts's existing preferred-caregiver path);
 // appearing in this list is never a guarantee. Reuses the existing
 // GET /api/search/caregivers results (same data Find Care shows, now
-// with real lat/lng so it's genuinely proximity-sorted), filtered
-// client-side to this request's caregiver type — no new search endpoint.
-type PreferredCandidate = { staff_profile_id: string; full_name: string; caregiver_type: string };
+// with real lat/lng so it's genuinely proximity-sorted) — every real
+// caregiver near the location, Nanny and (historically) Babysitter
+// alike, since CareLink no longer asks a parent to choose a type before
+// searching. `caregiver_type` is still whatever real value is on file
+// for that caregiver (needed only so the request submits with a value
+// the backend's existing validation already understands) — it's never
+// shown or asked about here.
+type PreferredCandidate = {
+  staff_profile_id: string;
+  full_name: string;
+  caregiver_type: "nanny" | "babysitter";
+};
 
 // Two real screens, not one — "Find Care" only ever validates and
 // submits the request *details*; picking who it's sent to is a second,
@@ -92,10 +101,12 @@ function hoursBetween(startTime: string, endTime: string): number {
   return Math.round((eh * 60 + em - (sh * 60 + sm)) / 60);
 }
 
-const COPY: Record<CaregiverType, { heading: string }> = {
-  nanny: { heading: "Nanny" },
-  babysitter: { heading: "Babysitter" },
-};
+// Nanny and Babysitter are merged into one "Nanny" concept for parents
+// — this heading is always "Nanny" regardless of the real, historical
+// `type` value a restored request might carry (see the `type` prop
+// below), so a parent retrying an old request never sees "Babysitter"
+// resurface.
+const HEADING = "Nanny";
 
 // Exported so the CareLink AI page can map its own gathered startTime
 // back onto one of these named blocks when handing off to this form.
@@ -193,6 +204,10 @@ export function RequestFlowPanel({
   initial,
   restoreFrom,
 }: {
+  // Kept only for the "Request Care Again" retry path, which restores a
+  // real historical care_requests row that may genuinely say
+  // "babysitter" — used solely for the (now type-independent) price
+  // calculation below, never shown to the parent (see HEADING above).
   type: CaregiverType;
   onBack: () => void;
   initial?: RequestFlowInitial;
@@ -204,7 +219,6 @@ export function RequestFlowPanel({
   restoreFrom?: RequestFlowRestore;
 }) {
   const router = useRouter();
-  const copy = COPY[type];
   // Repeat/schedule-pattern support was removed — every request is a
   // single occurrence now. Restoring an old saved request that did have
   // a repeat pattern (repeatMode 'weekly'/'custom') just takes its one
@@ -312,7 +326,11 @@ export function RequestFlowPanel({
     params.set("latitude", String(location.latitude));
     params.set("longitude", String(location.longitude));
     apiFetch<{ results: PreferredCandidate[] }>(`/api/search/caregivers?${params.toString()}`)
-      .then((res) => setPreferredCandidates(res.results.filter((c) => c.caregiver_type === type)))
+      // Every real, eligible caregiver near this location — Nanny and
+      // Babysitter alike, since CareLink no longer asks the parent to
+      // pick a type first. Only excludes a profile with no type on file
+      // at all, which the request-submission schema can't accept.
+      .then((res) => setPreferredCandidates(res.results.filter((c) => c.caregiver_type != null)))
       .catch(() => setPreferredCandidates([]));
   }
 
@@ -390,7 +408,12 @@ export function RequestFlowPanel({
           wardId,
           preferredStaffProfileId: c.staff_profile_id,
           source: "direct",
-          caregiverType: type,
+          // The chosen caregiver's own real type — never a value the
+          // parent picked, since they never see this distinction. Keeps
+          // POST /api/care-requests' existing "preferred caregiver's
+          // type must match the request's caregiverType" validation
+          // (app/api/care-requests/route.ts) satisfied unchanged.
+          caregiverType: c.caregiver_type,
           date: filters.date,
           startTime: filters.startTime,
           endTime: filters.endTime,
@@ -449,10 +472,10 @@ export function RequestFlowPanel({
 
       {/* TITLE */}
       <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="text-[26px] font-bold font-heading text-ink">Request a {copy.heading}</h1>
+        <h1 className="text-[26px] font-bold font-heading text-ink">Request a {HEADING}</h1>
         <p className="text-[14px] text-ink-muted">
-          Tell us what you need and we&apos;ll find an eligible agency {copy.heading.toLowerCase()}{" "}
-          near your care location.
+          Tell us what you need and we&apos;ll find an eligible agency {HEADING.toLowerCase()} near
+          your care location.
         </p>
       </div>
 
@@ -486,9 +509,9 @@ export function RequestFlowPanel({
                 Choose a caregiver
               </h2>
               <p className="text-[13px] text-ink-muted">
-                These verified {copy.heading.toLowerCase()}s are near your requested location.
-                CareLink will send your request to the one you choose — if they&apos;re unavailable,
-                you can come back and try someone else.
+                These verified {HEADING.toLowerCase()}s are near your requested location. CareLink
+                will send your request to the one you choose — if they&apos;re unavailable, you can
+                come back and try someone else.
               </p>
             </div>
 
@@ -510,8 +533,8 @@ export function RequestFlowPanel({
             )}
             {preferredCandidates !== null && filteredPreferredCandidates.length === 0 && (
               <p className="text-[13px] text-ink-muted">
-                No {copy.heading.toLowerCase()}s found near this location yet. Try a different
-                location, or check back later.
+                No {HEADING.toLowerCase()}s found near this location yet. Try a different location,
+                or check back later.
               </p>
             )}
             {filteredPreferredCandidates.length > 0 && (

@@ -505,7 +505,7 @@ function FindCarePage() {
           <EmptyState
             icon={Sparkle}
             title="Let's find the right care for your family"
-            description="Tell Nia what you need, or go to Home to request a Nanny or Babysitter directly — we'll match you with a verified caregiver nearby."
+            description="Tell Nia what you need, or go to Home to request a Nanny directly — we'll match you with a verified caregiver nearby."
             action={
               <div className="flex flex-wrap items-center justify-center gap-3">
                 <LinkButton href="/parent/care-ai">

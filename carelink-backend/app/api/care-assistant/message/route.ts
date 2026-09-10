@@ -8,10 +8,10 @@ import { runCareAssistantTurn } from "@/lib/services/care-assistant";
 // the full visible transcript and its current draft each time, same as
 // /api/search/parse is a stateless single-shot call. This route never
 // touches the matching engine, never writes to the database, and never
-// decides anything: it only ever returns a proposed structured draft and
-// an advisory Nanny/Babysitter recommendation for the parent to confirm
-// or override on the frontend. A missing ANTHROPIC_API_KEY (or any
-// provider failure) returns a clear error rather than faking a reply.
+// decides anything: it only ever returns a proposed structured draft
+// for the parent to review on the real request form. A missing
+// ANTHROPIC_API_KEY (or any provider failure) returns a clear error
+// rather than faking a reply.
 export async function POST(request: Request) {
   try {
     await requireRole(request, ["parent"]);
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     if (!result) {
       return NextResponse.json(
         {
-          error: "Nia isn't available right now — try the direct Nanny/Babysitter option.",
+          error: "Nia isn't available right now — try Find Care directly instead.",
         },
         { status: 503 },
       );

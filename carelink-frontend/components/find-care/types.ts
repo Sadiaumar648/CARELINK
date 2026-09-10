@@ -28,10 +28,13 @@ export type CaregiverResult = {
   matchScore: number;
 };
 
+// Nanny and Babysitter are merged into one "Nanny" concept for parents
+// — every real, non-null `caregiver_type` value (including the
+// historical "babysitter" ones still on file) displays as "Nanny"
+// everywhere a parent sees it, so nobody has to reason about a
+// distinction CareLink no longer asks them to make.
 export function caregiverTypeLabel(type: "nanny" | "babysitter" | null): string | null {
-  if (type === "nanny") return "Nanny";
-  if (type === "babysitter") return "Babysitter";
-  return null;
+  return type ? "Nanny" : null;
 }
 
 export type SearchFilters = {

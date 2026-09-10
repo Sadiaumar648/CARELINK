@@ -153,10 +153,9 @@ export function PhotoSection() {
   );
 }
 
-const CAREGIVER_TYPE_LABEL: Record<"nanny" | "babysitter", string> = {
-  nanny: "Nanny",
-  babysitter: "Babysitter",
-};
+// Nanny and Babysitter are merged into one "Nanny" concept — every
+// real, non-null caregiver_type value (including the historical
+// "babysitter" ones still on file) displays as "Nanny" here too.
 
 // Professional Information: caregiver type, years of experience,
 // languages, and the fixed CareLink rate for that type. Agency-
@@ -175,9 +174,7 @@ export function ProfessionalInfoSection() {
         <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
           Caregiver Type
         </span>
-        <p className="text-[14.5px] text-ink">
-          {profile.caregiver_type ? CAREGIVER_TYPE_LABEL[profile.caregiver_type] : "Not set"}
-        </p>
+        <p className="text-[14.5px] text-ink">{profile.caregiver_type ? "Nanny" : "Not set"}</p>
       </div>
       <div className="flex flex-col gap-0.5">
         <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">

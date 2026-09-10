@@ -107,8 +107,13 @@ export type CreateCareRequestInput = z.infer<typeof createCareRequestSchema>;
 // What the AI assistant returns each turn. `readyToConfirm` is
 // recomputed server-side from `draft` — see lib/services/care-assistant.ts
 // — never trusted verbatim from the model's own claim.
+// caregiverType was removed once Nanny/Babysitter merged into one
+// "Nanny" concept for parents — Nia no longer recommends a type, so
+// nothing populates it any more. `location` is still deliberately never
+// prefilled from here onto the real request form (see care-ai/page.tsx)
+// even though it's captured in this draft for Nia's own conversational
+// memory.
 export const careRequestDraftSchema = z.object({
-  caregiverType: caregiverTypeSchema.optional(),
   wardAgeYears: z.number().min(0).max(17).optional(),
   wardName: z.string().max(100).optional(),
   date: z

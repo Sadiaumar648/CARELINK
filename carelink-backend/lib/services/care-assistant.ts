@@ -4,21 +4,24 @@ import type { CareRequestDraft } from "@carelink/shared";
 // The multi-turn counterpart to lib/services/nl-search.ts's single-shot
 // search parser — same provider, same model, same "AI output is
 // untrusted input" defensive-parsing discipline, but carrying a
-// conversation instead of one message. Per CareLink's finalized product
-// flow, this never talks to the matching engine and never picks a
-// caregiver, never searches, and never books anything: its only real
-// output the frontend acts on is an advisory Nanny/Babysitter
-// recommendation. The parent always finishes on the same structured
-// request form (RequestFlowPanel) the direct Nanny/Babysitter cards
-// use — `draft` is only ever a convenience, letting that form arrive
-// pre-filled with whatever the parent already volunteered here.
+// conversation instead of one message. Now that Nanny and Babysitter
+// are merged into one "Nanny" concept for parents, Nia's job is no
+// longer to recommend between the two — it's a general care assistant
+// that helps a parent describe what they need in plain language. It
+// never talks to the matching engine, never picks a caregiver, never
+// searches, and never books anything, and — same rule as always — it
+// never prefills the request form's location, even if a parent mentions
+// one in conversation. The parent always finishes on the same
+// structured request form (RequestFlowPanel) the direct "Find Care"
+// entry point uses; `draft` is only ever a convenience, letting that
+// form arrive pre-filled with whatever the parent already volunteered
+// here (care needs, timing, notes — never location).
 
 export type ChatTurn = { role: "user" | "assistant"; content: string };
 
 export type CareAssistantResult = {
   reply: string;
   draft: CareRequestDraft;
-  recommendation: { type: "nanny" | "babysitter"; reason: string } | null;
   // Recomputed from `draft` by this module, never taken verbatim from
   // the model's own output — see readyToConfirmFrom() below.
   readyToConfirm: boolean;
@@ -53,9 +56,6 @@ function sanitizeDraft(raw: unknown): CareRequestDraft {
   const r = raw as Record<string, unknown>;
   const out: CareRequestDraft = {};
 
-  if (r.caregiverType === "nanny" || r.caregiverType === "babysitter") {
-    out.caregiverType = r.caregiverType;
-  }
   if (typeof r.wardAgeYears === "number" && r.wardAgeYears >= 0 && r.wardAgeYears <= 17) {
     out.wardAgeYears = r.wardAgeYears;
   }
@@ -82,21 +82,6 @@ function sanitizeDraft(raw: unknown): CareRequestDraft {
   return out;
 }
 
-function sanitizeRecommendation(
-  raw: unknown,
-): { type: "nanny" | "babysitter"; reason: string } | null {
-  if (typeof raw !== "object" || raw === null) return null;
-  const r = raw as Record<string, unknown>;
-  if (
-    (r.type === "nanny" || r.type === "babysitter") &&
-    typeof r.reason === "string" &&
-    r.reason.trim()
-  ) {
-    return { type: r.type, reason: r.reason.trim().slice(0, 500) };
-  }
-  return null;
-}
-
 // Left in the response for now as a harmless, honestly-computed signal
 // (never trusted from the model's JSON) — the frontend's own in-chat
 // confirm/dispatch flow that once consumed this has been retired in
@@ -104,7 +89,6 @@ function sanitizeRecommendation(
 // currently reads this field, but removing it isn't necessary either.
 function readyToConfirmFrom(draft: CareRequestDraft): boolean {
   return Boolean(
-    draft.caregiverType &&
     draft.date &&
     draft.startTime &&
     draft.endTime &&
@@ -119,37 +103,32 @@ function buildSystemPrompt(knownDraft: CareRequestDraft | undefined): string {
     knownDraft && Object.keys(knownDraft).length > 0 ? JSON.stringify(knownDraft) : "{}";
   return (
     "You are Nia, CareLink's warm assistant for a Ghanaian childcare marketplace. " +
-    "Your one job is to help a parent who isn't sure whether they need a NANNY or a BABYSITTER — " +
-    "a natural conversation, never a rigid form, never more than one question at a time. " +
-    "Nanny suits regular, ongoing, or daily care (e.g. working hours, every weekday); " +
-    "Babysitter suits short-term, occasional, or one-off care (e.g. a single evening or afternoon). " +
-    "Ask brief follow-up questions when you need to (how often, how long, for whom) to judge which " +
-    "fits. You are NOT a general-purpose chatbot, and you never search for caregivers, pick a " +
-    "specific caregiver, check availability, or book anything yourself — CareLink's own matching " +
-    "happens afterwards, once the parent fills in the real request form. You only ever recommend " +
-    "Nanny or Babysitter as ADVICE; the parent always makes the final choice. You may briefly " +
-    "explain how CareLink works if asked, but never invent features or policies. " +
-    "\n\nOnce you know enough about the situation (roughly: the child's age or context, and enough " +
-    "detail about how often/how long care is needed to judge), recommend Nanny or Babysitter. If the " +
-    "parent already states their preferred type outright, still return it as the recommendation " +
-    "(with a reason reflecting that it's their own stated choice) rather than skipping it — the " +
-    "recommendation object is the one signal the app uses to move the parent forward, for either case. " +
-    "\n\nAlong the way, if the parent volunteers any of these naturally, capture them too so the real " +
-    "request form can be pre-filled afterwards (never ask about them just to fill this in — only " +
+    "Your job is to help a parent describe, in plain conversational language, the care they need — " +
+    "a natural conversation, never a rigid form, never more than one question at a time. Every " +
+    "caregiver on CareLink is presented to parents simply as a Nanny, so you never ask a parent to " +
+    "choose between a Nanny and a Babysitter, and you never mention that distinction at all. " +
+    "You are NOT a general-purpose chatbot, and you never search for caregivers, pick a specific " +
+    "caregiver, check availability, or book anything yourself — CareLink's own matching happens " +
+    "afterwards, once the parent continues to the real request form. You may briefly explain how " +
+    "CareLink works if asked, but never invent features or policies. " +
+    "\n\nAlong the way, if the parent volunteers any of these naturally, capture them so the real " +
+    "request form can arrive pre-filled afterwards (never ask about them just to fill this in — only " +
     "record what's actually mentioned): who needs care (a ward name and/or age), a date, a start and " +
-    "end time, the care location (an area or neighbourhood), and specific care needs from this exact " +
-    "fixed list: infant_care, toddler_care, school_age_supervision, newborn_care, meal_preparation, " +
-    "special_needs_care, light_housekeeping. " +
+    "end time, the care location (an area or neighbourhood — captured here for your own context only; " +
+    "it is never carried onto the request form, which always requires the parent's own exact GPS " +
+    "location), and specific care needs from this exact fixed list: infant_care, toddler_care, " +
+    "school_age_supervision, newborn_care, meal_preparation, special_needs_care, light_housekeeping. " +
     "\n\nWhat's already known from this conversation: " +
     known +
     `. Today's date is ${today}; resolve relative dates ("this Saturday", "tomorrow") against it. ` +
-    "Never ask again for a field already present above. " +
+    "Never ask again for a field already present above. Once you have a reasonable picture of what " +
+    "the parent needs, tell them so in your reply and let them know they can continue to the request " +
+    "form whenever they're ready. " +
     "\n\nRespond with raw JSON only — no other text, no markdown code fences — in this exact shape: " +
-    '{"reply": "<one short, warm, natural sentence — your next question, or your recommendation>", ' +
-    '"draft": {<the FULL cumulative set of details volunteered so far, merging the known fields above ' +
-    "with anything new this turn, using keys from exactly: caregiverType, wardAgeYears, wardName, date, " +
-    "startTime, endTime, location, skills, notes>}, " +
-    '"recommendation": {"type": "nanny"|"babysitter", "reason": "<one short sentence>"} or null if not yet ready to recommend}'
+    '{"reply": "<one short, warm, natural sentence — your next question, or a summary once you know ' +
+    'enough>", "draft": {<the FULL cumulative set of details volunteered so far, merging the known ' +
+    "fields above with anything new this turn, using keys from exactly: wardAgeYears, wardName, date, " +
+    "startTime, endTime, location, skills, notes>}}"
   );
 }
 
@@ -184,7 +163,6 @@ export async function runCareAssistantTurn(
     return {
       reply,
       draft,
-      recommendation: sanitizeRecommendation(p.recommendation),
       readyToConfirm: readyToConfirmFrom(draft),
     };
   } catch {

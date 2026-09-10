@@ -10,19 +10,9 @@ import { Field } from "@/components/ui/field";
 import { Stepper } from "@/components/onboarding/stepper";
 import { SelectableCard, SelectableChip } from "@/components/onboarding/selectable-card";
 
-const STEPS = ["Care type", "Location", "Ward profile", "Preferences"];
+const STEPS = ["Location", "Ward profile", "Preferences"];
 
-type Step = 0 | 1 | 2 | 3 | 4;
-
-const CARE_TYPES = [
-  { value: "nanny", title: "Nanny", description: "For regular or extended childcare." },
-  {
-    value: "babysitter",
-    title: "Babysitter",
-    description: "For occasional or short-term childcare.",
-  },
-  { value: "both", title: "Both", description: "I may need either type." },
-] as const;
+type Step = 0 | 1 | 2 | 3;
 
 const TRAVEL_OPTIONS = ["Within my area", "Up to 5 km", "Up to 10 km", "I'm flexible"];
 
@@ -68,8 +58,6 @@ export default function OnboardingSetupPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const [careType, setCareType] = useState<(typeof CARE_TYPES)[number]["value"] | null>(null);
-
   const [area, setArea] = useState("");
   const [travelRadius, setTravelRadius] = useState(TRAVEL_OPTIONS[0]);
   const [contactName, setContactName] = useState("");
@@ -109,7 +97,7 @@ export default function OnboardingSetupPage() {
           emergencyContactPhone: contactPhone,
         },
       });
-      setStep(2);
+      setStep(1);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -139,7 +127,7 @@ export default function OnboardingSetupPage() {
           generalNotes: notes.length ? notes.join(" ") : undefined,
         },
       });
-      setStep(3);
+      setStep(2);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -147,7 +135,7 @@ export default function OnboardingSetupPage() {
     }
   }
 
-  if (step === 4) {
+  if (step === 3) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
         <h1 className="text-balance text-[26px] font-semibold font-heading">
@@ -166,40 +154,6 @@ export default function OnboardingSetupPage() {
       <Stepper steps={STEPS} current={step} />
 
       {step === 0 && (
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-2">
-            <h1 className="text-[24px] font-semibold font-heading">
-              What type of care are you looking for?
-            </h1>
-            <p className="text-[15px] text-ink-muted">
-              Choose the type of care that best fits your family&apos;s needs.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {CARE_TYPES.map((c) => (
-              <SelectableCard
-                key={c.value}
-                title={c.title}
-                description={c.description}
-                selected={careType === c.value}
-                onClick={() => setCareType(c.value)}
-              />
-            ))}
-          </div>
-          <Button
-            onClick={() => {
-              if (!careType) return setError("Choose a care type to continue.");
-              setError(null);
-              setStep(1);
-            }}
-          >
-            Continue →
-          </Button>
-          {error && <p className="text-[13px] text-error">{error}</p>}
-        </div>
-      )}
-
-      {step === 1 && (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <h1 className="text-[24px] font-semibold font-heading">Where do you need care?</h1>
@@ -246,18 +200,13 @@ export default function OnboardingSetupPage() {
             />
           </div>
           {error && <p className="text-[13px] text-error">{error}</p>}
-          <div className="flex gap-3">
-            <Button onClick={() => void onLocationContinue()} disabled={saving}>
-              {saving ? "Saving…" : "Continue →"}
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => setStep(0)}>
-              Back
-            </Button>
-          </div>
+          <Button onClick={() => void onLocationContinue()} disabled={saving}>
+            {saving ? "Saving…" : "Continue →"}
+          </Button>
         </div>
       )}
 
-      {step === 2 && (
+      {step === 1 && (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <h1 className="text-[24px] font-semibold font-heading">
@@ -328,14 +277,14 @@ export default function OnboardingSetupPage() {
             <Button onClick={() => void onWardContinue()} disabled={saving}>
               {saving ? "Saving…" : "Continue →"}
             </Button>
-            <Button type="button" variant="secondary" onClick={() => setStep(1)}>
+            <Button type="button" variant="secondary" onClick={() => setStep(0)}>
               Back
             </Button>
           </div>
         </div>
       )}
 
-      {step === 3 && (
+      {step === 2 && (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <h1 className="text-[24px] font-semibold font-heading">What matters most to you?</h1>
@@ -370,8 +319,8 @@ export default function OnboardingSetupPage() {
             />
           </div>
           <div className="flex gap-3">
-            <Button onClick={() => setStep(4)}>Continue →</Button>
-            <Button type="button" variant="secondary" onClick={() => setStep(2)}>
+            <Button onClick={() => setStep(3)}>Continue →</Button>
+            <Button type="button" variant="secondary" onClick={() => setStep(1)}>
               Back
             </Button>
           </div>
