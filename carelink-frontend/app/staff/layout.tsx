@@ -43,17 +43,16 @@ function StaffLoadingSkeleton() {
 // lives as a header icon (StaffHeaderIcons) and Settings/Log Out live in
 // the profile dropdown (StaffHeaderProfile).
 //
-// /staff is now purely the Home dashboard; the pending-requests
-// accept/decline list that used to live there moved to its own
-// /staff/requests page (Section 11 of the redesign: Home only shows a
-// "Requests waiting" summary card, the full list has its own
-// destination) — no functionality was removed, only relocated.
+// /staff/requests is the full pending-requests list; Home now also
+// shows a "New care request" alert at the top (app/staff/page.tsx's
+// NewRequestsAlert) with the same Accept/Decline actions, so a
+// caregiver is told about a new request the moment they open the app.
 //
-// CareLink's real phone/SMS notification system: the header's
-// NotificationsBell is hidden here (hideNotificationsBell) now that SMS
-// carries the action-required alerts it used to be the only way to see.
-// The underlying /api/notifications system is untouched — only the
-// header bell is removed.
+// The header's NotificationsBell is shown again: it was hidden while
+// SMS carried the action-required alerts, but notifications
+// (/api/notifications — a 'booking_request' row is created for the
+// caregiver by a DB trigger the instant an offer lands) are now the
+// primary channel, with email only a backup.
 const items: NavItem[] = [
   { href: "/staff", label: "Home", icon: House },
   { href: "/staff/requests", label: "Requests", icon: Tray },
@@ -77,7 +76,6 @@ export default function StaffLayout({ children }: LayoutProps<"/staff">) {
         }
         bookingHref={(id) => `/staff/schedule/${id}`}
         largeTargets
-        hideNotificationsBell
         activeItemClassName="rounded-[10px] bg-wisteria-tint text-wisteria"
         railWidthClassName="md:hidden"
         mainClassName="bg-[var(--color-lavender-bg)]"

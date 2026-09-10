@@ -148,6 +148,9 @@ export default function ParentConversationPage({
   }
 
   const firstName = caregiver.full_name.split(" ")[0];
+  // Messaging opens once the booking is paid for — before that (status
+  // 'accepted'), the composer is replaced with a short explanation.
+  const messagingOpen = ["paid", "active", "completed"].includes(booking.status);
 
   return (
     <div className="mx-auto flex h-full max-w-2xl flex-col gap-4 p-6">
@@ -240,23 +243,29 @@ export default function ParentConversationPage({
 
         {sendError && <p className="text-[13px] text-error">{sendError}</p>}
 
-        <form onSubmit={send} className="flex gap-2">
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="Write a message…"
-            aria-label="Write a message"
-            className="flex-1 rounded-[10px] border border-hairline bg-paper px-3 py-2.5 text-[14px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
-          />
-          <button
-            type="submit"
-            disabled={sending || !draft.trim()}
-            aria-label="Send message"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-wisteria text-sheet hover:bg-wisteria-hover disabled:opacity-50"
-          >
-            <PaperPlaneTilt size={18} weight="fill" />
-          </button>
-        </form>
+        {messagingOpen ? (
+          <form onSubmit={send} className="flex gap-2">
+            <input
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="Write a message…"
+              aria-label="Write a message"
+              className="flex-1 rounded-[10px] border border-hairline bg-paper px-3 py-2.5 text-[14px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
+            />
+            <button
+              type="submit"
+              disabled={sending || !draft.trim()}
+              aria-label="Send message"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-wisteria text-sheet hover:bg-wisteria-hover disabled:opacity-50"
+            >
+              <PaperPlaneTilt size={18} weight="fill" />
+            </button>
+          </form>
+        ) : (
+          <p className="rounded-[10px] bg-paper px-3 py-2.5 text-center text-[13px] text-ink-muted">
+            Messaging opens once you&apos;ve paid for this booking.
+          </p>
+        )}
       </div>
 
       {counterpartyUserId && (

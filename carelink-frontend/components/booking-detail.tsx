@@ -506,7 +506,9 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
         </Sheet>
       )}
 
-      {!["pending", "declined"].includes(booking.status) && (
+      {/* Messaging opens once the booking is paid for — 'accepted'
+          (awaiting payment) has no conversation yet, so no link. */}
+      {["paid", "active", "completed"].includes(booking.status) && (
         <Link href={`/${viewerRole}/messages/${id}`}>
           <Sheet className="flex items-center justify-between gap-3 hover:border-wisteria/50">
             <span className="flex items-center gap-2 text-[14px] font-semibold text-ink">

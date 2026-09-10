@@ -3,8 +3,13 @@ import { z } from "zod";
 import { sendMessageSchema } from "@carelink/shared";
 import { authErrorResponse, requireUser } from "@/lib/auth/require-user";
 
-// Task 4.7. RLS enforces the "no contact before accepted" rule (migration
-// 0021) — this route doesn't need to re-derive it.
+// Task 4.7. RLS is the real boundary — "you must be a party to this
+// booking" (read) and "the booking must be paid or active" (insert,
+// migration 20260921000000). The insert route also re-checks the
+// paid/active status in app code below so the friendly "opens once
+// payment is complete" message is shown immediately, without waiting
+// for a database that hasn't had the newer migration applied yet.
+const MESSAGEABLE_STATUSES = ["paid", "active"];
 export async function GET(request: Request, ctx: RouteContext<"/api/bookings/[id]/messages">) {
   try {
     const { supabase } = await requireUser(request);
@@ -31,6 +36,27 @@ export async function POST(request: Request, ctx: RouteContext<"/api/bookings/[i
     const { supabase, userId } = await requireUser(request);
     const { id } = await ctx.params;
     const body = sendMessageSchema.parse(await request.json());
+
+    // The booking must be paid (or already active) before either party
+    // can message. RLS enforces the same rule, but checking here first
+    // lets us return the specific "opens once payment is complete"
+    // message rather than a generic RLS rejection.
+    const { data: booking } = await supabase
+      .from("bookings")
+      .select("status")
+      .eq("id", id)
+      .maybeSingle();
+    if (booking && !MESSAGEABLE_STATUSES.includes(booking.status)) {
+      return NextResponse.json(
+        {
+          error:
+            booking.status === "accepted"
+              ? "Messaging opens once the booking is paid for."
+              : "Messaging isn't open for this booking.",
+        },
+        { status: 400 },
+      );
+    }
 
     const { data, error } = await supabase
       .from("messages")

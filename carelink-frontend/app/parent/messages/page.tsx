@@ -36,7 +36,9 @@ type Conversation = {
   hasUnread: boolean;
 };
 
-const MESSAGEABLE = ["accepted", "paid", "active", "completed"];
+// Messaging opens once the parent has paid — an accepted-but-unpaid
+// booking has no conversation yet, so it isn't listed here.
+const MESSAGEABLE = ["paid", "active", "completed"];
 
 export default function ParentMessagesPage() {
   const { user } = useAuth();
