@@ -93,7 +93,15 @@ export function useOwnProfile() {
   return { profile, setProfile, error };
 }
 
-export function PhotoSection() {
+export function PhotoSection({
+  onPhotoChange,
+}: {
+  // Fired with the stored path (or null) once known and after each
+  // upload — lets the caregiver onboarding wizard gate "Continue" on a
+  // photo being present, since a photo is now required to be visible to
+  // parents.
+  onPhotoChange?: (photoPath: string | null) => void;
+} = {}) {
   const { user } = useAuth();
   const [photoPath, setPhotoPath] = useState<string | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
@@ -101,8 +109,13 @@ export function PhotoSection() {
 
   useEffect(() => {
     apiFetch<{ profile: { photo_path: string | null } | null }>("/api/staff/profile")
-      .then((res) => setPhotoPath(res.profile?.photo_path ?? null))
+      .then((res) => {
+        const path = res.profile?.photo_path ?? null;
+        setPhotoPath(path);
+        onPhotoChange?.(path);
+      })
       .catch((err) => setError(errorMessage(err)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once
   }, []);
 
   async function onSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -118,6 +131,7 @@ export function PhotoSection() {
         body: form,
       });
       setPhotoPath(res.photoPath);
+      onPhotoChange?.(res.photoPath);
     } catch (err) {
       setError(errorMessage(err));
     } finally {

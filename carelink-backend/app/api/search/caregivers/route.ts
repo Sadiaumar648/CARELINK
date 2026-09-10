@@ -26,8 +26,14 @@ export async function GET(request: Request) {
       skills: skillsParam ? skillsParam.split(",").filter(Boolean) : undefined,
     });
 
+    // The Request a Nanny pick-list passes availability=conflicts: show
+    // every caregiver except those already booked for a clashing time
+    // (never exclude for being outside their usual weekly hours).
+    const availabilityCheck =
+      url.searchParams.get("availability") === "conflicts" ? "conflicts" : "full";
+
     const weights = await loadMatchWeights(supabase);
-    const outcome = await findEligibleCaregivers(supabase, query, weights);
+    const outcome = await findEligibleCaregivers(supabase, query, weights, { availabilityCheck });
 
     return NextResponse.json({
       results: outcome.results,

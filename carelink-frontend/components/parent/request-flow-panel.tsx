@@ -2,16 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, MagnifyingGlass, Plus } from "@phosphor-icons/react";
+import Link from "next/link";
+import { ArrowLeft, ArrowSquareOut, Check, MagnifyingGlass, Plus } from "@phosphor-icons/react";
 import { calculateTotalAmount, hourlyRateFor } from "@carelink/shared";
 import { Sheet } from "@/components/ui/sheet";
 import { Field } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
+import { RatingStars } from "@/components/ui/rating-stars";
+import { VerificationBadge } from "@/components/ui/badge";
 import { LocationPicker, type ResolvedLocation } from "@/components/location-picker";
 import { AddWardForm } from "@/components/parent/add-ward-form";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
+import { caregiverPhotoUrl } from "@/lib/photo-url";
 import { suggestedSkillForAge, type SearchFilters, type Ward } from "@/components/find-care/types";
 
 type CaregiverType = "nanny" | "babysitter";
@@ -33,6 +37,16 @@ type PreferredCandidate = {
   staff_profile_id: string;
   full_name: string;
   caregiver_type: "nanny" | "babysitter" | null;
+  // Shown on the pick card and linked to the full profile
+  // (/parent/caregivers/[id]) — all straight from GET /api/search/caregivers.
+  photo_path?: string | null;
+  rating_avg?: number | null;
+  rating_count?: number;
+  years_experience?: number | null;
+  verification_status?: string;
+  verification_method?: "carelink" | "agency" | null;
+  bio?: string | null;
+  areas?: { area: string; isPrimary: boolean }[];
 };
 
 // Two real screens, not one — "Find Care" only ever validates and
@@ -331,6 +345,14 @@ export function RequestFlowPanel({
     // one regardless of how their typed areas happen to be worded.
     params.set("latitude", String(location.latitude));
     params.set("longitude", String(location.longitude));
+    // The requested window + availability=conflicts: the list still
+    // shows everyone, minus anyone already on a booking that clashes
+    // with this time (or mid-session) — never anyone just because it's
+    // outside their usual weekly hours.
+    params.set("date", startDate);
+    params.set("startTime", startTime);
+    params.set("endTime", addHours(startTime, Number(duration)));
+    params.set("availability", "conflicts");
     apiFetch<{ results: PreferredCandidate[] }>(`/api/search/caregivers?${params.toString()}`)
       // Every real, eligible caregiver the search returns — no client-
       // side filtering by type at all. CareLink no longer asks the
@@ -555,26 +577,64 @@ export function RequestFlowPanel({
               </p>
             )}
             {filteredPreferredCandidates.length > 0 && (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-3">
                 {filteredPreferredCandidates.map((c) => {
                   const sendingThisOne =
                     submitting && preferredCaregiver?.staff_profile_id === c.staff_profile_id;
+                  const primaryArea =
+                    c.areas?.find((a) => a.isPrimary)?.area ?? c.areas?.[0]?.area ?? null;
                   return (
-                    <button
+                    <div
                       key={c.staff_profile_id}
-                      type="button"
-                      disabled={submitting}
-                      onClick={() => void chooseCaregiver(c)}
-                      className="flex items-center justify-between gap-3 rounded-[12px] border border-[var(--color-lavender-border)] p-3 text-left hover:border-wisteria disabled:cursor-not-allowed disabled:opacity-60"
+                      className="flex flex-col gap-3 rounded-[12px] border border-[var(--color-lavender-border)] p-3"
                     >
-                      <div className="flex items-center gap-3">
-                        <Avatar photoUrl={null} name={c.full_name} size="sm" />
-                        <p className="text-[14px] font-medium text-ink">{c.full_name}</p>
+                      <div className="flex items-start gap-3">
+                        <Avatar
+                          photoUrl={caregiverPhotoUrl(c.photo_path ?? null)}
+                          name={c.full_name}
+                          size="sm"
+                        />
+                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-[14px] font-semibold text-ink">{c.full_name}</p>
+                            {c.verification_status === "verified" && (
+                              <VerificationBadge method={c.verification_method} />
+                            )}
+                          </div>
+                          <RatingStars rating={c.rating_avg ?? null} reviewCount={c.rating_count} />
+                          <p className="text-[12px] text-ink-muted">
+                            {c.years_experience != null
+                              ? `${c.years_experience} yrs experience`
+                              : ""}
+                            {c.years_experience != null && primaryArea ? " · " : ""}
+                            {primaryArea ?? ""}
+                          </p>
+                        </div>
                       </div>
-                      <span className="text-[13px] font-semibold text-wisteria">
-                        {sendingThisOne ? "Sending…" : "Request"}
-                      </span>
-                    </button>
+                      {c.bio && (
+                        <p className="line-clamp-2 text-[12.5px] leading-relaxed text-ink-muted">
+                          {c.bio}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          disabled={submitting}
+                          onClick={() => void chooseCaregiver(c)}
+                          className="flex-1 justify-center"
+                        >
+                          {sendingThisOne ? "Sending…" : "Request"}
+                        </Button>
+                        <Link
+                          href={`/parent/caregivers/${c.staff_profile_id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 rounded-[10px] border border-[var(--color-lavender-border)] px-3 py-1.5 text-[12.5px] font-semibold text-ink hover:border-wisteria hover:text-wisteria"
+                        >
+                          View profile <ArrowSquareOut size={13} />
+                        </Link>
+                      </div>
+                    </div>
                   );
                 })}
               </div>

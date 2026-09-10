@@ -71,6 +71,14 @@ export type CaregiverSearchOptions = {
   // both — a request without coordinates keeps using query.area exactly
   // as before.
   maxDistanceKm?: number;
+  // "conflicts" — used by the Request a Nanny pick-list: with a
+  // requested date/time, exclude a caregiver only when they're already
+  // on a booking that genuinely clashes with that window (or currently
+  // mid-session), NEVER for being outside their declared weekly hours.
+  // A caregiver decides for themselves whether to accept a request
+  // outside their usual hours. "full" (the default, used by ordinary
+  // search and dispatch) keeps the declared-hours check as well.
+  availabilityCheck?: "full" | "conflicts";
 };
 
 export type CaregiverSearchResult = {
@@ -218,7 +226,11 @@ export async function findEligibleCaregivers(
   // running long past its stated end time (still status = 'active' in
   // the database, session_ended_at still null) isn't caught by a
   // time-range comparison alone. This checks the real, current status.
-  if (pool.length > 0) {
+  // Skipped in "conflicts" mode: the overlap check below (which already
+  // includes active bookings) is enough there, and a session that ends
+  // well before the requested window shouldn't hide a caregiver from a
+  // parent picking them for a later day.
+  if (pool.length > 0 && options.availabilityCheck !== "conflicts") {
     const ids = pool.map((c) => c.staff_profile_id);
     const { data: busyNow, error: busyNowErr } = await supabase
       .from("caregiver_busy_times")
@@ -253,29 +265,37 @@ export async function findEligibleCaregivers(
     if (exceptionsRes.error) throw exceptionsRes.error;
     if (busyRes.error) throw busyRes.error;
 
-    applyFilter("availability", "Try a different time or date.", (c) => {
-      const windows: AvailabilityWindow[] = (windowsRes.data ?? [])
-        .filter((w) => w.staff_profile_id === c.staff_profile_id)
-        .map((w) => ({
-          weekday: w.weekday,
-          startTime: String(w.start_time).slice(0, 5),
-          endTime: String(w.end_time).slice(0, 5),
-        }));
-      const exceptions: AvailabilityException[] = (exceptionsRes.data ?? [])
-        .filter((e) => e.staff_profile_id === c.staff_profile_id)
-        .map((e) => ({ onDate: e.on_date, unavailable: e.unavailable }));
-      const busy: BusyRange[] = (busyRes.data ?? [])
-        .filter((b) => b.staff_profile_id === c.staff_profile_id)
-        .map((b) => ({ startsAt: new Date(b.starts_at), endsAt: new Date(b.ends_at) }));
+    const availabilityMode = options.availabilityCheck === "conflicts" ? "conflicts" : "full";
+    applyFilter(
+      "availability",
+      availabilityMode === "conflicts"
+        ? "Every caregiver is already booked for that time."
+        : "Try a different time or date.",
+      (c) => {
+        const windows: AvailabilityWindow[] = (windowsRes.data ?? [])
+          .filter((w) => w.staff_profile_id === c.staff_profile_id)
+          .map((w) => ({
+            weekday: w.weekday,
+            startTime: String(w.start_time).slice(0, 5),
+            endTime: String(w.end_time).slice(0, 5),
+          }));
+        const exceptions: AvailabilityException[] = (exceptionsRes.data ?? [])
+          .filter((e) => e.staff_profile_id === c.staff_profile_id)
+          .map((e) => ({ onDate: e.on_date, unavailable: e.unavailable }));
+        const busy: BusyRange[] = (busyRes.data ?? [])
+          .filter((b) => b.staff_profile_id === c.staff_profile_id)
+          .map((b) => ({ startsAt: new Date(b.starts_at), endsAt: new Date(b.ends_at) }));
 
-      return checkAvailability(
-        windows,
-        exceptions,
-        busy,
-        requestedRange!.starts,
-        requestedRange!.ends,
-      ).available;
-    });
+        return checkAvailability(
+          windows,
+          exceptions,
+          busy,
+          requestedRange!.starts,
+          requestedRange!.ends,
+          { mode: availabilityMode },
+        ).available;
+      },
+    );
   }
 
   if (pool.length === 0) {

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Stepper } from "@/components/onboarding/stepper";
 import { LocationPicker, type ResolvedLocation } from "@/components/location-picker";
+import { PhotoSection } from "@/components/staff-profile-setup";
 
 // The onboarding step a caregiver reaches after creating their account
 // (see claim-invitation/page.tsx and caregiver/join/[token]/page.tsx —
@@ -32,11 +33,12 @@ import { LocationPicker, type ResolvedLocation } from "@/components/location-pic
 // is its first real UI.
 
 const MAX_SERVICE_AREAS = 3;
-const STEPS = ["Base location", "Service area"];
+const STEPS = ["Profile photo", "Base location", "Service area"];
 
 export default function CaregiverOnboardingPage() {
   const router = useRouter();
-  const [step, setStep] = useState<0 | 1>(0);
+  const [step, setStep] = useState<0 | 1 | 2>(0);
+  const [photoPath, setPhotoPath] = useState<string | null>(null);
   const [location, setLocation] = useState<ResolvedLocation | null>(null);
   const [serviceAreas, setServiceAreas] = useState<string[]>([""]);
   const [error, setError] = useState<string | null>(null);
@@ -93,6 +95,29 @@ export default function CaregiverOnboardingPage() {
       {step === 0 && (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
+            <h1 className="text-[24px] font-semibold font-heading">Add a profile photo</h1>
+            <p className="text-[15px] text-ink-muted">
+              Parents see your photo when they&apos;re choosing a caregiver. A clear, friendly
+              headshot is required before you can receive care requests.
+            </p>
+          </div>
+          <PhotoSection onPhotoChange={setPhotoPath} />
+          {error && <p className="text-[13px] text-error">{error}</p>}
+          <Button
+            onClick={() => {
+              if (!photoPath) return setError("Add a profile photo to continue.");
+              setError(null);
+              setStep(1);
+            }}
+          >
+            Continue
+          </Button>
+        </div>
+      )}
+
+      {step === 1 && (
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
             <h1 className="text-[24px] font-semibold font-heading">Where is your base location?</h1>
             <p className="text-[15px] text-ink-muted">
               This is where you normally start from. CareLink uses it to dispatch you to nearby
@@ -108,19 +133,24 @@ export default function CaregiverOnboardingPage() {
             confirmedLabel="Base location confirmed"
           />
           {error && <p className="text-[13px] text-error">{error}</p>}
-          <Button
-            onClick={() => {
-              if (!location) return setError("Confirm your base location to continue.");
-              setError(null);
-              setStep(1);
-            }}
-          >
-            Continue
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              onClick={() => {
+                if (!location) return setError("Confirm your base location to continue.");
+                setError(null);
+                setStep(2);
+              }}
+            >
+              Continue
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => setStep(0)}>
+              Back
+            </Button>
+          </div>
         </div>
       )}
 
-      {step === 1 && (
+      {step === 2 && (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <h1 className="text-[24px] font-semibold font-heading">
@@ -170,7 +200,7 @@ export default function CaregiverOnboardingPage() {
               <MapPin size={16} weight="fill" />
               {saving ? "Saving…" : "Finish"}
             </Button>
-            <Button type="button" variant="secondary" onClick={() => setStep(0)}>
+            <Button type="button" variant="secondary" onClick={() => setStep(1)}>
               Back
             </Button>
           </div>

@@ -124,6 +124,11 @@ export function checkAvailability(
   busyRanges: BusyRange[],
   startsAt: Date,
   endsAt: Date,
+  // "conflicts" mode (the Request a Nanny pick-list): skip the
+  // declared-weekly-hours check entirely — only a marked-unavailable
+  // exception or an actually-overlapping booking excludes a caregiver.
+  // The caregiver still decides by accepting or declining.
+  opts: { mode?: "full" | "conflicts" } = {},
 ): AvailabilityCheckResult {
   const exceptionByDate = new Map(exceptions.map((e) => [e.onDate, e]));
 
@@ -132,7 +137,10 @@ export function checkAvailability(
     if (exception?.unavailable) {
       return { available: false, reason: "marked_unavailable" };
     }
-    if (!isTimeRangeCovered(windows, segment.weekday, segment.startTime, segment.endTime)) {
+    if (
+      opts.mode !== "conflicts" &&
+      !isTimeRangeCovered(windows, segment.weekday, segment.startTime, segment.endTime)
+    ) {
       return { available: false, reason: "outside_declared_hours" };
     }
   }
