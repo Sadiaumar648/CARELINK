@@ -34,6 +34,7 @@ type CaregiverType = "nanny" | "babysitter";
 // reconstructed from frontend-only state.
 type CareRequestRecord = {
   ward_id: string | null;
+  ward_ids: string[] | null;
   date: string;
   start_time: string;
   end_time: string;
@@ -54,6 +55,7 @@ type CareRequestRecord = {
 function toRestore(cr: CareRequestRecord): RequestFlowRestore {
   return {
     wardId: cr.ward_id,
+    wardIds: cr.ward_ids?.length ? cr.ward_ids : cr.ward_id ? [cr.ward_id] : [],
     date: cr.date,
     startTime: cr.start_time,
     endTime: cr.end_time,

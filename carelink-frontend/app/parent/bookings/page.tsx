@@ -18,6 +18,7 @@ type Booking = {
   reference: string;
   staff_profile_id: string;
   ward_id: string | null;
+  ward_ids: string[] | null;
   starts_at: string;
   ends_at: string;
   total_amount: number;
@@ -315,6 +316,9 @@ export default function ParentBookingsPage() {
                           {b.ward && (
                             <p className="text-[12.5px] text-ink-muted">
                               Care for {b.ward.display_name}
+                              {b.ward_ids && b.ward_ids.length > 1
+                                ? ` & ${b.ward_ids.length - 1} more`
+                                : ""}
                             </p>
                           )}
                         </div>

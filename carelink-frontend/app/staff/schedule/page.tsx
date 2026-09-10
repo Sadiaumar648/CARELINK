@@ -26,7 +26,13 @@ type Booking = {
 };
 
 type WardBrief = { display_name: string };
-type EnrichedBooking = Booking & { ward: WardBrief | null };
+type EnrichedBooking = Booking & { wards: WardBrief[] };
+
+function careForLabel(wards: WardBrief[], fallback: string): string {
+  if (wards.length === 0) return fallback;
+  if (wards.length === 1) return `Care for ${wards[0].display_name}`;
+  return `Care for ${wards[0].display_name} & ${wards.length - 1} more`;
+}
 type EarningsEntry = { bookingId: string; payoutAmount: number | null };
 
 // Unchanged from before this redesign — the same status set and copy
@@ -115,7 +121,7 @@ function BookingCard({
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-muted">
           {caregiverType && <span className="font-semibold text-ink">{caregiverType}</span>}
           {caregiverType && <span aria-hidden>·</span>}
-          <span>{booking.ward ? `Care for ${booking.ward.display_name}` : booking.reference}</span>
+          <span>{careForLabel(booking.wards, booking.reference)}</span>
         </div>
 
         <p className="text-[13px] text-ink-muted">{generalArea(booking.address)}</p>
@@ -171,11 +177,13 @@ export default function StaffSchedulePage() {
         const enriched = await Promise.all(
           relevant.map(async (b) => ({
             ...b,
-            ward: b.ward_id
-              ? await apiFetch<{ ward: WardBrief | null }>(`/api/bookings/${b.id}`)
-                  .then((r) => r.ward)
-                  .catch(() => null)
-              : null,
+            wards: b.ward_id
+              ? await apiFetch<{ wards: WardBrief[] | null; ward: WardBrief | null }>(
+                  `/api/bookings/${b.id}`,
+                )
+                  .then((r) => r.wards ?? (r.ward ? [r.ward] : []))
+                  .catch(() => [] as WardBrief[])
+              : [],
           })),
         );
         setBookings(enriched);

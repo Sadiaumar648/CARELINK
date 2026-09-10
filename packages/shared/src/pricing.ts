@@ -27,21 +27,26 @@ export function hourlyRateFor(caregiverType: CaregiverType): number {
 }
 
 // The one calculation every real charge in this app is built from:
-// fixed hourly rate × duration × how many sessions it covers. A real
-// `bookings` row is always exactly one session (sessionCount defaults
-// to 1) — this app's dispatch/booking architecture stays single-
-// session; a `care_requests` row covering a Weekly/Custom pattern
-// passes its actual session count for an informational series total
-// only, never as what a single booking is charged. Throws rather than
-// returning a fabricated fallback if the inputs can't produce a real,
-// positive number — a booking must never be created with a negative,
-// zero, or NaN total.
+// fixed hourly rate × duration × how many sessions it covers × how many
+// children are being cared for. A real `bookings` row is always exactly
+// one session (sessionCount defaults to 1) — this app's dispatch/booking
+// architecture stays single-session; a `care_requests` row covering a
+// Weekly/Custom pattern passes its actual session count for an
+// informational series total only, never as what a single booking is
+// charged. `childCount` is the number of children on the request (1 for
+// every request before multi-child support) — one nanny minding two
+// children for the same block is charged the regular rate twice. Throws
+// rather than returning a fabricated fallback if the inputs can't
+// produce a real, positive number — a booking must never be created
+// with a negative, zero, or NaN total.
 export function calculateTotalAmount(
   caregiverType: CaregiverType,
   durationHours: number,
   sessionCount = 1,
+  childCount = 1,
 ): number {
-  const amount = Math.round(hourlyRateFor(caregiverType) * durationHours * sessionCount);
+  const children = Math.max(1, Math.round(childCount));
+  const amount = Math.round(hourlyRateFor(caregiverType) * durationHours * sessionCount * children);
   if (!Number.isFinite(amount) || amount <= 0) {
     throw new Error("Could not calculate a valid total amount for this request");
   }

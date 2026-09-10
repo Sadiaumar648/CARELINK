@@ -46,13 +46,14 @@ type Booking = {
 };
 
 type Ward = {
+  id?: string;
   display_name: string;
   age_years: number;
   allergies: string | null;
   medications: string | null;
   special_needs: string | null;
   routine_notes: string | null;
-} | null;
+};
 
 type EmergencyContact = { name: string; phone: string } | null;
 
@@ -158,7 +159,7 @@ function bookingStages(booking: Booking, events: BookingEvent[]): Stage[] {
 
 export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "parent" | "staff" }) {
   const [booking, setBooking] = useState<Booking | null>(null);
-  const [ward, setWard] = useState<Ward>(null);
+  const [wards, setWards] = useState<Ward[]>([]);
   const [emergencyContact, setEmergencyContact] = useState<EmergencyContact>(null);
   const [counterpartyUserId, setCounterpartyUserId] = useState<string | null>(null);
   const [counterpartyVerificationStatus, setCounterpartyVerificationStatus] = useState<
@@ -186,7 +187,8 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
       paymentDeadline: string | null;
       paymentExpired: boolean;
       careLocationGeneral: string | null;
-      ward: Ward;
+      ward: Ward | null;
+      wards: Ward[];
       events: BookingEvent[];
       emergencyContact: EmergencyContact;
       counterpartyUserId: string | null;
@@ -199,7 +201,7 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
         setPaymentDeadline(res.paymentDeadline);
         setPaymentExpired(res.paymentExpired);
         setCareLocationGeneral(res.careLocationGeneral);
-        setWard(res.ward);
+        setWards(res.wards ?? (res.ward ? [res.ward] : []));
         setEvents(res.events);
         setEmergencyContact(res.emergencyContact);
         setCounterpartyUserId(res.counterpartyUserId);
@@ -437,26 +439,33 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
         </div>
       </Sheet>
 
-      {ward && (
-        <Sheet className="flex flex-col gap-1">
+      {wards.length > 0 && (
+        <Sheet className="flex flex-col gap-3">
           <h2 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-            Care profile
+            {wards.length === 1 ? "Care profile" : `Care profiles · ${wards.length} children`}
           </h2>
-          <p className="text-[15px] font-semibold">
-            {ward.display_name} · {ward.age_years}
-          </p>
-          {ward.allergies && (
-            <p className="text-[13px] text-ink-muted">Allergies: {ward.allergies}</p>
-          )}
-          {ward.medications && (
-            <p className="text-[13px] text-ink-muted">Medications: {ward.medications}</p>
-          )}
-          {ward.special_needs && (
-            <p className="text-[13px] text-ink-muted">Special needs: {ward.special_needs}</p>
-          )}
-          {ward.routine_notes && (
-            <p className="text-[13px] text-ink-muted">Routine: {ward.routine_notes}</p>
-          )}
+          {wards.map((ward, i) => (
+            <div
+              key={ward.id ?? i}
+              className="flex flex-col gap-1 border-t border-hairline pt-3 first:border-t-0 first:pt-0"
+            >
+              <p className="text-[15px] font-semibold">
+                {ward.display_name} · {ward.age_years}
+              </p>
+              {ward.allergies && (
+                <p className="text-[13px] text-ink-muted">Allergies: {ward.allergies}</p>
+              )}
+              {ward.medications && (
+                <p className="text-[13px] text-ink-muted">Medications: {ward.medications}</p>
+              )}
+              {ward.special_needs && (
+                <p className="text-[13px] text-ink-muted">Special needs: {ward.special_needs}</p>
+              )}
+              {ward.routine_notes && (
+                <p className="text-[13px] text-ink-muted">Routine: {ward.routine_notes}</p>
+              )}
+            </div>
+          ))}
         </Sheet>
       )}
 

@@ -55,6 +55,7 @@ type CareRequestRow = {
   id: string;
   parent_profile_id: string;
   ward_id: string | null;
+  ward_ids: string[] | null;
   caregiver_type: "nanny" | "babysitter";
   date: string;
   start_time: string;
@@ -335,9 +336,22 @@ export async function advanceDispatch(
   // CareLink's finalized fixed-rate model: every real booking is exactly
   // one session, priced from the care request's caregiver_type — never
   // from the offered caregiver's own staff_profiles.hourly_rate (which
-  // no longer prices any new booking). sessionCount defaults to 1.
+  // no longer prices any new booking). sessionCount defaults to 1;
+  // childCount is how many children the request covers (regular rate ×
+  // hours per child).
+  const wardIds =
+    careRequest.ward_ids && careRequest.ward_ids.length > 0
+      ? careRequest.ward_ids
+      : careRequest.ward_id
+        ? [careRequest.ward_id]
+        : [];
   const fixedRate = hourlyRateFor(careRequest.caregiver_type);
-  const totalAmount = calculateTotalAmount(careRequest.caregiver_type, durationHours);
+  const totalAmount = calculateTotalAmount(
+    careRequest.caregiver_type,
+    durationHours,
+    1,
+    wardIds.length || 1,
+  );
   const expiresAt = new Date(Date.now() + careRequest.response_window_seconds * 1000);
 
   const { data: booking, error: insertErr } = await supabase
@@ -346,7 +360,8 @@ export async function advanceDispatch(
       reference: generateBookingReference(),
       parent_profile_id: careRequest.parent_profile_id,
       staff_profile_id: next.staff_profile_id,
-      ward_id: careRequest.ward_id,
+      ward_id: wardIds[0] ?? careRequest.ward_id,
+      ward_ids: wardIds,
       starts_at: startsAt.toISOString(),
       ends_at: endsAt.toISOString(),
       hourly_rate: fixedRate,

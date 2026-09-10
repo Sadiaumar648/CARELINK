@@ -11,13 +11,14 @@ const timeString = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use 24-hour HH
 // enforced identically no matter which path a parent came through.
 export const createCareRequestSchema = z
   .object({
-    // Optional: the direct Nanny/Babysitter form has no ward picker
-    // today (only a soft age select), so it never sends one — the real
-    // ward is still always chosen and required at actual booking time
-    // (BookingRequestForm). The CareLink AI flow's confirmation step, by
-    // contrast, always sources a real wardId from the parent's own
-    // GET /api/wards before this is called.
+    // The child (or children) this request is for. The "Request a Nanny"
+    // form sends `wardIds` — one or more children, all owned by the
+    // parent, the first being the primary. `wardId` remains for the
+    // CareLink AI flow and any older caller; when both are sent, wardIds
+    // wins. Price is regular rate × hours × wardIds.length, computed
+    // server-side.
     wardId: z.string().uuid().optional(),
+    wardIds: z.array(z.string().uuid()).min(1).max(10).optional(),
     // Optional: a parent may name one specific caregiver to try before
     // CareLink's normal sequential search — see lib/services/dispatch.ts.
     // Real eligibility (type, date/time, service area) is always

@@ -34,14 +34,29 @@ export async function POST(request: Request) {
 
     const body = createCareRequestSchema.parse(await request.json());
 
-    if (body.wardId) {
-      const { data: ward, error: wardErr } = await supabase
+    // One or more children, first = primary. `wardIds` from the Request
+    // a Nanny form wins; `wardId` is the fallback for the AI flow.
+    const wardIds = (
+      body.wardIds && body.wardIds.length > 0 ? body.wardIds : body.wardId ? [body.wardId] : []
+    ).filter((id, i, all) => all.indexOf(id) === i);
+
+    if (wardIds.length > 0) {
+      // wards RLS already scopes SELECT to the parent's own children, so
+      // .in() only returns ids they actually own — a count mismatch
+      // means one of the ids isn't theirs (or doesn't exist).
+      const { data: ownedWards, error: wardErr } = await supabase
         .from("wards")
         .select("id")
-        .eq("id", body.wardId)
-        .maybeSingle();
+        .in("id", wardIds);
       if (wardErr) return NextResponse.json({ error: wardErr.message }, { status: 500 });
-      if (!ward) return NextResponse.json({ error: "Ward not found" }, { status: 404 });
+      if ((ownedWards?.length ?? 0) !== wardIds.length) {
+        return NextResponse.json(
+          { error: "One of the selected children wasn't found" },
+          {
+            status: 404,
+          },
+        );
+      }
     }
 
     // A light existence check only — real eligibility (date/time/
@@ -88,13 +103,19 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    const totalAmount = calculateTotalAmount(body.caregiverType, durationHours, sessionCount);
+    const totalAmount = calculateTotalAmount(
+      body.caregiverType,
+      durationHours,
+      sessionCount,
+      wardIds.length || 1,
+    );
 
     const { data: careRequest, error: insertErr } = await supabase
       .from("care_requests")
       .insert({
         parent_profile_id: parentProfileId,
-        ward_id: body.wardId ?? null,
+        ward_id: wardIds[0] ?? null,
+        ward_ids: wardIds,
         preferred_staff_profile_id: body.preferredStaffProfileId ?? null,
         source: body.source,
         caregiver_type: body.caregiverType,

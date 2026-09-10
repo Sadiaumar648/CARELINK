@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CaretRight, MagnifyingGlass, Plus } from "@phosphor-icons/react";
+import { ArrowLeft, Check, MagnifyingGlass, Plus } from "@phosphor-icons/react";
 import { calculateTotalAmount, hourlyRateFor } from "@carelink/shared";
 import { Sheet } from "@/components/ui/sheet";
 import { Field } from "@/components/ui/field";
@@ -60,6 +60,7 @@ export type RequestFlowInitial = {
 // is the real, structured record.
 export type RequestFlowRestore = {
   wardId: string | null;
+  wardIds: string[];
   date: string;
   startTime: string;
   endTime: string;
@@ -262,8 +263,11 @@ export function RequestFlowPanel({
     restoreFrom ? extractFreeTextNotes(restoreFrom.notes) : (initial?.requirements ?? ""),
   );
   const [wards, setWards] = useState<Ward[] | null>(null);
-  const [wardId, setWardId] = useState(() => restoreFrom?.wardId ?? "");
-  const [changingWard, setChangingWard] = useState(false);
+  // One request can be for more than one child. First entry = primary.
+  const [wardIds, setWardIds] = useState<string[]>(() => {
+    if (restoreFrom?.wardIds?.length) return restoreFrom.wardIds;
+    return restoreFrom?.wardId ? [restoreFrom.wardId] : [];
+  });
   // Adding a child from here never navigates away — it shows the same
   // real Add Child form inline (components/parent/add-ward-form.tsx),
   // so nothing already filled in on this request is ever lost. Settings
@@ -288,8 +292,8 @@ export function RequestFlowPanel({
   // before the click instead of after it.
   function onFindCare(e: React.FormEvent) {
     e.preventDefault();
-    if (!wardId) {
-      setFormError("Choose which child this request is for.");
+    if (wardIds.length === 0) {
+      setFormError("Choose which child (or children) this request is for.");
       return;
     }
     if (!startTime) {
@@ -346,32 +350,38 @@ export function RequestFlowPanel({
       .catch(() => setWards([]));
   }, []);
 
-  const selectedWard = wards?.find((w) => w.id === wardId) ?? null;
+  const selectedWards = (wards ?? []).filter((w) => wardIds.includes(w.id));
 
-  // A best-effort default (single child, or a match against the age the
-  // AI already gathered on a round trip) — never auto-picked without a
-  // real ward existing, and the parent can always change it.
+  function toggleWard(id: string) {
+    setWardIds((prev) => (prev.includes(id) ? prev.filter((w) => w !== id) : [...prev, id]));
+  }
+
+  // A best-effort default (a single child, or a match against the age
+  // the AI already gathered on a round trip) — never auto-picked without
+  // a real ward existing, and the parent can always change it.
   useEffect(() => {
-    if (!wards || wardId) return;
+    if (!wards || wardIds.length > 0) return;
     const suggested =
       wards.length === 1
         ? wards[0].id
         : (wards.find((w) => String(w.age_years) === initial?.age)?.id ?? null);
     if (!suggested) return;
-    void Promise.resolve().then(() => setWardId(suggested));
+    void Promise.resolve().then(() => setWardIds([suggested]));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- initial is a one-time prefill, not a live dependency
-  }, [wards, wardId]);
+  }, [wards, wardIds.length]);
 
-  // Pre-check the age-appropriate chip once a child is known — visible,
-  // adjustable, never hidden magic: the chip state itself is what gets
-  // submitted, not a silent extra filter.
+  // Pre-check the age-appropriate chip for the youngest selected child —
+  // visible, adjustable, never hidden magic: the chip state itself is
+  // what gets submitted, not a silent extra filter.
+  const youngestSelectedAge =
+    selectedWards.length > 0 ? Math.min(...selectedWards.map((w) => w.age_years)) : null;
   useEffect(() => {
-    if (!selectedWard) return;
-    const suggested = suggestedSkillForAge(selectedWard.age_years);
+    if (youngestSelectedAge == null) return;
+    const suggested = suggestedSkillForAge(youngestSelectedAge);
     void Promise.resolve().then(() => {
       setRequirementChips((prev) => (prev.has(suggested) ? prev : new Set(prev).add(suggested)));
     });
-  }, [selectedWard]);
+  }, [youngestSelectedAge]);
 
   function toggleChip(value: string) {
     setRequirementChips((prev) => {
@@ -407,7 +417,7 @@ export function RequestFlowPanel({
       const res = await apiFetch<{ careRequest: { id: string } }>("/api/care-requests", {
         method: "POST",
         body: {
-          wardId,
+          wardIds,
           preferredStaffProfileId: c.staff_profile_id,
           source: "direct",
           // The chosen caregiver's own real type — never a value the
@@ -443,11 +453,14 @@ export function RequestFlowPanel({
   // CareLink's finalized fixed-rate model: this is informational only —
   // exactly the formula the backend independently recomputes and
   // charges from (POST /api/care-requests, never trusting this figure).
-  // Every request is a single session now. Hidden until there's a real,
-  // positive duration to price.
+  // Every request is a single session; the regular rate is charged once
+  // per child. Hidden until there's a real, positive duration to price.
   const priceDurationHours = Number(duration);
+  const priceChildCount = Math.max(1, wardIds.length);
   const priceTotal =
-    priceDurationHours > 0 ? calculateTotalAmount(type, priceDurationHours, 1) : null;
+    priceDurationHours > 0
+      ? calculateTotalAmount(type, priceDurationHours, 1, priceChildCount)
+      : null;
 
   // Find Care stays disabled until every field the backend will actually
   // require is genuinely filled in — mirrors onFindCare's own checks
@@ -456,7 +469,7 @@ export function RequestFlowPanel({
   // check.
   const hasCareNeed = requirementChips.size > 0 || (showOther && Boolean(requirements.trim()));
   const canFindCare =
-    Boolean(wardId) &&
+    wardIds.length > 0 &&
     Boolean(startTime) &&
     Boolean(duration) &&
     Boolean(startDate) &&
@@ -492,7 +505,7 @@ export function RequestFlowPanel({
           <AddWardForm
             onAdded={(w) => {
               setWards((prev) => [...(prev ?? []), w]);
-              setWardId(w.id);
+              setWardIds((prev) => (prev.includes(w.id) ? prev : [...prev, w.id]));
               setAddingWard(false);
             }}
             onCancel={() => setAddingWard(false)}
@@ -599,49 +612,46 @@ export function RequestFlowPanel({
                 </Button>
               )}
 
-              {wards && wards.length > 0 && selectedWard && !changingWard && (
-                <div className="flex items-center justify-between gap-3 rounded-[12px] border border-[var(--color-lavender-border)] p-3">
-                  <div className="flex items-center gap-3">
-                    <Avatar photoUrl={null} name={selectedWard.display_name} size="sm" />
-                    <div>
-                      <p className="text-[14px] font-semibold text-ink">
-                        {selectedWard.display_name}
-                      </p>
-                      <p className="text-[12.5px] text-ink-muted">Age {selectedWard.age_years}</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setChangingWard(true)}
-                    className="text-[13px] font-semibold text-wisteria hover:text-wisteria-hover"
-                  >
-                    Change
-                  </button>
-                </div>
-              )}
-
-              {wards && wards.length > 0 && (changingWard || !selectedWard) && (
+              {wards && wards.length > 0 && (
                 <div className="flex flex-col gap-2">
-                  {wards.map((w) => (
-                    <button
-                      key={w.id}
-                      type="button"
-                      onClick={() => {
-                        setWardId(w.id);
-                        setChangingWard(false);
-                      }}
-                      className="flex items-center justify-between gap-3 rounded-[12px] border border-[var(--color-lavender-border)] p-3 text-left hover:border-wisteria"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Avatar photoUrl={null} name={w.display_name} size="sm" />
-                        <div>
-                          <p className="text-[14px] font-semibold text-ink">{w.display_name}</p>
-                          <p className="text-[12.5px] text-ink-muted">Age {w.age_years}</p>
+                  {wards.length > 1 && (
+                    <p className="text-[12px] text-ink-muted">
+                      Select every child who needs care in this session.
+                    </p>
+                  )}
+                  {wards.map((w) => {
+                    const checked = wardIds.includes(w.id);
+                    return (
+                      <button
+                        key={w.id}
+                        type="button"
+                        aria-pressed={checked}
+                        onClick={() => toggleWard(w.id)}
+                        className={`flex items-center justify-between gap-3 rounded-[12px] border p-3 text-left transition-colors ${
+                          checked
+                            ? "border-wisteria bg-wisteria-tint"
+                            : "border-[var(--color-lavender-border)] hover:border-wisteria"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar photoUrl={null} name={w.display_name} size="sm" />
+                          <div>
+                            <p className="text-[14px] font-semibold text-ink">{w.display_name}</p>
+                            <p className="text-[12.5px] text-ink-muted">Age {w.age_years}</p>
+                          </div>
                         </div>
-                      </div>
-                      <CaretRight size={16} className="text-ink-muted" />
-                    </button>
-                  ))}
+                        <span
+                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+                            checked
+                              ? "border-wisteria bg-wisteria text-white"
+                              : "border-[var(--color-lavender-border)]"
+                          }`}
+                        >
+                          {checked && <Check size={13} weight="bold" />}
+                        </span>
+                      </button>
+                    );
+                  })}
                   <Button
                     type="button"
                     variant="secondary"
@@ -781,6 +791,7 @@ export function RequestFlowPanel({
                   <p className="text-[12.5px] text-ink-muted">
                     {priceDurationHours} hour{priceDurationHours === 1 ? "" : "s"} × GH₵
                     {hourlyRateFor(type)}/hour
+                    {priceChildCount > 1 ? ` × ${priceChildCount} children` : ""}
                   </p>
                   <p className="text-[19px] font-bold tabular-nums text-ink">
                     Total: GH₵{priceTotal}

@@ -54,15 +54,23 @@ export async function GET(request: Request, ctx: RouteContext<"/api/bookings/[id
     // 'accepted' row waiting for some other request to notice.
     const booking = await expirePaymentWindowIfPassed(supabase, bookingRow);
 
-    let ward = null;
-    if (booking.ward_id) {
-      const { data: wardData } = await supabase
-        .from("wards")
-        .select("*")
-        .eq("id", booking.ward_id)
-        .maybeSingle();
-      ward = wardData ?? null;
+    // A booking can cover more than one child (multi-child "Request a
+    // Nanny"). `wards` is the full set, primary first; `ward` stays as
+    // the primary alone for any caller that still reads a single ward.
+    const wardIds: string[] =
+      Array.isArray(booking.ward_ids) && booking.ward_ids.length > 0
+        ? booking.ward_ids
+        : booking.ward_id
+          ? [booking.ward_id]
+          : [];
+    let wards: Record<string, unknown>[] = [];
+    if (wardIds.length > 0) {
+      const { data: wardData } = await supabase.from("wards").select("*").in("id", wardIds);
+      wards = wardIds
+        .map((id) => (wardData ?? []).find((w) => w.id === id))
+        .filter((w): w is Record<string, unknown> => Boolean(w));
     }
+    const ward = wards[0] ?? null;
 
     const { data: events } = await supabase
       .from("booking_events")
@@ -144,6 +152,7 @@ export async function GET(request: Request, ctx: RouteContext<"/api/bookings/[id
       paymentExpired: isPaymentExpired(booking),
       careLocationGeneral,
       ward,
+      wards,
       events: events ?? [],
       emergencyContact,
       counterpartyUserId,

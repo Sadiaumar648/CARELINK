@@ -23,6 +23,13 @@ type Booking = {
 
 type WardBrief = { display_name: string };
 
+function wardsTitle(wards: WardBrief[]): string | null {
+  if (wards.length === 0) return null;
+  if (wards.length === 1) return `Care for ${wards[0].display_name}`;
+  if (wards.length === 2) return `Care for ${wards[0].display_name} & ${wards[1].display_name}`;
+  return `Care for ${wards[0].display_name} & ${wards.length - 1} more`;
+}
+
 type Message = {
   id: string;
   sender_id: string;
@@ -55,7 +62,7 @@ export default function StaffConversationPage({
   const { user } = useAuth();
 
   const [booking, setBooking] = useState<Booking | null>(null);
-  const [ward, setWard] = useState<WardBrief | null>(null);
+  const [wards, setWards] = useState<WardBrief[]>([]);
   const [counterpartyUserId, setCounterpartyUserId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -71,16 +78,16 @@ export default function StaffConversationPage({
   }
 
   useEffect(() => {
-    apiFetch<{ booking: Booking; counterpartyUserId: string | null }>(`/api/bookings/${bookingId}`)
+    apiFetch<{
+      booking: Booking;
+      counterpartyUserId: string | null;
+      wards: WardBrief[] | null;
+      ward: WardBrief | null;
+    }>(`/api/bookings/${bookingId}`)
       .then((res) => {
         setBooking(res.booking);
         setCounterpartyUserId(res.counterpartyUserId);
-        if (res.booking.ward_id) {
-          return apiFetch<{ ward: WardBrief }>(`/api/wards/${res.booking.ward_id}`).then((r) =>
-            setWard(r.ward),
-          );
-        }
-        return undefined;
+        setWards(res.wards ?? (res.ward ? [res.ward] : []));
       })
       .catch((err) => setLoadError(errorMessage(err)));
 
@@ -136,7 +143,7 @@ export default function StaffConversationPage({
     );
   }
 
-  const title = ward ? `Care for ${ward.display_name}` : booking.reference;
+  const title = wardsTitle(wards) ?? booking.reference;
   // Messaging opens once the parent has paid for the booking — before
   // that (status 'accepted'), the composer is replaced with a note.
   const messagingOpen = ["paid", "active", "completed"].includes(booking.status);
