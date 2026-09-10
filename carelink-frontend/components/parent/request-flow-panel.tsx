@@ -348,9 +348,11 @@ export function RequestFlowPanel({
     }
   }
 
-  // The one nanny the parent picked from Recommended Nannies. Once set,
-  // the request-details form shows "Requesting care from <name>" and its
-  // button becomes "Send Request" — the request then goes only to them.
+  // The one nanny the parent just tapped "Request This Nanny" on — kept
+  // only so that card can show its own "Sending…" state while the
+  // request is created. Tapping it submits immediately (the request
+  // details form above was already filled in to get this list), then
+  // navigates to the request-tracking page.
   const [selectedNanny, setSelectedNanny] = useState<PreferredCandidate | null>(null);
 
   // Every field the backend will require — checked before "Find Care"
@@ -410,20 +412,6 @@ export function RequestFlowPanel({
     fetchRecommendedNannies();
   }
 
-  // "Send Request" — only shown once the parent has picked a nanny.
-  // Re-validates the form, then sends the request to that one nanny.
-  function onSendRequest(e: React.FormEvent) {
-    e.preventDefault();
-    if (!selectedNanny) return;
-    const err = formValidationError();
-    if (err) {
-      setFormError(err);
-      return;
-    }
-    setFormError(null);
-    void chooseCaregiver(selectedNanny);
-  }
-
   const filteredPreferredCandidates = (preferredCandidates ?? []).filter((c) =>
     c.full_name.toLowerCase().includes(preferredSearch.trim().toLowerCase()),
   );
@@ -476,12 +464,11 @@ export function RequestFlowPanel({
     });
   }
 
-  // Picking a caregiver off the results list *is* the real submit — the
-  // request and lib/services/dispatch.ts's existing preferred-caregiver
-  // "Send Request" — creates the care request and offers it, via
-  // lib/services/dispatch.ts's preferred-caregiver path, ONLY to this
-  // one nanny (it never falls through to a sequential queue). `location`
-  // and the other fields are already validated by onSendRequest.
+  // Tapping "Request This Nanny" *is* the real submit — it creates the
+  // care request and offers it, via lib/services/dispatch.ts's existing
+  // preferred-caregiver path, ONLY to this one nanny (it never falls
+  // through to a sequential queue). `location` and the other fields
+  // were already validated by onFindCare before this list was shown.
   async function chooseCaregiver(c: PreferredCandidate) {
     if (submitting || !location) return;
     setFormError(null);
@@ -710,7 +697,7 @@ export function RequestFlowPanel({
                     onRequest={() => {
                       setSelectedNanny(c);
                       setFormError(null);
-                      setStep("form");
+                      void chooseCaregiver(c);
                     }}
                     onViewProfile={() => viewProfile(c.staff_profile_id)}
                   />
@@ -738,35 +725,9 @@ export function RequestFlowPanel({
         ) : (
           <Sheet
             as="form"
-            onSubmit={selectedNanny ? onSendRequest : onFindCare}
+            onSubmit={onFindCare}
             className="flex flex-col gap-6 border-[var(--color-lavender-border)]"
           >
-            {/* Requesting care from a specific nanny the parent already
-              picked from Recommended Nannies. */}
-            {selectedNanny && (
-              <div className="flex items-center justify-between gap-3 rounded-[12px] border border-wisteria bg-wisteria-tint p-3">
-                <div className="flex items-center gap-3">
-                  <Avatar photoUrl={null} name={selectedNanny.full_name} size="sm" />
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-wisteria">
-                      Requesting care from
-                    </p>
-                    <p className="text-[14px] font-semibold text-ink">{selectedNanny.full_name}</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedNanny(null);
-                    setStep("results");
-                  }}
-                  className="shrink-0 text-[13px] font-semibold text-wisteria hover:text-wisteria-hover"
-                >
-                  Choose a different nanny
-                </button>
-              </div>
-            )}
-
             {/* 1. WHO NEEDS CARE */}
             <section className="flex flex-col gap-3">
               <h2 className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em] text-ink">
@@ -993,20 +954,13 @@ export function RequestFlowPanel({
               <Button
                 type="submit"
                 size="lg"
-                disabled={
-                  wards === null ||
-                  wards.length === 0 ||
-                  !canFindCare ||
-                  Boolean(selectedNanny && submitting)
-                }
+                disabled={wards === null || wards.length === 0 || !canFindCare}
                 className="w-full justify-center"
               >
-                {selectedNanny ? (submitting ? "Sending request…" : "Send Request") : "Find Care"}
+                Find Care
               </Button>
               <p className="text-[12px] text-ink-muted">
-                {selectedNanny
-                  ? `Your request goes only to ${selectedNanny.full_name.split(" ")[0]}.`
-                  : "We'll show you CareLink nannies who fit your request."}
+                We&apos;ll show you CareLink nannies who fit your request.
               </p>
             </div>
           </Sheet>

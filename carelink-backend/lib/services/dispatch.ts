@@ -510,6 +510,23 @@ export async function reselectPreferredCaregiver(
     throw new Error("This request isn't waiting for you to choose another nanny");
   }
 
+  // A caregiver already offered this request who declined or let the
+  // window lapse can't be picked again for it — the parent chooses
+  // someone new. (The "choose another nanny" list already hides them;
+  // this is the server-side guard.)
+  const { data: priorOffers } = await supabase
+    .from("bookings")
+    .select("staff_profile_id")
+    .eq("care_request_id", careRequestId)
+    .in("status", ["declined", "expired", "cancelled"]);
+  if ((priorOffers ?? []).some((b) => b.staff_profile_id === staffProfileId)) {
+    const err = new Error(
+      "You've already sent this request to that nanny. Please choose a different one.",
+    );
+    err.name = "NannyUnavailable";
+    throw err;
+  }
+
   const hasCoordinates =
     careRequest.service_latitude != null && careRequest.service_longitude != null;
   const weights = await loadMatchWeights(supabase);

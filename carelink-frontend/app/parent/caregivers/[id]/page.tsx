@@ -1,8 +1,6 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { ErrorState } from "@/components/ui/empty-state";
@@ -18,7 +16,6 @@ import {
 // on this page any more.
 export default function CaregiverProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const router = useRouter();
   const [caregiver, setCaregiver] = useState<CaregiverProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
@@ -54,13 +51,6 @@ export default function CaregiverProfilePage({ params }: { params: Promise<{ id:
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
-      <button
-        type="button"
-        onClick={() => router.back()}
-        className="flex items-center gap-1.5 self-start text-[13px] font-semibold text-ink-muted hover:text-ink"
-      >
-        <ArrowLeft size={16} /> Back
-      </button>
       <CaregiverProfileView caregiver={caregiver} />
     </div>
   );

@@ -240,27 +240,36 @@ function ChooseAnotherNanny({
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
+  // Builds the recommended-nanny list from the request's own saved
+  // date/time/location, minus every caregiver already tried for this
+  // request (declined / no response) — they never reappear here.
+  async function loadNannies() {
+    const { careRequest: cr, triedStaffProfileIds = [] } = await apiFetch<{
+      careRequest: CareRequestRow;
+      triedStaffProfileIds?: string[];
+    }>(`/api/care-requests/${careRequestId}`);
+    const params = new URLSearchParams();
+    if (cr.service_latitude != null && cr.service_longitude != null) {
+      params.set("latitude", String(cr.service_latitude));
+      params.set("longitude", String(cr.service_longitude));
+    }
+    params.set("date", cr.date);
+    params.set("startTime", cr.start_time.slice(0, 5));
+    params.set("endTime", cr.end_time.slice(0, 5));
+    params.set("durationDays", String(cr.duration_days ?? 1));
+    params.set("availability", "conflicts");
+    const res = await apiFetch<{ results: RecommendedNanny[] }>(
+      `/api/search/caregivers?${params.toString()}`,
+    );
+    const tried = new Set(triedStaffProfileIds);
+    return res.results.filter((n) => !tried.has(n.staff_profile_id));
+  }
+
   useEffect(() => {
     let cancelled = false;
-    apiFetch<{ careRequest: CareRequestRow }>(`/api/care-requests/${careRequestId}`)
-      .then((res) => {
-        const cr = res.careRequest;
-        const params = new URLSearchParams();
-        if (cr.service_latitude != null && cr.service_longitude != null) {
-          params.set("latitude", String(cr.service_latitude));
-          params.set("longitude", String(cr.service_longitude));
-        }
-        params.set("date", cr.date);
-        params.set("startTime", cr.start_time.slice(0, 5));
-        params.set("endTime", cr.end_time.slice(0, 5));
-        params.set("durationDays", String(cr.duration_days ?? 1));
-        params.set("availability", "conflicts");
-        return apiFetch<{ results: RecommendedNanny[] }>(
-          `/api/search/caregivers?${params.toString()}`,
-        );
-      })
-      .then((res) => {
-        if (!cancelled) setNannies(res.results);
+    loadNannies()
+      .then((results) => {
+        if (!cancelled) setNannies(results);
       })
       .catch((err) => {
         if (!cancelled) setLoadError(errorMessage(err));
@@ -268,6 +277,7 @@ function ChooseAnotherNanny({
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadNannies only depends on careRequestId
   }, [careRequestId]);
 
   async function requestNanny(staffProfileId: string) {
@@ -285,22 +295,8 @@ function ChooseAnotherNanny({
         setMessage(errorMessage(err));
         // Refresh the list so the unavailable nanny drops off.
         setNannies(null);
-        apiFetch<{ careRequest: CareRequestRow }>(`/api/care-requests/${careRequestId}`)
-          .then((r) => {
-            const cr = r.careRequest;
-            const p = new URLSearchParams();
-            if (cr.service_latitude != null && cr.service_longitude != null) {
-              p.set("latitude", String(cr.service_latitude));
-              p.set("longitude", String(cr.service_longitude));
-            }
-            p.set("date", cr.date);
-            p.set("startTime", cr.start_time.slice(0, 5));
-            p.set("endTime", cr.end_time.slice(0, 5));
-            p.set("durationDays", String(cr.duration_days ?? 1));
-            p.set("availability", "conflicts");
-            return apiFetch<{ results: RecommendedNanny[] }>(`/api/search/caregivers?${p}`);
-          })
-          .then((r) => setNannies(r.results))
+        loadNannies()
+          .then(setNannies)
           .catch(() => setNannies([]));
         return;
       }
