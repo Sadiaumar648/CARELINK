@@ -37,6 +37,7 @@ export default function ParentLayout({ children }: LayoutProps<"/parent">) {
         items={mobileItems}
         mobileItems={mobileItems}
         headerLeft={<ParentHeaderLogo />}
+        homeHref="/parent"
         headerExtra={
           <>
             <ParentHeaderIcons />

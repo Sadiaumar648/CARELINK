@@ -30,6 +30,7 @@ export default function AdminLayout({ children }: LayoutProps<"/admin">) {
         items={mobileItems}
         mobileItems={mobileItems}
         headerLeft={<AdminHeaderLogo />}
+        homeHref="/admin"
         headerExtra={<AdminHeaderProfile />}
         hideNotificationsBell
         activeItemClassName="rounded-[10px] bg-wisteria-tint text-wisteria"

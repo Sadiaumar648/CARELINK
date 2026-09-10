@@ -515,7 +515,7 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
               <ChatCircleText size={18} className="text-wisteria" />
               Messages
             </span>
-            <span className="text-[13px] font-semibold text-wisteria">Open conversation →</span>
+            <span className="text-[13px] font-semibold text-wisteria">Open conversation</span>
           </Sheet>
         </Link>
       )}

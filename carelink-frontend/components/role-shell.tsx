@@ -7,6 +7,7 @@ import { SignOut } from "@phosphor-icons/react";
 import { useAuth } from "@/lib/auth/auth-context";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { ReadAloudToggle } from "@/components/read-aloud-toggle";
+import { BackButton } from "@/components/back-button";
 
 export type NavItem = { href: string; label: string; icon: Icon; badge?: number };
 
@@ -40,6 +41,7 @@ export function RoleShell({
   sidebarFooter,
   headerLeft,
   headerExtra,
+  homeHref,
   bookingHref,
   largeTargets = false,
   readAloud = false,
@@ -55,6 +57,10 @@ export function RoleShell({
   sidebarFooter?: React.ReactNode;
   headerLeft?: React.ReactNode;
   headerExtra?: React.ReactNode;
+  // The role's home path (e.g. "/parent"). When set, a universal
+  // history-based Back button shows in the header on every page except
+  // this one — see components/back-button.tsx.
+  homeHref?: string;
   bookingHref?: (bookingId: string) => string;
   largeTargets?: boolean;
   readAloud?: boolean;
@@ -137,7 +143,10 @@ export function RoleShell({
       </nav>
       <main className={`flex-1 pb-20 md:pb-0 ${mainClassName}`}>
         <div className="flex items-center justify-between gap-2 border-b border-hairline p-2 md:p-3">
-          <div className="flex items-center">{headerLeft}</div>
+          <div className="flex items-center gap-1">
+            {homeHref && <BackButton homeHref={homeHref} />}
+            {headerLeft}
+          </div>
           <div className="flex items-center gap-2">
             {readAloud && <ReadAloudToggle />}
             {!hideNotificationsBell && <NotificationsBell bookingHref={bookingHref} />}

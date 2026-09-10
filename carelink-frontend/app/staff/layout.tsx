@@ -68,6 +68,7 @@ export default function StaffLayout({ children }: LayoutProps<"/staff">) {
         items={items}
         mobileItems={items}
         headerLeft={<StaffHeaderLogo />}
+        homeHref="/staff"
         headerExtra={
           <>
             <StaffHeaderIcons />
