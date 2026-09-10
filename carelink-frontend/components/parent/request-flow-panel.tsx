@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, ArrowSquareOut, Check, MagnifyingGlass, Plus } from "@phosphor-icons/react";
+import { ArrowLeft, Check, MagnifyingGlass, Plus } from "@phosphor-icons/react";
 import {
   CARE_DAY_HOURS,
   MAX_CARE_DAYS,
@@ -21,6 +20,10 @@ import { AddWardForm } from "@/components/parent/add-ward-form";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { caregiverPhotoUrl } from "@/lib/photo-url";
+import {
+  CaregiverProfileView,
+  type CaregiverProfile,
+} from "@/components/parent/caregiver-profile-view";
 import { suggestedSkillForAge, type SearchFilters, type Ward } from "@/components/find-care/types";
 
 type CaregiverType = "nanny" | "babysitter";
@@ -54,10 +57,10 @@ type PreferredCandidate = {
   areas?: { area: string; isPrimary: boolean }[];
 };
 
-// Two real screens, not one — "Find Care" only ever validates and
-// submits the request *details*; picking who it's sent to is a second,
-// later step, once CareLink actually knows who's nearby and available.
-type FlowStep = "form" | "results";
+// "form" collects the request details; "results" is the caregiver
+// pick-list; "profile" is a read-only look at one caregiver from that
+// list, with a Back that returns to the list exactly as it was.
+type FlowStep = "form" | "results" | "profile";
 
 export type RequestFlowInitial = {
   startDate?: string;
@@ -298,6 +301,21 @@ export function RequestFlowPanel({
   const [preferredCaregiver, setPreferredCaregiver] = useState<PreferredCandidate | null>(null);
   const [preferredCandidates, setPreferredCandidates] = useState<PreferredCandidate[] | null>(null);
   const [preferredSearch, setPreferredSearch] = useState("");
+
+  // "View profile" from the pick-list: an in-panel read-only look at one
+  // caregiver, so "Back" returns to the list with everything intact
+  // (never a navigation away that would drop the request in progress).
+  const [profileCaregiver, setProfileCaregiver] = useState<CaregiverProfile | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
+
+  function viewProfile(staffProfileId: string) {
+    setProfileCaregiver(null);
+    setProfileError(null);
+    setStep("profile");
+    apiFetch<{ caregiver: CaregiverProfile }>(`/api/caregivers/${staffProfileId}`)
+      .then((res) => setProfileCaregiver(res.caregiver))
+      .catch((err) => setProfileError(errorMessage(err)));
+  }
 
   // "Ask Nia to help me pick" — only ever a suggestion the parent still
   // acts on themselves. Nia recommends one caregiver from exactly the
@@ -621,7 +639,7 @@ export function RequestFlowPanel({
                     onClick={() => setNiaOpen(true)}
                     className="text-[13px] font-semibold text-wisteria hover:text-wisteria-hover"
                   >
-                    Not sure who to pick? Ask Nia →
+                    Not sure who to pick? Ask Nia
                   </button>
                 ) : (
                   <div className="flex flex-col gap-2">
@@ -737,14 +755,13 @@ export function RequestFlowPanel({
                         >
                           {sendingThisOne ? "Sending…" : "Request"}
                         </Button>
-                        <Link
-                          href={`/parent/caregivers/${c.staff_profile_id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 rounded-[10px] border border-[var(--color-lavender-border)] px-3 py-1.5 text-[12.5px] font-semibold text-ink hover:border-wisteria hover:text-wisteria"
+                        <button
+                          type="button"
+                          onClick={() => viewProfile(c.staff_profile_id)}
+                          className="rounded-[10px] border border-[var(--color-lavender-border)] px-3 py-1.5 text-[12.5px] font-semibold text-ink hover:border-wisteria hover:text-wisteria"
                         >
-                          View profile <ArrowSquareOut size={13} />
-                        </Link>
+                          View profile
+                        </button>
                       </div>
                     </div>
                   );
@@ -753,6 +770,21 @@ export function RequestFlowPanel({
             )}
 
             {formError && <p className="text-[13px] text-error">{formError}</p>}
+          </Sheet>
+        ) : step === "profile" ? (
+          <Sheet className="flex flex-col gap-5 border-[var(--color-lavender-border)]">
+            <button
+              type="button"
+              onClick={() => setStep("results")}
+              className="flex items-center gap-1.5 self-start text-[13px] font-semibold text-ink-muted hover:text-ink"
+            >
+              <ArrowLeft size={14} /> Back to caregivers
+            </button>
+            {profileError && <p className="text-[13px] text-error">{profileError}</p>}
+            {!profileError && !profileCaregiver && (
+              <p className="text-[13px] text-ink-muted">Loading profile…</p>
+            )}
+            {profileCaregiver && <CaregiverProfileView caregiver={profileCaregiver} />}
           </Sheet>
         ) : (
           <Sheet

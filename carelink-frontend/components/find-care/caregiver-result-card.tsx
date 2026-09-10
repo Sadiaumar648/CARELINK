@@ -152,10 +152,10 @@ export function CaregiverResultCard({
             View Profile
           </Link>
           <Link
-            href={`/parent/caregivers/${caregiver.staff_profile_id}#request-booking`}
+            href="/parent"
             className="rounded-[10px] bg-wisteria px-3 py-1.5 text-[12.5px] font-semibold text-sheet hover:bg-wisteria-hover"
           >
-            Request
+            Request Care
           </Link>
         </div>
       </div>
