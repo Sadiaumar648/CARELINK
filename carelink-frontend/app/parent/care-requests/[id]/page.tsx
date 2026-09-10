@@ -129,12 +129,23 @@ function useOfferDetails(bookingId: string | null, staffProfileId: string | null
 
 const TERMINAL = new Set(["accepted", "exhausted", "cancelled"]);
 
-const CHECKLIST_LABELS = [
-  "Care request received",
-  "Contacting available caregivers",
-  "Expanding search if needed",
-  "Caregiver confirmation",
-] as const;
+// The last step names the caregiver the parent actually picked and sent
+// the request to (from the live offer), falling back to a generic label
+// only before that name is known or once the search has widened past
+// them.
+function checklistLabels(status: DispatchStatus): string[] {
+  const name = status.activeOffer?.caregiverName;
+  const last =
+    name && status.dispatchStatus !== "expanding" && status.dispatchStatus !== "exhausted"
+      ? `Contacting ${name}`
+      : "Caregiver confirmation";
+  return [
+    "Care request received",
+    "Contacting available caregivers",
+    "Expanding search if needed",
+    last,
+  ];
+}
 
 // A step is "done" (✓), "active" (●), or "pending" (○) purely from the
 // real dispatchStatus/vicinityRound already being polled — no separate
@@ -210,12 +221,13 @@ function SearchingCard({
 
 function ProgressChecklist({ status }: { status: DispatchStatus }) {
   const states = checklistStates(status);
+  const labels = checklistLabels(status);
   return (
     <div className="flex w-full flex-col gap-3 rounded-[14px] border border-hairline bg-paper p-4 text-left">
-      {CHECKLIST_LABELS.map((label, i) => {
+      {labels.map((label, i) => {
         const state = states[i];
         return (
-          <div key={label} className="flex items-center gap-3">
+          <div key={i} className="flex items-center gap-3">
             <span
               className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
                 state === "done"

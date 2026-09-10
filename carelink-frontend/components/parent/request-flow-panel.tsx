@@ -570,14 +570,9 @@ export function RequestFlowPanel({
         <ArrowLeft size={16} /> Back
       </button>
 
-      {/* TITLE */}
-      <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="text-[26px] font-bold font-heading text-ink">Request a {HEADING}</h1>
-        <p className="text-[14px] text-ink-muted">
-          Tell us what you need and we&apos;ll find an eligible agency {HEADING.toLowerCase()} near
-          your care location.
-        </p>
-      </div>
+      {/* No "Request a Nanny" title block — the Back button, the numbered
+          sections, and (on the results step) the "Choose a caregiver"
+          heading already say where the parent is. */}
 
       <div className="w-full">
         {addingWard ? (
@@ -645,7 +640,7 @@ export function RequestFlowPanel({
                   <div className="flex flex-col gap-2">
                     <p className="text-[12.5px] font-semibold text-ink">
                       Tell Nia what matters to you and she&apos;ll suggest one of the caregivers
-                      above.
+                      below.
                     </p>
                     <textarea
                       rows={2}
