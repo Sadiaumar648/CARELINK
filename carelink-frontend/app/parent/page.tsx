@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ShieldCheck, Sparkle } from "@phosphor-icons/react";
+import { ShieldCheck } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -258,32 +258,10 @@ function ParentDashboard() {
           list (request-flow-panel.tsx's own two-step flow). */}
       <RequestCareHero onClick={() => openPanel("nanny")} />
 
-      {/* NIA — a general care assistant for a parent who'd rather
-          describe their situation in conversation than fill in a form
-          from scratch. Advisory and preparatory only: she never picks,
-          searches for, or books a caregiver, and never learns or
-          forwards a care location — she just helps put care needs,
-          timing, and notes into words, then hands off to the same
-          structured request form Find Care above uses, pre-filled with
-          whatever she gathered. */}
-      <Sheet className="flex flex-col gap-4 border-[var(--color-lavender-border)] bg-wisteria-tint sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sheet text-wisteria shadow-[var(--shadow-card)]">
-            <Sparkle size={20} weight="fill" />
-          </span>
-          <div>
-            <p className="text-[17px] font-bold font-heading text-ink">Nia</p>
-            <p className="text-[14px] font-semibold text-ink">Not sure where to start?</p>
-            <p className="text-[13.5px] text-ink-muted">
-              Describe your situation to Nia in your own words and she&apos;ll help get your request
-              ready.
-            </p>
-          </div>
-        </div>
-        <LinkButton href="/parent/care-ai" className="w-full shrink-0 justify-center sm:w-auto">
-          Chat with Nia
-        </LinkButton>
-      </Sheet>
+      {/* Nia now lives inside the request flow itself — on the "Choose a
+          caregiver" step, a parent who isn't sure who to pick can ask
+          her to recommend one from the real list on screen. There's no
+          separate Nia entry point on Home any more. */}
 
       {/* RECENT ACTIVITY + SAFETY */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">

@@ -3,14 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import {
-  ArrowLeft,
-  ArrowRight,
-  MagnifyingGlass,
-  ShieldCheck,
-  Sparkle,
-  X,
-} from "@phosphor-icons/react";
+import { ArrowLeft, ArrowRight, MagnifyingGlass, ShieldCheck, X } from "@phosphor-icons/react";
 import { hourlyRateFor } from "@carelink/shared";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
@@ -86,10 +79,6 @@ function FindCarePage() {
   // as before.
   const [caregiverType, setCaregiverType] = useState<"nanny" | "babysitter" | undefined>();
   const [fromRequestFlow, setFromRequestFlow] = useState(false);
-  // Which request flow this search came from — decides where "Edit your
-  // request" sends the parent back to: the CareLink AI conversation, or
-  // the direct Nanny/Babysitter panel on Home.
-  const [requestSource, setRequestSource] = useState<"ai" | "direct" | null>(null);
   const [relaxationNotice, setRelaxationNotice] = useState<string | null>(null);
 
   function selectSort(key: SortKey) {
@@ -282,11 +271,9 @@ function FindCarePage() {
 
     // A synchronous external read (the URL), so the resulting state
     // updates are deferred out of the effect body itself.
-    const source = searchParams.get("source");
     void Promise.resolve().then(() => {
       if (type === "nanny" || type === "babysitter") setCaregiverType(type);
       setFromRequestFlow(true);
-      setRequestSource(source === "ai" ? "ai" : "direct");
       setFilters(parsed);
       void runSearch(parsed);
     });
@@ -422,14 +409,9 @@ function FindCarePage() {
             title="We couldn't process that request."
             description={validationError}
             action={
-              <div className="flex flex-wrap items-center justify-center gap-3">
-                <LinkButton href="/parent/care-ai">
-                  <Sparkle size={16} weight="fill" /> Ask Nia
-                </LinkButton>
-                <LinkButton href="/parent" variant="secondary">
-                  Go to Home
-                </LinkButton>
-              </div>
+              <LinkButton href="/parent" variant="secondary">
+                Go to Home
+              </LinkButton>
             }
           />
         )}
@@ -444,9 +426,7 @@ function FindCarePage() {
             action={
               <div className="flex flex-wrap items-center justify-center gap-3">
                 {fromRequestFlow && (
-                  <Link
-                    href={`${requestSource === "ai" ? "/parent/care-ai" : "/parent"}?${searchParams.toString()}`}
-                  >
+                  <Link href={`/parent?${searchParams.toString()}`}>
                     <Button variant="secondary">Edit your request</Button>
                   </Link>
                 )}
@@ -503,18 +483,13 @@ function FindCarePage() {
 
         {!loading && !error && !hasSearched && (
           <EmptyState
-            icon={Sparkle}
+            icon={MagnifyingGlass}
             title="Let's find the right care for your family"
-            description="Tell Nia what you need, or go to Home to request a Nanny directly — we'll match you with a verified caregiver nearby."
+            description="Go to Home to request a Nanny — we'll match you with a verified caregiver nearby."
             action={
-              <div className="flex flex-wrap items-center justify-center gap-3">
-                <LinkButton href="/parent/care-ai">
-                  <Sparkle size={16} weight="fill" /> Ask Nia
-                </LinkButton>
-                <LinkButton href="/parent" variant="secondary">
-                  Go to Home
-                </LinkButton>
-              </div>
+              <LinkButton href="/parent" variant="secondary">
+                Go to Home
+              </LinkButton>
             }
           />
         )}
