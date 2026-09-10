@@ -554,13 +554,18 @@ export function RequestFlowPanel({
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-      <button
-        type="button"
-        onClick={onBack}
-        className="flex items-center gap-1.5 self-start text-[13px] font-semibold text-ink-muted hover:text-ink"
-      >
-        <ArrowLeft size={16} /> Back
-      </button>
+      {/* The Recommended Nannies step has its own "Edit request details"
+          control that goes back to the form — no separate top Back
+          button there. */}
+      {step !== "results" && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex items-center gap-1.5 self-start text-[13px] font-semibold text-ink-muted hover:text-ink"
+        >
+          <ArrowLeft size={16} /> Back
+        </button>
+      )}
 
       {/* No "Request a Nanny" title block — the Back button, the numbered
           sections, and (on the results step) the "Choose a caregiver"
