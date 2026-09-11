@@ -27,6 +27,7 @@ import { SosScreen } from "@/components/sos-screen";
 import { SafeTrackCaregiverControl } from "@/components/safe-track";
 import { CaregiverLocationView } from "@/components/caregiver-location-view";
 import { SessionActionButton } from "@/components/staff/session-action-button";
+import { WardCareProfileList } from "@/components/ward-care-profile";
 import { caregiverPhotoUrl } from "@/lib/photo-url";
 import { useCountdown } from "@/lib/use-countdown";
 
@@ -183,6 +184,17 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
   const [confirming, setConfirming] = useState<"accept" | "decline" | null>(null);
   const [declineReason, setDeclineReason] = useState("");
   const [sosOpen, setSosOpen] = useState(false);
+  // A parent arriving here from their own home page (?from=home, e.g.
+  // the active-session card's "View Details") gets a real way back to
+  // Home instead of always landing on "My Bookings" regardless of where
+  // they actually came from.
+  const [fromHome, setFromHome] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (new URLSearchParams(window.location.search).get("from") === "home") {
+      void Promise.resolve().then(() => setFromHome(true));
+    }
+  }, []);
 
   function load() {
     apiFetch<{
@@ -306,10 +318,11 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
       <Link
-        href={viewerRole === "parent" ? "/parent/bookings" : "/staff"}
+        href={viewerRole === "parent" ? (fromHome ? "/parent" : "/parent/bookings") : "/staff"}
         className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-muted hover:text-ink"
       >
-        <ArrowLeft size={16} /> {viewerRole === "parent" ? "My Bookings" : "Home"}
+        <ArrowLeft size={16} />{" "}
+        {viewerRole === "parent" ? (fromHome ? "Home" : "My Bookings") : "Home"}
       </Link>
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -474,28 +487,7 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
           <h2 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
             {wards.length === 1 ? "Care profile" : `Care profiles · ${wards.length} children`}
           </h2>
-          {wards.map((ward, i) => (
-            <div
-              key={ward.id ?? i}
-              className="flex flex-col gap-1 border-t border-hairline pt-3 first:border-t-0 first:pt-0"
-            >
-              <p className="text-[15px] font-semibold">
-                {ward.display_name} · {ward.age_years}
-              </p>
-              {ward.allergies && (
-                <p className="text-[13px] text-ink-muted">Allergies: {ward.allergies}</p>
-              )}
-              {ward.medications && (
-                <p className="text-[13px] text-ink-muted">Medications: {ward.medications}</p>
-              )}
-              {ward.special_needs && (
-                <p className="text-[13px] text-ink-muted">Special needs: {ward.special_needs}</p>
-              )}
-              {ward.routine_notes && (
-                <p className="text-[13px] text-ink-muted">Routine: {ward.routine_notes}</p>
-              )}
-            </div>
-          ))}
+          <WardCareProfileList wards={wards} />
         </Sheet>
       )}
 

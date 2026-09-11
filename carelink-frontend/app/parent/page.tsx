@@ -20,6 +20,7 @@ import {
 import { KIND_META, DEFAULT_KIND_META, TONE_CLASSES } from "@/lib/notification-kind-meta";
 import { minutesAgoLabel } from "@/lib/relative-time";
 import { caregiverPhotoUrl } from "@/lib/photo-url";
+import { WardCareProfileList, type WardBrief } from "@/components/ward-care-profile";
 
 type Notification = {
   id: string;
@@ -111,6 +112,11 @@ function ActiveSessionCard() {
   // undefined = still loading; null = confirmed none in progress.
   const [booking, setBooking] = useState<ActiveBooking | null | undefined>(undefined);
   const [caregiver, setCaregiver] = useState<ActiveCaregiver | null>(null);
+  // The child (or children) this session is caring for — collapsed by
+  // default; "View" next to their name reveals it inline, right here on
+  // Home, without leaving the page.
+  const [wards, setWards] = useState<WardBrief[]>([]);
+  const [wardsOpen, setWardsOpen] = useState(false);
   // Set the moment a poll notices the session that was active just
   // ended (the caregiver tapped End Session on their side) — replaces
   // the card with a review prompt for that same booking (now
@@ -178,6 +184,25 @@ function ActiveSessionCard() {
     };
   }, [activeStaffProfileId]);
 
+  // Same reasoning as the caregiver fetch above — keyed off the
+  // primitive id, not `booking` itself, since there's nothing to reset
+  // once it renders nothing.
+  const activeBookingId = booking?.id ?? null;
+  useEffect(() => {
+    if (!activeBookingId) return;
+    let cancelled = false;
+    apiFetch<{ ward: WardBrief | null; wards: WardBrief[] | null }>(
+      `/api/bookings/${activeBookingId}`,
+    )
+      .then((res) => {
+        if (!cancelled) setWards(res.wards?.length ? res.wards : res.ward ? [res.ward] : []);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [activeBookingId]);
+
   if (ended) {
     return (
       <Sheet className="flex flex-col gap-3 border-wisteria/40 bg-wisteria-tint sm:flex-row sm:items-center sm:justify-between">
@@ -209,32 +234,54 @@ function ActiveSessionCard() {
   if (!booking) return null;
 
   return (
-    <Sheet className="flex flex-col gap-4 border-[var(--color-success)]/40 bg-success-tint sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-3">
-        <Avatar
-          photoUrl={caregiverPhotoUrl(caregiver?.photo_path ?? null)}
-          name={caregiver?.full_name ?? "Your caregiver"}
-          size="md"
-        />
-        <div className="flex flex-col gap-1">
-          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--color-success)]">
-            <span className="h-2 w-2 rounded-full bg-[var(--color-success)]" aria-hidden />
-            Session in progress
-          </p>
-          <p className="text-[15px] font-semibold text-ink">
-            {caregiver?.full_name ?? "Your caregiver"} is caring for your family
-          </p>
-          <p className="text-[12.5px] text-ink-muted">
-            {formatSessionRange(booking.starts_at, booking.ends_at)}
-          </p>
+    <Sheet className="flex flex-col gap-4 border-[var(--color-success)]/40 bg-success-tint">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <Avatar
+            photoUrl={caregiverPhotoUrl(caregiver?.photo_path ?? null)}
+            name={caregiver?.full_name ?? "Your caregiver"}
+            size="md"
+          />
+          <div className="flex flex-col gap-1">
+            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--color-success)]">
+              <span className="h-2 w-2 rounded-full bg-[var(--color-success)]" aria-hidden />
+              Session in progress
+            </p>
+            <p className="text-[15px] font-semibold text-ink">
+              {caregiver?.full_name ?? "Your caregiver"} is caring for your family
+            </p>
+            <p className="text-[12.5px] text-ink-muted">
+              {formatSessionRange(booking.starts_at, booking.ends_at)}
+            </p>
+            {wards.length > 0 && (
+              <div className="flex items-center gap-2">
+                <p className="text-[12.5px] text-ink-muted">
+                  Caring for {wards.map((w) => w.display_name).join(" & ")}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setWardsOpen((o) => !o)}
+                  aria-expanded={wardsOpen}
+                  className="text-[12px] font-semibold text-wisteria hover:text-wisteria-hover"
+                >
+                  {wardsOpen ? "Hide" : "View"}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
+        <Link
+          href={`/parent/bookings/${booking.id}?from=home`}
+          className="shrink-0 text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
+        >
+          View Details
+        </Link>
       </div>
-      <Link
-        href={`/parent/bookings/${booking.id}`}
-        className="shrink-0 text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
-      >
-        View Details
-      </Link>
+      {wardsOpen && wards.length > 0 && (
+        <div className="border-t border-hairline pt-3">
+          <WardCareProfileList wards={wards} />
+        </div>
+      )}
     </Sheet>
   );
 }
