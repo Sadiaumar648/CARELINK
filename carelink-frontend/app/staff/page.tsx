@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { RequestCard, type StaffRequestBooking } from "@/components/staff/request-card";
 import { SessionActionButton } from "@/components/staff/session-action-button";
+import { WardCareProfileList, type WardBrief } from "@/components/ward-care-profile";
 
 type Booking = {
   id: string;
@@ -22,6 +23,7 @@ type Booking = {
   careLocationGeneral?: string | null;
   status: string;
 };
+type EnrichedBooking = Booking & { wards: WardBrief[] };
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -196,11 +198,73 @@ function ReceivingRequestsControl() {
   );
 }
 
+// One Today's Care row. Its own "View"/"Hide" toggle next to the
+// child's name reveals their care profile inline, right here — the
+// caregiver never has to leave Home to check on the child they're
+// caring for.
+function TodaysCareRow({
+  booking: b,
+  onChanged,
+}: {
+  booking: EnrichedBooking;
+  onChanged: () => void;
+}) {
+  const [wardsOpen, setWardsOpen] = useState(false);
+
+  return (
+    <Sheet className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <Link
+          href={`/staff/schedule/${b.id}`}
+          className="flex flex-col gap-0.5 hover:text-wisteria"
+        >
+          <p className="text-[14px] font-semibold text-ink">
+            {formatTimeRange(b.starts_at, b.ends_at)}
+          </p>
+          <p className="text-[12.5px] text-ink-muted">
+            {b.address ?? b.careLocationGeneral ?? "Address shared with confirmed bookings"}
+          </p>
+        </Link>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          {/* Start/End Session lives right here on Home, not only on the
+              booking detail page — the caregiver's own action, same
+              mandatory-location gate either way. */}
+          {(b.status === "paid" || b.status === "active") && (
+            <SessionActionButton bookingId={b.id} status={b.status} isToday onChanged={onChanged} />
+          )}
+          {b.status === "accepted" && (
+            <span className="rounded-full bg-wisteria-tint px-2.5 py-1 text-[11.5px] font-semibold capitalize text-wisteria-pressed">
+              {b.status}
+            </span>
+          )}
+        </div>
+      </div>
+      {b.wards.length > 0 && (
+        <div className="flex items-center gap-2 border-t border-hairline pt-3">
+          <p className="text-[12.5px] text-ink-muted">
+            Caring for {b.wards.map((w) => w.display_name).join(" & ")}
+          </p>
+          <button
+            type="button"
+            onClick={() => setWardsOpen((o) => !o)}
+            aria-expanded={wardsOpen}
+            className="text-[12px] font-semibold text-wisteria hover:text-wisteria-hover"
+          >
+            {wardsOpen ? "Hide" : "View"}
+          </button>
+        </div>
+      )}
+      {wardsOpen && b.wards.length > 0 && <WardCareProfileList wards={b.wards} />}
+    </Sheet>
+  );
+}
+
 // TODAY'S CARE — real confirmed/upcoming/in-progress bookings starting
 // today, from the caregiver's own GET /api/bookings (same data the
-// Schedule page uses).
+// Schedule page uses), each enriched with its child's/children's own
+// care profile.
 function TodaysCareSection() {
-  const [bookings, setBookings] = useState<Booking[] | null>(null);
+  const [bookings, setBookings] = useState<EnrichedBooking[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function load() {
@@ -215,8 +279,18 @@ function TodaysCareSection() {
           const startsAt = new Date(b.starts_at);
           return startsAt >= today && startsAt < tomorrow;
         });
-        setBookings(todays);
+        return Promise.all(
+          todays.map(async (b) => ({
+            ...b,
+            wards: await apiFetch<{ wards: WardBrief[] | null; ward: WardBrief | null }>(
+              `/api/bookings/${b.id}`,
+            )
+              .then((r) => r.wards ?? (r.ward ? [r.ward] : []))
+              .catch(() => [] as WardBrief[]),
+          })),
+        );
       })
+      .then((enriched) => setBookings(enriched))
       .catch((err) => setError(errorMessage(err)));
   }
 
@@ -239,47 +313,7 @@ function TodaysCareSection() {
       {!error && bookings && bookings.length > 0 && (
         <div className="flex flex-col gap-2.5">
           {bookings.map((b) => (
-            <Sheet key={b.id} className="flex items-center justify-between gap-3">
-              <Link
-                href={`/staff/schedule/${b.id}`}
-                className="flex flex-col gap-0.5 hover:text-wisteria"
-              >
-                <p className="text-[14px] font-semibold text-ink">
-                  {formatTimeRange(b.starts_at, b.ends_at)}
-                </p>
-                <p className="text-[12.5px] text-ink-muted">
-                  {b.address ?? b.careLocationGeneral ?? "Address shared with confirmed bookings"}
-                </p>
-              </Link>
-              <div className="flex shrink-0 flex-col items-end gap-1.5">
-                {/* Start/End Session lives right here on Home, not only
-                    on the booking detail page — the caregiver's own
-                    action, same mandatory-location gate either way. */}
-                {(b.status === "paid" || b.status === "active") && (
-                  <SessionActionButton
-                    bookingId={b.id}
-                    status={b.status}
-                    isToday
-                    onChanged={load}
-                  />
-                )}
-                {/* The child's care profile becomes reachable in one tap
-                    once the session is actually in progress. */}
-                {b.status === "active" && (
-                  <Link
-                    href={`/staff/schedule/${b.id}?focus=care-profile`}
-                    className="text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
-                  >
-                    View Care Profile
-                  </Link>
-                )}
-                {b.status === "accepted" && (
-                  <span className="rounded-full bg-wisteria-tint px-2.5 py-1 text-[11.5px] font-semibold capitalize text-wisteria-pressed">
-                    {b.status}
-                  </span>
-                )}
-              </div>
-            </Sheet>
+            <TodaysCareRow key={b.id} booking={b} onChanged={load} />
           ))}
         </div>
       )}
