@@ -26,6 +26,7 @@ import { ReportForm } from "@/components/report-form";
 import { SosScreen } from "@/components/sos-screen";
 import { SafeTrackCaregiverControl } from "@/components/safe-track";
 import { CaregiverLocationView } from "@/components/caregiver-location-view";
+import { SessionActionButton } from "@/components/staff/session-action-button";
 import { caregiverPhotoUrl } from "@/lib/photo-url";
 import { useCountdown } from "@/lib/use-countdown";
 
@@ -250,35 +251,6 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
     }
   }
 
-  // Location sharing is mandatory for a care session (see SafeTrack),
-  // so a caregiver must actually grant it before the session can start
-  // at all — not just once it's already active. This is a one-time
-  // permission check (getCurrentPosition, not a persistent watch); once
-  // the session goes active, SafeTrackCaregiverControl's own effect
-  // starts the real, continuous location sharing on its own.
-  function startSession() {
-    if (typeof window === "undefined" || !navigator.geolocation) {
-      setError(
-        "Location sharing is required to start a session, but it isn't available on this device.",
-      );
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    navigator.geolocation.getCurrentPosition(
-      () => void act("/start"),
-      (geoErr) => {
-        setBusy(false);
-        setError(
-          geoErr.code === geoErr.PERMISSION_DENIED
-            ? "Location sharing is required to start a session. Allow location access in your browser's site settings, then try again."
-            : "We couldn't get your location. Check your device's location settings, then try again.",
-        );
-      },
-      { enableHighAccuracy: true, timeout: 15_000 },
-    );
-  }
-
   if (error && !booking) {
     return (
       <div className="mx-auto max-w-2xl p-6">
@@ -475,7 +447,7 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
       </Sheet>
 
       {wards.length > 0 && (
-        <Sheet className="flex flex-col gap-3">
+        <Sheet id="care-profile" className="flex flex-col gap-3 scroll-mt-6">
           <h2 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
             {wards.length === 1 ? "Care profile" : `Care profiles · ${wards.length} children`}
           </h2>
@@ -644,17 +616,16 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
         {/* Starting and ending a session is the caregiver's action alone
             — the parent only ever watches it happen (the "Session in
             progress" card on their own home page, and the read-only
-            location view below). */}
-        {viewerRole === "staff" && booking.status === "paid" && (
-          <Button size="lg" disabled={busy || !isToday} onClick={startSession}>
-            {isToday ? "Start session" : "Starts on the booking date"}
-          </Button>
-        )}
-
-        {viewerRole === "staff" && booking.status === "active" && (
-          <Button size="lg" disabled={busy} onClick={() => void act("/end")}>
-            End session
-          </Button>
+            location view below). Same control, and the same mandatory-
+            location gate, as the one on the caregiver's own Home. */}
+        {viewerRole === "staff" && (booking.status === "paid" || booking.status === "active") && (
+          <SessionActionButton
+            bookingId={id}
+            status={booking.status}
+            isToday={isToday}
+            onChanged={load}
+            size="lg"
+          />
         )}
 
         {viewerRole === "parent" && booking.status === "completed" && <ReviewForm bookingId={id} />}

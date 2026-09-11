@@ -11,6 +11,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { RequestCard, type StaffRequestBooking } from "@/components/staff/request-card";
+import { SessionActionButton } from "@/components/staff/session-action-button";
 
 type Booking = {
   id: string;
@@ -202,7 +203,7 @@ function TodaysCareSection() {
   const [bookings, setBookings] = useState<Booking[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  function load() {
     apiFetch<{ bookings: Booking[] }>("/api/bookings")
       .then((res) => {
         const today = new Date();
@@ -217,7 +218,11 @@ function TodaysCareSection() {
         setBookings(todays);
       })
       .catch((err) => setError(errorMessage(err)));
-  }, []);
+  }
+
+  // onChanged={load} below (from Start/End Session) re-fetches directly;
+  // this effect only needs to run once, on mount — same as before.
+  useEffect(load, []);
 
   return (
     <section className="flex flex-col gap-3">
@@ -234,21 +239,47 @@ function TodaysCareSection() {
       {!error && bookings && bookings.length > 0 && (
         <div className="flex flex-col gap-2.5">
           {bookings.map((b) => (
-            <Link key={b.id} href={`/staff/schedule/${b.id}`}>
-              <Sheet className="flex items-center justify-between gap-3 hover:border-wisteria/50">
-                <div className="flex flex-col gap-0.5">
-                  <p className="text-[14px] font-semibold text-ink">
-                    {formatTimeRange(b.starts_at, b.ends_at)}
-                  </p>
-                  <p className="text-[12.5px] text-ink-muted">
-                    {b.address ?? b.careLocationGeneral ?? "Address shared with confirmed bookings"}
-                  </p>
-                </div>
-                <span className="rounded-full bg-wisteria-tint px-2.5 py-1 text-[11.5px] font-semibold capitalize text-wisteria-pressed">
-                  {b.status}
-                </span>
-              </Sheet>
-            </Link>
+            <Sheet key={b.id} className="flex items-center justify-between gap-3">
+              <Link
+                href={`/staff/schedule/${b.id}`}
+                className="flex flex-col gap-0.5 hover:text-wisteria"
+              >
+                <p className="text-[14px] font-semibold text-ink">
+                  {formatTimeRange(b.starts_at, b.ends_at)}
+                </p>
+                <p className="text-[12.5px] text-ink-muted">
+                  {b.address ?? b.careLocationGeneral ?? "Address shared with confirmed bookings"}
+                </p>
+              </Link>
+              <div className="flex shrink-0 flex-col items-end gap-1.5">
+                {/* Start/End Session lives right here on Home, not only
+                    on the booking detail page — the caregiver's own
+                    action, same mandatory-location gate either way. */}
+                {(b.status === "paid" || b.status === "active") && (
+                  <SessionActionButton
+                    bookingId={b.id}
+                    status={b.status}
+                    isToday
+                    onChanged={load}
+                  />
+                )}
+                {/* The child's care profile becomes reachable in one tap
+                    once the session is actually in progress. */}
+                {b.status === "active" && (
+                  <Link
+                    href={`/staff/schedule/${b.id}#care-profile`}
+                    className="text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
+                  >
+                    View Care Profile
+                  </Link>
+                )}
+                {b.status === "accepted" && (
+                  <span className="rounded-full bg-wisteria-tint px-2.5 py-1 text-[11.5px] font-semibold capitalize text-wisteria-pressed">
+                    {b.status}
+                  </span>
+                )}
+              </div>
+            </Sheet>
           ))}
         </div>
       )}
