@@ -216,6 +216,20 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
 
   useEffect(load, [id]);
 
+  // A link to this page can carry #care-profile (e.g. "Care for <name>"
+  // on the caregiver's Schedule list, or Home's "View Care Profile") to
+  // jump straight to the child's details — but that Sheet only exists
+  // in the DOM once `wards` has actually loaded (booking starts out
+  // null, rendering a skeleton first), so the browser's own one-time,
+  // on-navigation anchor scroll has nothing to land on yet and silently
+  // does nothing. This re-does that scroll manually the moment the
+  // section actually appears.
+  useEffect(() => {
+    if (wards.length === 0) return;
+    if (typeof window === "undefined" || window.location.hash !== "#care-profile") return;
+    document.getElementById("care-profile")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [wards]);
+
   // While a booking is genuinely awaiting payment, keep re-checking it —
   // the payment window's own server-side expiry (or the parent paying
   // from a different tab/device) only ever becomes visible through a
