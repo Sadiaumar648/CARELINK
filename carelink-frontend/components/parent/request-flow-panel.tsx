@@ -198,13 +198,34 @@ function SelectField({
   );
 }
 
-// hh:mm + N hours → hh:mm, capped so it never crosses midnight.
+// hh:mm + N hours → hh:mm, capped so it never crosses midnight — a late
+// start time (e.g. 6pm) genuinely produces a shorter day than
+// CARE_DAY_HOURS, since care_requests/bookings has no separate end date
+// column to represent a session that runs past midnight.
 function addHours(time: string, hours: number): string {
   const [h, m] = time.split(":").map(Number);
   const totalMinutes = Math.min(h * 60 + m + hours * 60, 23 * 60 + 45);
   const endH = Math.floor(totalMinutes / 60);
   const endM = totalMinutes % 60;
   return `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+}
+
+// hh:mm → hh:mm, in hours — the actual span between the two, used to
+// price and label a day whose end time was capped by addHours above, so
+// a late start time is never priced as if it got the full
+// CARE_DAY_HOURS (the server computes the real charge from this same
+// start/end pair, in app/api/care-requests/route.ts).
+function hoursBetween(startTime: string, endTime: string): number {
+  const [sh, sm] = startTime.split(":").map(Number);
+  const [eh, em] = endTime.split(":").map(Number);
+  return (eh * 60 + em - (sh * 60 + sm)) / 60;
+}
+
+// 5.75 -> "5.75", 8 -> "8" — never a needless trailing ".00".
+function formatHours(hours: number): string {
+  return Number.isInteger(hours)
+    ? String(hours)
+    : hours.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
 }
 
 export function RequestFlowPanel({
@@ -535,14 +556,20 @@ export function RequestFlowPanel({
     }
   }
 
-  // CareLink's finalized fixed-rate model: informational only — exactly
-  // the formula the backend independently recomputes and charges from
-  // (POST /api/care-requests, never trusting this figure). A standard
-  // CARE_DAY_HOURS-hour care day, the regular rate charged once per
-  // child per day.
+  // CareLink's finalized fixed-rate model: informational only, but
+  // computed from the exact same start/end time pair the backend will
+  // independently recompute and charge from (POST /api/care-requests,
+  // never trusting this figure) — a standard CARE_DAY_HOURS-hour care
+  // day, unless a late start time caps it shorter (see addHours above),
+  // in which case this shows the real, shorter total rather than the
+  // full 8-hour one that won't actually be charged. The regular rate is
+  // charged once per child per day either way.
   const priceDays = Math.max(1, Number(days));
   const priceChildCount = Math.max(1, wardIds.length);
-  const priceTotal = calculateTotalAmount(type, CARE_DAY_HOURS, priceDays, priceChildCount);
+  const priceDailyHours = startTime
+    ? hoursBetween(startTime, addHours(startTime, CARE_DAY_HOURS))
+    : CARE_DAY_HOURS;
+  const priceTotal = calculateTotalAmount(type, priceDailyHours, priceDays, priceChildCount);
 
   // Find Care stays disabled until every field the backend will actually
   // require is genuinely filled in — mirrors onFindCare's own checks
@@ -945,16 +972,25 @@ export function RequestFlowPanel({
                 </h2>
                 <div className="flex flex-col gap-1 rounded-[12px] border border-[var(--color-lavender-border)] bg-wisteria-tint p-4">
                   <p className="text-[12.5px] text-ink-muted">
-                    {CARE_DAY_HOURS} hrs/day × GH₵{hourlyRateFor(type)}/hr × {priceDays} day
+                    {formatHours(priceDailyHours)} hrs/day × GH₵{hourlyRateFor(type)}/hr ×{" "}
+                    {priceDays} day
                     {priceDays === 1 ? "" : "s"}
                     {priceChildCount > 1 ? ` × ${priceChildCount} children` : ""}
                   </p>
                   <p className="text-[19px] font-bold tabular-nums text-ink">
                     Total: GH₵{priceTotal}
                   </p>
+                  {priceDailyHours < CARE_DAY_HOURS && (
+                    <p className="text-[12px] text-ink-muted">
+                      Your start time means each day runs {formatHours(priceDailyHours)} hours
+                      instead of the standard {CARE_DAY_HOURS} — a session can&apos;t run past
+                      midnight.
+                    </p>
+                  )}
                   <p className="text-[12px] text-ink-muted">
                     This is an estimate only — you won&apos;t be charged now. You&apos;ll pay once
-                    your chosen caregiver accepts your request.
+                    your chosen caregiver accepts your request. This is exactly what your chosen
+                    caregiver will see too.
                   </p>
                 </div>
               </section>

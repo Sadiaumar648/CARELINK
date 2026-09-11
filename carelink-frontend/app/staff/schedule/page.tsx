@@ -103,7 +103,12 @@ function BookingCard({
   const earnings = payoutAmount ?? booking.total_amount;
 
   return (
-    <Link href={`/staff/schedule/${booking.id}`}>
+    // Jumps straight to the child's care profile on the detail page
+    // (booking-detail.tsx's id="care-profile" Sheet) — tapping the
+    // "Care for <name>" label below, or anywhere else on the card, opens
+    // their details directly instead of the top of a page they'd have
+    // to scroll to find it on.
+    <Link href={`/staff/schedule/${booking.id}#care-profile`}>
       <Sheet className="flex flex-col gap-3 hover:border-wisteria/50">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
