@@ -412,9 +412,15 @@ export function RequestFlowPanel({
     fetchRecommendedNannies();
   }
 
-  const filteredPreferredCandidates = (preferredCandidates ?? []).filter((c) =>
-    c.full_name.toLowerCase().includes(preferredSearch.trim().toLowerCase()),
-  );
+  // Nia's suggestion (when there is one) moves to the top of the list
+  // she suggested it from — never reordered any other way.
+  const filteredPreferredCandidates = (preferredCandidates ?? [])
+    .filter((c) => c.full_name.toLowerCase().includes(preferredSearch.trim().toLowerCase()))
+    .sort((a, b) => {
+      const aPick = a.staff_profile_id === niaPick?.staffProfileId ? 1 : 0;
+      const bPick = b.staff_profile_id === niaPick?.staffProfileId ? 1 : 0;
+      return bPick - aPick;
+    });
 
   useEffect(() => {
     apiFetch<{ wards: Ward[] }>("/api/wards")
