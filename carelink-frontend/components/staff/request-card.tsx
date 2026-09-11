@@ -91,10 +91,27 @@ export function RequestCard({
           >
             {formatRequestRange(booking.starts_at, booking.ends_at)}
           </Link>
-          <p className="text-[14px] text-ink-muted">
-            {booking.address ??
-              `${booking.careLocationGeneral ?? "General area not available"} (exact address shown once accepted)`}
+          {/* Care location — the real address/general area from this
+              request, never a hard-coded placeholder or raw
+              coordinates. A pending request still only carries the
+              general area (booking.address is null until accepted,
+              same existing redaction every pending offer already has);
+              once a real address is present here it's shown as-is. */}
+          <p className="mt-0.5 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
+            Care location
           </p>
+          {booking.address ? (
+            <p className="text-[14px] text-ink-muted">{booking.address}</p>
+          ) : (
+            <>
+              <p className="text-[14px] text-ink-muted">
+                {booking.careLocationGeneral ?? "General area not available"}
+              </p>
+              <p className="text-[12px] text-ink-muted">
+                The exact address is shared once you accept this request.
+              </p>
+            </>
+          )}
         </div>
         <p className="text-[19px] font-semibold tabular-nums">GH₵{booking.total_amount}</p>
       </div>
@@ -102,9 +119,14 @@ export function RequestCard({
         <p className="text-[13px] text-ink-muted">{booking.one_off_notes}</p>
       )}
       {countdown && (
-        <p className="text-[12.5px] font-semibold text-[var(--color-warning)]">
-          Respond within {countdown} or this request moves to the next caregiver
-        </p>
+        <div className="flex flex-col gap-0.5">
+          <p className="text-[12.5px] font-semibold text-[var(--color-warning)]">
+            Respond within {countdown}
+          </p>
+          <p className="text-[12px] text-ink-muted">
+            This request will expire if you don&apos;t respond in time.
+          </p>
+        </div>
       )}
 
       {confirming === null && (

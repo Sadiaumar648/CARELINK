@@ -9,15 +9,17 @@ import {
 
 // A caregiver is a party to a booking (and so passes bookings_read_parties)
 // from the moment a parent requests it — RLS has no status condition, by
-// design, since several parents may request the same slot before one is
-// accepted. That means "don't show the exact address before the caregiver
-// has accepted" has to be enforced here, in what the route returns, not in
-// the row-level policy. A status of pending/declined/expired can only be
-// reached without ever having passed through "accepted" (see the booking
-// state machine); cancelled/disputed are reachable either way, so those two
-// fall back to checking the booking's own event log for a real "accepted"
-// transition, rather than guessing from the current status alone.
-const NEVER_ACCEPTED_STATUSES = new Set(["pending", "declined", "expired"]);
+// design. CareLink's parent-selected-nanny model sends a 'pending' offer
+// directly to the one nanny the parent picked (never a broadcast to
+// several caregivers at once), so that nanny sees the real address while
+// deciding whether to accept — "don't show the exact address" is reserved
+// for a request that fell through without ever being accepted
+// (declined/expired), enforced here in what the route returns, not in the
+// row-level policy. cancelled/disputed are reachable either from pending
+// or from accepted, so those two fall back to checking the booking's own
+// event log for a real "accepted" transition, rather than guessing from
+// the current status alone.
+const NEVER_ACCEPTED_STATUSES = new Set(["declined", "expired"]);
 function staffCanSeeExactAddress(status: string, events: { to_status: string }[]): boolean {
   if (status === "cancelled" || status === "disputed") {
     return events.some((e) => e.to_status === "accepted");

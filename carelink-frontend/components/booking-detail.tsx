@@ -402,8 +402,7 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
               <p className="text-[15px]">{booking.address}</p>
               {viewerRole === "staff" && (
                 <p className="text-[12px] text-ink-muted">
-                  Your exact address is shared only with the assigned caregiver for a confirmed
-                  booking.
+                  This address is shared only with the caregiver this request was sent to.
                 </p>
               )}
             </>

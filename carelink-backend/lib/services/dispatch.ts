@@ -70,6 +70,7 @@ type CareRequestRow = {
   end_time: string;
   duration_days: number;
   location: string;
+  service_address: string | null;
   service_latitude: number | null;
   service_longitude: number | null;
   skills: SkillTag[] | null;
@@ -418,11 +419,13 @@ export async function advanceDispatch(
       ends_at: endsAt.toISOString(),
       hourly_rate: fixedRate,
       total_amount: totalAmount,
-      // The general area only, at offer stage — never the parent's
-      // exact address before a caregiver has accepted, consistent with
-      // the existing "exact address stays private until confirmed"
-      // principle already stated on /parent/safety.
-      address: careRequest.location,
+      // CareLink's parent-selected-nanny model: this offer is sent
+      // directly to the one nanny the parent already picked, never
+      // broadcast — so the real, geocoded address goes on the offer from
+      // the start, letting that nanny see exactly where the session is
+      // before deciding. Falls back to the coarse area only for an older
+      // request that predates service_address ever being resolved.
+      address: careRequest.service_address ?? careRequest.location,
       one_off_notes: careRequest.notes,
       match_score: next.matchScore,
       match_breakdown: next.matchBreakdown,

@@ -175,18 +175,19 @@ export async function POST(request: Request) {
 // Task 2.13. RLS alone decides what comes back — a parent sees their own
 // requests, a caregiver sees requests made to them, nothing more.
 //
-// A caregiver is a party to a booking (so passes RLS) from the moment it's
-// requested, before they've accepted it — so, same as the detail route,
-// the exact address for a request they haven't accepted (or that never
-// reached acceptance: pending/declined/expired) is redacted here, in what
-// the route returns, and replaced with the parent's general area. This
-// list route doesn't have per-row event history to hand, so unlike the
-// detail route it uses status alone — a booking currently
-// cancelled/disputed that HAD been accepted will still show as redacted
-// in this list (though the detail page for that same booking will show
-// the real address, since it checks the event log). Caregiver safety
-// spec §1-3.
-const STAFF_HIDDEN_ADDRESS_STATUSES = new Set(["pending", "declined", "expired"]);
+// A caregiver is a party to a booking (so passes RLS) from the moment
+// it's requested. CareLink's parent-selected-nanny model means a
+// 'pending' offer was already sent directly to this one caregiver
+// (never broadcast to others), so they see the real address while
+// deciding — the exact-address redaction only applies once a request
+// has fallen through without ever being accepted (declined/expired),
+// where showing it serves no purpose. This list route doesn't have
+// per-row event history to hand, so unlike the detail route it uses
+// status alone — a booking currently cancelled/disputed that HAD been
+// accepted will still show as redacted in this list (though the detail
+// page for that same booking will show the real address, since it
+// checks the event log). Caregiver safety spec §1-3.
+const STAFF_HIDDEN_ADDRESS_STATUSES = new Set(["declined", "expired"]);
 
 export async function GET(request: Request) {
   try {

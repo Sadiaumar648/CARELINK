@@ -109,9 +109,11 @@ function NewRequestsAlert({ onChange }: { onChange: () => void }) {
           {bookings.length === 1 ? "New care request" : `${bookings.length} new care requests`}
         </h2>
       </div>
+      <p className="text-[13px] font-semibold text-ink">
+        A family has requested you for this care session.
+      </p>
       <p className="text-[13px] text-ink-muted">
-        A family picked you. Accept to confirm — once they pay, your booking is set and you can
-        message each other.
+        Review the details below and accept if you&apos;re available.
       </p>
       <div className="flex flex-col gap-3">
         {bookings.map((b) => (
