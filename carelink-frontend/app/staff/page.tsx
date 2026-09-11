@@ -267,7 +267,7 @@ function TodaysCareSection() {
                     once the session is actually in progress. */}
                 {b.status === "active" && (
                   <Link
-                    href={`/staff/schedule/${b.id}#care-profile`}
+                    href={`/staff/schedule/${b.id}?focus=care-profile`}
                     className="text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
                   >
                     View Care Profile

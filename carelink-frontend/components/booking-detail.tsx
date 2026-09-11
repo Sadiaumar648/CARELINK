@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -216,17 +216,26 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
 
   useEffect(load, [id]);
 
-  // A link to this page can carry #care-profile (e.g. "Care for <name>"
-  // on the caregiver's Schedule list, or Home's "View Care Profile") to
-  // jump straight to the child's details — but that Sheet only exists
-  // in the DOM once `wards` has actually loaded (booking starts out
-  // null, rendering a skeleton first), so the browser's own one-time,
-  // on-navigation anchor scroll has nothing to land on yet and silently
-  // does nothing. This re-does that scroll manually the moment the
-  // section actually appears.
+  // A link to this page can carry ?focus=care-profile (e.g. "Care for
+  // <name>" on the caregiver's Schedule list, or Home's "View Care
+  // Profile") to jump straight to the child's details. A URL *hash*
+  // doesn't work reliably here: the Care Profile Sheet only exists in
+  // the DOM once `wards` has actually loaded (booking starts out null,
+  // rendering a skeleton first), so the browser/Next's own one-time,
+  // on-navigation anchor scroll has nothing to land on yet — and next/
+  // link's own scroll-on-navigate behavior can then win the race and
+  // leave the page at the top regardless. A query param sidesteps that
+  // entirely: nothing else in Next reacts to it, so this effect is the
+  // only thing that ever scrolls the page for it, once the section is
+  // actually there. Guarded to fire only once per page visit — bookings
+  // in an 'accepted' status keep re-fetching every 5s below, which
+  // would otherwise yank the page back here on every poll.
+  const scrolledToFocusRef = useRef(false);
   useEffect(() => {
-    if (wards.length === 0) return;
-    if (typeof window === "undefined" || window.location.hash !== "#care-profile") return;
+    if (wards.length === 0 || scrolledToFocusRef.current) return;
+    if (typeof window === "undefined") return;
+    if (new URLSearchParams(window.location.search).get("focus") !== "care-profile") return;
+    scrolledToFocusRef.current = true;
     document.getElementById("care-profile")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [wards]);
 
