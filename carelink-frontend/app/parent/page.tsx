@@ -221,7 +221,7 @@ function ActiveSessionCard() {
             Not now
           </button>
           <LinkButton
-            href={`/parent/bookings/${ended.id}`}
+            href={`/parent/bookings/${ended.id}?from=home`}
             className="w-full justify-center sm:w-auto"
           >
             Leave a Review
