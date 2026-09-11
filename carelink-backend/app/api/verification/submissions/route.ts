@@ -121,19 +121,39 @@ export async function POST(request: Request) {
   }
 }
 
+const SELFIE_SIGNED_URL_TTL_SECONDS = 300;
+
 export async function GET(request: Request) {
   try {
     const { supabase, userId } = await requireRole(request, ["parent", "staff"]);
     const { data, error } = await supabase
       .from("verification_submissions")
       .select(
-        "id, status, id_document_type, photo_verdict, rejection_reason, reviewed_at, created_at",
+        "id, status, id_document_type, photo_verdict, rejection_reason, reviewed_at, created_at, selfie_path",
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ submissions: data });
+
+    // The live selfie captured for identity verification doubles as the
+    // caller's profile photo — their own most recent one, as a
+    // short-lived signed URL (the bucket is private; never a public
+    // link). Once the retention job purges the underlying image (30
+    // days after a decision — see /api/internal/retention), selfie_path
+    // goes back to null and this naturally stops resolving to a photo,
+    // exactly matching that existing, deliberate retention policy
+    // rather than working around it.
+    const latestSelfiePath = data.find((s) => s.selfie_path)?.selfie_path ?? null;
+    const photoUrl = latestSelfiePath
+      ? ((
+          await supabase.storage
+            .from("identity-documents")
+            .createSignedUrl(latestSelfiePath, SELFIE_SIGNED_URL_TTL_SECONDS)
+        ).data?.signedUrl ?? null)
+      : null;
+
+    return NextResponse.json({ submissions: data, photoUrl });
   } catch (error) {
     return (
       authErrorResponse(error) ?? NextResponse.json({ error: "Unexpected error" }, { status: 500 })

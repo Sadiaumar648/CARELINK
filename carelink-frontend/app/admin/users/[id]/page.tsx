@@ -24,6 +24,10 @@ type ParentEntry = {
   fullName: string;
   phone: string;
   email: string;
+  // Short-lived signed URL to the parent's own identity-verification
+  // selfie (GET /api/admin/parents) — null once there's no submission
+  // with a selfie still on file.
+  photoUrl: string | null;
   accountStatus: string;
   verificationStatus: string;
   verificationMethod: "carelink" | "agency" | null;
@@ -133,7 +137,7 @@ export default function AdminParentDetailPage({ params }: { params: Promise<{ id
 
       <Sheet className="flex flex-col gap-5">
         <div className="flex flex-wrap items-center gap-4">
-          <Avatar photoUrl={null} name={parent.fullName} size="md" />
+          <Avatar photoUrl={parent.photoUrl} name={parent.fullName} size="md" />
           <div className="flex flex-col gap-1">
             <h1 className="text-[22px] font-semibold font-heading text-ink">{parent.fullName}</h1>
             <p className="text-[13.5px] text-ink-muted">

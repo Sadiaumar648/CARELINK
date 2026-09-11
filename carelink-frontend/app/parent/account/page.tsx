@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -13,7 +13,9 @@ import {
 } from "@phosphor-icons/react";
 import { useAuth } from "@/lib/auth/auth-context";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
@@ -54,6 +56,37 @@ function MenuRow({
 // old and new address) that doesn't exist anywhere in this app yet —
 // showing an editable field for it would be pretending a flow exists
 // that doesn't, so it stays read-only with a short explanation instead.
+// The parent's profile photo is their own live selfie from Identity
+// Verification below — there's no separate upload here, the same way
+// there's no separate "profile photo" concept for a parent anywhere
+// else in this app. It's fetched as a short-lived signed URL (the
+// storage bucket is private); once the retention job purges the
+// underlying image (30 days after a decision), this naturally goes
+// back to no photo, matching that existing policy rather than
+// overriding it — see GET /api/verification/submissions.
+function ProfilePhoto() {
+  const { user } = useAuth();
+  const fullName = (user?.user_metadata?.full_name as string | undefined) ?? "Your photo";
+  const [photoUrl, setPhotoUrl] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    apiFetch<{ photoUrl: string | null }>("/api/verification/submissions")
+      .then((res) => setPhotoUrl(res.photoUrl))
+      .catch(() => setPhotoUrl(null));
+  }, []);
+
+  return (
+    <div className="flex items-center gap-4">
+      <Avatar photoUrl={photoUrl ?? null} name={fullName} size="md" />
+      <p className="text-[12.5px] text-ink-muted">
+        {photoUrl
+          ? "From the selfie you took to verify your identity."
+          : "Verify your identity below to add a photo."}
+      </p>
+    </div>
+  );
+}
+
 function PersonalInformationSection() {
   const { user } = useAuth();
   const fullName = (user?.user_metadata?.full_name as string | undefined) ?? "";
@@ -175,6 +208,7 @@ export default function ParentAccountPage() {
         <h2 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
           Personal Information
         </h2>
+        <ProfilePhoto />
         <PersonalInformationSection />
       </section>
 

@@ -76,6 +76,8 @@ export async function POST(request: Request) {
   }
 }
 
+const PARENT_PHOTO_SIGNED_URL_TTL_SECONDS = 300;
+
 // No admin parent-list route existed before this (parent_profiles
 // already has an admin-read RLS policy that was simply never used by any
 // route). Mirrors GET /api/admin/roster's shape and pattern.
@@ -92,6 +94,39 @@ export async function GET(request: Request) {
       .order("created_at", { ascending: false });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // A parent's "photo" here is their own live identity-verification
+    // selfie (identity_documents_admin_read already grants an admin
+    // storage access to it — the same private bucket /admin/verifications
+    // already reads from) — their most recent one, as a short-lived
+    // signed URL each request, never a stored public copy. If the
+    // retention job has since purged it (30 days after a decision —
+    // /api/internal/retention), selfie_path is null and this parent
+    // simply has no photo, same as the app's existing retention policy.
+    const { data: selfieRows } = await supabase
+      .from("verification_submissions")
+      .select("user_id, selfie_path, created_at")
+      .in(
+        "user_id",
+        data.map((row) => row.id),
+      )
+      .not("selfie_path", "is", null)
+      .order("created_at", { ascending: false });
+    const latestSelfiePathByUserId = new Map<string, string>();
+    for (const s of selfieRows ?? []) {
+      if (!latestSelfiePathByUserId.has(s.user_id)) {
+        latestSelfiePathByUserId.set(s.user_id, s.selfie_path as string);
+      }
+    }
+    const photoUrlByUserId = new Map<string, string>();
+    await Promise.all(
+      Array.from(latestSelfiePathByUserId.entries()).map(async ([userId, path]) => {
+        const { data: signed } = await supabase.storage
+          .from("identity-documents")
+          .createSignedUrl(path, PARENT_PHOTO_SIGNED_URL_TTL_SECONDS);
+        if (signed?.signedUrl) photoUrlByUserId.set(userId, signed.signedUrl);
+      }),
+    );
 
     const parentProfileIds = data
       .map((row) => {
@@ -130,6 +165,7 @@ export async function GET(request: Request) {
         fullName: row.full_name,
         phone: row.phone,
         email: row.email,
+        photoUrl: photoUrlByUserId.get(row.id) ?? null,
         accountStatus: row.account_status,
         verificationStatus: row.verification_status,
         verificationMethod: row.verification_method,

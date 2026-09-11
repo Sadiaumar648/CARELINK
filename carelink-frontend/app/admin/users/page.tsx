@@ -43,6 +43,11 @@ type ParentEntry = {
   fullName: string;
   phone: string;
   email: string;
+  // The parent's own live identity-verification selfie, as a
+  // short-lived signed URL from GET /api/admin/parents — null once
+  // there's no submission with a selfie still on file (never verified,
+  // or the 30-day retention purge already ran).
+  photoUrl: string | null;
   accountStatus: string;
   parentProfileId: string | null;
   bookingCount: number;
@@ -146,11 +151,20 @@ function ParentRow({
   return (
     <div className="flex flex-col gap-4 border-b border-hairline p-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between md:p-5">
       <div className="flex items-center gap-3.5">
-        <span
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold ${avatarTint}`}
-        >
-          {initialsFor(entry.fullName)}
-        </span>
+        {entry.photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- a short-lived signed storage URL, not a static asset
+          <img
+            src={entry.photoUrl}
+            alt={entry.fullName}
+            className="h-11 w-11 shrink-0 rounded-full object-cover"
+          />
+        ) : (
+          <span
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold ${avatarTint}`}
+          >
+            {initialsFor(entry.fullName)}
+          </span>
+        )}
         <p className="text-[15px] font-semibold text-ink">{entry.fullName}</p>
       </div>
 
