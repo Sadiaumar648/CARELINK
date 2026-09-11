@@ -113,6 +113,12 @@ function ActiveSessionCard() {
   const [caregiver, setCaregiver] = useState<ActiveCaregiver | null>(null);
   const [ending, setEnding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Set the instant End Session succeeds — replaces the card with a
+  // review prompt for that same booking (now 'completed', so
+  // components/booking-detail.tsx's own ReviewForm is what actually
+  // shows once they follow the link) instead of the card just
+  // vanishing.
+  const [ended, setEnded] = useState<{ id: string; caregiverName: string } | null>(null);
 
   function load() {
     apiFetch<{ bookings: ActiveBooking[] }>("/api/bookings?status=active")
@@ -149,12 +155,41 @@ function ActiveSessionCard() {
     setError(null);
     try {
       await apiFetch(`/api/bookings/${booking.id}/end`, { method: "PATCH" });
+      setEnded({ id: booking.id, caregiverName: caregiver?.full_name ?? "your caregiver" });
       setBooking(null);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
       setEnding(false);
     }
+  }
+
+  if (ended) {
+    return (
+      <Sheet className="flex flex-col gap-3 border-wisteria/40 bg-wisteria-tint sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-[15px] font-semibold text-ink">Session ended</p>
+          <p className="text-[12.5px] text-ink-muted">
+            Satisfied with our service? Leave a review for {ended.caregiverName}.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setEnded(null)}
+            className="text-[12.5px] font-semibold text-ink-muted hover:text-ink"
+          >
+            Not now
+          </button>
+          <LinkButton
+            href={`/parent/bookings/${ended.id}`}
+            className="w-full justify-center sm:w-auto"
+          >
+            Leave a Review
+          </LinkButton>
+        </div>
+      </Sheet>
+    );
   }
 
   if (!booking) return null;
