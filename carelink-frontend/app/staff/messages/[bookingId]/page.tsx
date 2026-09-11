@@ -2,6 +2,7 @@
 
 import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, PaperPlaneTilt, ShieldCheck } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
@@ -60,6 +61,7 @@ export default function StaffConversationPage({
 }) {
   const { bookingId } = use(params);
   const { user } = useAuth();
+  const router = useRouter();
 
   const [booking, setBooking] = useState<Booking | null>(null);
   const [wards, setWards] = useState<WardBrief[]>([]);
@@ -150,12 +152,18 @@ export default function StaffConversationPage({
 
   return (
     <div className="mx-auto flex h-full max-w-2xl flex-col gap-4 p-6">
-      <Link
-        href="/staff/messages"
-        className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-muted hover:text-ink"
+      {/* Returns to wherever the conversation was opened from — a booking,
+          the Messages list, a notification — not always to Messages. */}
+      <button
+        type="button"
+        onClick={() => {
+          if (typeof window !== "undefined" && window.history.length > 1) router.back();
+          else router.push("/staff/messages");
+        }}
+        className="flex items-center gap-1.5 self-start text-[13px] font-semibold text-ink-muted hover:text-ink"
       >
-        <ArrowLeft size={16} /> Messages
-      </Link>
+        <ArrowLeft size={16} /> Back
+      </button>
 
       <div>
         <p className="text-[16px] font-semibold">{title}</p>

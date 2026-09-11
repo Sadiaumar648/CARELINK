@@ -8,7 +8,8 @@ import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { useAuth } from "@/lib/auth/auth-context";
 import { Sheet } from "@/components/ui/sheet";
-import { LinkButton } from "@/components/ui/button";
+import { Button, LinkButton } from "@/components/ui/button";
+import { Avatar } from "@/components/ui/avatar";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { RequestCareHero } from "@/components/parent/request-care-hero";
 import {
@@ -18,6 +19,7 @@ import {
 } from "@/components/parent/request-flow-panel";
 import { KIND_META, DEFAULT_KIND_META, TONE_CLASSES } from "@/lib/notification-kind-meta";
 import { minutesAgoLabel } from "@/lib/relative-time";
+import { caregiverPhotoUrl } from "@/lib/photo-url";
 
 type Notification = {
   id: string;
@@ -81,6 +83,121 @@ function greeting(): string {
   if (hour < 12) return "Good morning";
   if (hour < 18) return "Good afternoon";
   return "Good evening";
+}
+
+type ActiveBooking = {
+  id: string;
+  staff_profile_id: string;
+  starts_at: string;
+  ends_at: string;
+};
+
+type ActiveCaregiver = { full_name: string; photo_path: string | null };
+
+function formatSessionRange(startsAt: string, endsAt: string): string {
+  const time = (iso: string) =>
+    new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return `${time(startsAt)} – ${time(endsAt)}`;
+}
+
+// A booking only ever reaches status 'active' once someone actually taps
+// "Start session" (either party, on the booking date — see
+// PATCH /api/bookings/[id]/start) and leaves it the instant "End
+// session" is tapped (PATCH .../end, which moves it to 'completed') —
+// so this card is exactly as ephemeral as a real session in progress:
+// it appears the moment one starts and disappears the moment it ends,
+// with no separate "Today's Care" list to go find it in first.
+function ActiveSessionCard() {
+  // undefined = still loading; null = confirmed none in progress.
+  const [booking, setBooking] = useState<ActiveBooking | null | undefined>(undefined);
+  const [caregiver, setCaregiver] = useState<ActiveCaregiver | null>(null);
+  const [ending, setEnding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function load() {
+    apiFetch<{ bookings: ActiveBooking[] }>("/api/bookings?status=active")
+      .then((res) => setBooking(res.bookings[0] ?? null))
+      .catch(() => setBooking(null));
+  }
+
+  useEffect(() => {
+    load();
+    const interval = setInterval(load, 20_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Keyed off the primitive id, not the `booking` object itself — the
+  // component already renders nothing while there's no active booking
+  // (see the early return below), so there's nothing to reset here.
+  const activeStaffProfileId = booking?.staff_profile_id ?? null;
+  useEffect(() => {
+    if (!activeStaffProfileId) return;
+    let cancelled = false;
+    apiFetch<{ caregiver: ActiveCaregiver }>(`/api/caregivers/${activeStaffProfileId}`)
+      .then((res) => {
+        if (!cancelled) setCaregiver(res.caregiver);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [activeStaffProfileId]);
+
+  async function endSession() {
+    if (!booking || ending) return;
+    setEnding(true);
+    setError(null);
+    try {
+      await apiFetch(`/api/bookings/${booking.id}/end`, { method: "PATCH" });
+      setBooking(null);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setEnding(false);
+    }
+  }
+
+  if (!booking) return null;
+
+  return (
+    <Sheet className="flex flex-col gap-4 border-[var(--color-success)]/40 bg-success-tint sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center gap-3">
+        <Avatar
+          photoUrl={caregiverPhotoUrl(caregiver?.photo_path ?? null)}
+          name={caregiver?.full_name ?? "Your caregiver"}
+          size="md"
+        />
+        <div className="flex flex-col gap-1">
+          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--color-success)]">
+            <span className="h-2 w-2 rounded-full bg-[var(--color-success)]" aria-hidden />
+            Session in progress
+          </p>
+          <p className="text-[15px] font-semibold text-ink">
+            {caregiver?.full_name ?? "Your caregiver"} is caring for your family
+          </p>
+          <p className="text-[12.5px] text-ink-muted">
+            {formatSessionRange(booking.starts_at, booking.ends_at)}
+          </p>
+        </div>
+      </div>
+      <div className="flex flex-col items-start gap-1.5 sm:items-end">
+        {error && <p className="text-[12.5px] text-error">{error}</p>}
+        <Button
+          onClick={() => void endSession()}
+          disabled={ending}
+          className="w-full justify-center sm:w-auto"
+        >
+          {ending ? "Ending…" : "End Session"}
+        </Button>
+        <Link
+          href={`/parent/bookings/${booking.id}`}
+          className="text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
+        >
+          View Details
+        </Link>
+      </div>
+    </Sheet>
+  );
 }
 
 function ParentDashboard() {
@@ -251,6 +368,10 @@ function ParentDashboard() {
           request below instead.
         </p>
       )}
+
+      {/* ACTIVE SESSION — only rendered while a real booking is 'active'
+          (see ActiveSessionCard above); invisible the rest of the time. */}
+      <ActiveSessionCard />
 
       {/* FIND CARE — the one real entry point into a request. A parent no
           longer chooses Nanny vs Babysitter up front; who to send the
