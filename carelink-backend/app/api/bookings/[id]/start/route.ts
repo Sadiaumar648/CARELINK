@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { authErrorResponse, requireRole } from "@/lib/auth/require-user";
 
-// Task 3.8. Either party, only on the booking date.
+// Task 3.8, superseded: starting a session is the caregiver's action
+// alone now, not either party — the parent only ever watches a session
+// happen (the active-session card on their own home page), never
+// starts or ends one themselves. Still only on the booking date.
 export async function PATCH(request: Request, ctx: RouteContext<"/api/bookings/[id]/start">) {
   try {
-    const { supabase } = await requireRole(request, ["parent", "staff"]);
+    const { supabase } = await requireRole(request, ["staff"]);
     const { id } = await ctx.params;
 
     const { data: booking, error: bookingErr } = await supabase

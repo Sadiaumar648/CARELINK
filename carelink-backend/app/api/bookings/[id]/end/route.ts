@@ -5,10 +5,14 @@ import { createServiceRoleClient } from "@/lib/db/supabase-server";
 
 // Task 3.8 (closes the session) and 3.9 (credits the commission split
 // against the succeeded payment, at the configured rate). staff_profiles.
-// bookings_completed increments automatically via a trigger.
+// bookings_completed increments automatically via a trigger. Superseded:
+// ending a session is the caregiver's action alone now, not either
+// party — the parent finds out via their own home page's active-session
+// card (which polls for exactly this transition) rather than ending it
+// themselves.
 export async function PATCH(request: Request, ctx: RouteContext<"/api/bookings/[id]/end">) {
   try {
-    const { supabase } = await requireRole(request, ["parent", "staff"]);
+    const { supabase } = await requireRole(request, ["staff"]);
     const { id } = await ctx.params;
 
     const { data: booking, error: bookingErr } = await supabase

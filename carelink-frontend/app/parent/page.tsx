@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ShieldCheck } from "@phosphor-icons/react";
@@ -8,7 +8,7 @@ import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { useAuth } from "@/lib/auth/auth-context";
 import { Sheet } from "@/components/ui/sheet";
-import { Button, LinkButton } from "@/components/ui/button";
+import { LinkButton } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { RequestCareHero } from "@/components/parent/request-care-hero";
@@ -100,29 +100,58 @@ function formatSessionRange(startsAt: string, endsAt: string): string {
   return `${time(startsAt)} – ${time(endsAt)}`;
 }
 
-// A booking only ever reaches status 'active' once someone actually taps
-// "Start session" (either party, on the booking date — see
-// PATCH /api/bookings/[id]/start) and leaves it the instant "End
-// session" is tapped (PATCH .../end, which moves it to 'completed') —
-// so this card is exactly as ephemeral as a real session in progress:
-// it appears the moment one starts and disappears the moment it ends,
-// with no separate "Today's Care" list to go find it in first.
+// A booking only ever reaches status 'active' once the caregiver taps
+// "Start session" (staff-only now — see PATCH /api/bookings/[id]/start)
+// and leaves it the instant the caregiver taps "End session"
+// (PATCH .../end, which moves it to 'completed') — the parent never
+// starts or ends a session themselves, only watches it happen here.
+// This card appears the moment one starts and disappears the moment it
+// ends, with no separate "Today's Care" list to go find it in first.
 function ActiveSessionCard() {
   // undefined = still loading; null = confirmed none in progress.
   const [booking, setBooking] = useState<ActiveBooking | null | undefined>(undefined);
   const [caregiver, setCaregiver] = useState<ActiveCaregiver | null>(null);
-  const [ending, setEnding] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  // Set the instant End Session succeeds — replaces the card with a
-  // review prompt for that same booking (now 'completed', so
-  // components/booking-detail.tsx's own ReviewForm is what actually
-  // shows once they follow the link) instead of the card just
-  // vanishing.
+  // Set the moment a poll notices the session that was active just
+  // ended (the caregiver tapped End Session on their side) — replaces
+  // the card with a review prompt for that same booking (now
+  // 'completed', so components/booking-detail.tsx's own ReviewForm is
+  // what actually shows once they follow the link).
   const [ended, setEnded] = useState<{ id: string; caregiverName: string } | null>(null);
+
+  // Tracks the currently-active booking (id + caregiver name) outside
+  // React state so the polling loop below — a stable interval set up
+  // once on mount — always reads the latest values instead of a stale
+  // closure from its first render.
+  const lastActiveRef = useRef<{ id: string; caregiverName: string } | null>(null);
+  useEffect(() => {
+    if (booking) {
+      lastActiveRef.current = {
+        id: booking.id,
+        caregiverName: caregiver?.full_name ?? "your caregiver",
+      };
+    }
+  }, [booking, caregiver]);
 
   function load() {
     apiFetch<{ bookings: ActiveBooking[] }>("/api/bookings?status=active")
-      .then((res) => setBooking(res.bookings[0] ?? null))
+      .then((res) => {
+        const next = res.bookings[0] ?? null;
+        const wasActive = lastActiveRef.current;
+        if (!next && wasActive) {
+          // The session that was active just stopped being active —
+          // confirm the caregiver actually ended it (rather than it
+          // being cancelled some other way) before offering a review.
+          apiFetch<{ booking: { status: string } }>(`/api/bookings/${wasActive.id}`)
+            .then((res2) => {
+              if (res2.booking.status === "completed") setEnded(wasActive);
+            })
+            .catch(() => undefined)
+            .finally(() => {
+              lastActiveRef.current = null;
+            });
+        }
+        setBooking(next);
+      })
       .catch(() => setBooking(null));
   }
 
@@ -148,21 +177,6 @@ function ActiveSessionCard() {
       cancelled = true;
     };
   }, [activeStaffProfileId]);
-
-  async function endSession() {
-    if (!booking || ending) return;
-    setEnding(true);
-    setError(null);
-    try {
-      await apiFetch(`/api/bookings/${booking.id}/end`, { method: "PATCH" });
-      setEnded({ id: booking.id, caregiverName: caregiver?.full_name ?? "your caregiver" });
-      setBooking(null);
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setEnding(false);
-    }
-  }
 
   if (ended) {
     return (
@@ -215,22 +229,12 @@ function ActiveSessionCard() {
           </p>
         </div>
       </div>
-      <div className="flex flex-col items-start gap-1.5 sm:items-end">
-        {error && <p className="text-[12.5px] text-error">{error}</p>}
-        <Button
-          onClick={() => void endSession()}
-          disabled={ending}
-          className="w-full justify-center sm:w-auto"
-        >
-          {ending ? "Ending…" : "End Session"}
-        </Button>
-        <Link
-          href={`/parent/bookings/${booking.id}`}
-          className="text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
-        >
-          View Details
-        </Link>
-      </div>
+      <Link
+        href={`/parent/bookings/${booking.id}`}
+        className="shrink-0 text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
+      >
+        View Details
+      </Link>
     </Sheet>
   );
 }

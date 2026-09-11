@@ -250,6 +250,35 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
     }
   }
 
+  // Location sharing is mandatory for a care session (see SafeTrack),
+  // so a caregiver must actually grant it before the session can start
+  // at all — not just once it's already active. This is a one-time
+  // permission check (getCurrentPosition, not a persistent watch); once
+  // the session goes active, SafeTrackCaregiverControl's own effect
+  // starts the real, continuous location sharing on its own.
+  function startSession() {
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      setError(
+        "Location sharing is required to start a session, but it isn't available on this device.",
+      );
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    navigator.geolocation.getCurrentPosition(
+      () => void act("/start"),
+      (geoErr) => {
+        setBusy(false);
+        setError(
+          geoErr.code === geoErr.PERMISSION_DENIED
+            ? "Location sharing is required to start a session. Allow location access in your browser's site settings, then try again."
+            : "We couldn't get your location. Check your device's location settings, then try again.",
+        );
+      },
+      { enableHighAccuracy: true, timeout: 15_000 },
+    );
+  }
+
   if (error && !booking) {
     return (
       <div className="mx-auto max-w-2xl p-6">
@@ -612,22 +641,18 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
           <PaymentForm bookingId={id} amount={booking.total_amount} onPaid={load} />
         )}
 
-        {booking.status === "paid" && (
-          <Button
-            size={viewerRole === "staff" ? "lg" : "default"}
-            disabled={busy || !isToday}
-            onClick={() => void act("/start")}
-          >
+        {/* Starting and ending a session is the caregiver's action alone
+            — the parent only ever watches it happen (the "Session in
+            progress" card on their own home page, and the read-only
+            location view below). */}
+        {viewerRole === "staff" && booking.status === "paid" && (
+          <Button size="lg" disabled={busy || !isToday} onClick={startSession}>
             {isToday ? "Start session" : "Starts on the booking date"}
           </Button>
         )}
 
-        {booking.status === "active" && (
-          <Button
-            size={viewerRole === "staff" ? "lg" : "default"}
-            disabled={busy}
-            onClick={() => void act("/end")}
-          >
+        {viewerRole === "staff" && booking.status === "active" && (
+          <Button size="lg" disabled={busy} onClick={() => void act("/end")}>
             End session
           </Button>
         )}
