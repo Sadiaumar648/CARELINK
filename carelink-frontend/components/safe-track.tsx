@@ -15,12 +15,14 @@ const SEND_INTERVAL_MS = 20_000;
 
 type Status = "off" | "requesting" | "sharing" | "denied" | "unavailable";
 
-// Caregiver-facing SafeTrack control. Location is only ever requested
-// once the caregiver explicitly opts in here — never on page load, never
-// before a booking is confirmed. On an accepted/paid booking this shows
-// an explanatory, non-functional card only (no permission prompt); the
-// working control (and any geolocation request) appears once the
-// booking is actually active.
+// Caregiver-facing SafeTrack control. Location sharing is mandatory,
+// not opt-in, for the duration of an active session — it starts
+// automatically the moment a booking's status becomes 'active' (no
+// button to tap, and no way to turn it off while the session stays
+// active), and stops automatically the moment the session ends. Before
+// that (accepted/paid), this shows an explanatory, non-functional card
+// only — no permission prompt until there's a real active session to
+// share a location for.
 export function SafeTrackCaregiverControl({
   bookingId,
   bookingStatus,
@@ -40,18 +42,6 @@ export function SafeTrackCaregiverControl({
       watchIdRef.current = null;
     }
   }
-
-  // The session ending (however that happens — this caregiver's own
-  // "End session" button, or the parent ending it) must stop updates
-  // immediately, not just when this component's own toggle is used. No
-  // setState here: a booking only ever leaves "active" by going to
-  // "completed" (see enforce_booking_transition), never back, so the
-  // component's own !active render branch below already stops reading
-  // `status` for good the moment that happens — nothing needs resetting.
-  useEffect(() => {
-    if (!active) stopWatching();
-    return stopWatching;
-  }, [active]);
 
   function enable() {
     if (!navigator.geolocation) {
@@ -83,14 +73,23 @@ export function SafeTrackCaregiverControl({
     );
   }
 
-  function disable() {
-    stopWatching();
-    setStatus("off");
-    setLastSentAt(null);
-    void apiFetch(`/api/bookings/${bookingId}/location`, { method: "DELETE" }).catch(
-      () => undefined,
-    );
-  }
+  // Mandatory: the moment this booking goes active, sharing starts on
+  // its own — no caregiver action required, and (with no "Turn Off"
+  // control below) no way to stop it short of the session itself
+  // ending, which the effect's own cleanup (via the `active` flip)
+  // already handles.
+  useEffect(() => {
+    if (!active) {
+      stopWatching();
+      return;
+    }
+    // enable() itself calls setStatus synchronously before the async
+    // geolocation callbacks ever run — deferred a tick so this effect
+    // never sets state directly in its own body.
+    void Promise.resolve().then(enable);
+    return stopWatching;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- enable/stopWatching are self-contained; only re-run when the session becomes active
+  }, [active]);
 
   if (!active) {
     if (bookingStatus !== "accepted" && bookingStatus !== "paid") return null;
@@ -101,7 +100,8 @@ export function SafeTrackCaregiverControl({
           SafeTrack
         </h2>
         <p className="text-[13px] text-ink-muted">
-          Location sharing will be available once you start this care session.
+          Location sharing is required for this care session and starts automatically once you begin
+          it.
         </p>
       </Sheet>
     );
@@ -114,44 +114,43 @@ export function SafeTrackCaregiverControl({
         SafeTrack
       </h2>
       <p className="text-[13px] text-ink-muted">
-        Share your live location with the family for the duration of this care session only —
-        sharing stops automatically the moment the session ends.
+        Location sharing is required for the duration of this care session, so the family and
+        CareLink can see where you are — it stops automatically the moment the session ends.
       </p>
 
-      {status === "off" && (
-        <Button onClick={enable} className="self-start">
-          Enable SafeTrack
-        </Button>
-      )}
-
-      {status === "requesting" && (
-        <p className="text-[13px] text-ink-muted">Waiting for location permission…</p>
+      {(status === "off" || status === "requesting") && (
+        <p className="text-[13px] text-ink-muted">Requesting location access…</p>
       )}
 
       {status === "sharing" && (
+        <p className="flex items-center gap-1.5 text-[13px] font-semibold text-wisteria">
+          <ShieldCheck size={16} weight="fill" /> Sharing your location
+          {lastSentAt && ` — last sent ${minutesAgoLabel(lastSentAt)}`}
+        </p>
+      )}
+
+      {status === "denied" && (
         <div className="flex flex-col gap-2">
-          <p className="flex items-center gap-1.5 text-[13px] font-semibold text-wisteria">
-            <ShieldCheck size={16} weight="fill" /> Sharing your location
-            {lastSentAt && ` — last sent ${minutesAgoLabel(lastSentAt)}`}
+          <p className="text-[13px] text-error">
+            Location sharing is required to continue this care session, but permission was denied.
+            Enable location access in your browser&apos;s site settings, then try again.
           </p>
-          <Button variant="secondary" onClick={disable} className="self-start">
-            Turn Off SafeTrack
+          <Button variant="secondary" onClick={enable} className="self-start">
+            Try Again
           </Button>
         </div>
       )}
 
-      {status === "denied" && (
-        <p className="text-[13px] text-error">
-          Location permission was denied. Enable it in your browser&apos;s site settings to use
-          SafeTrack for this session.
-        </p>
-      )}
-
       {status === "unavailable" && (
-        <p className="text-[13px] text-error">
-          Your location isn&apos;t available right now. You can try again, or continue the session
-          without SafeTrack.
-        </p>
+        <div className="flex flex-col gap-2">
+          <p className="text-[13px] text-error">
+            Location sharing is required for this session, but your location isn&apos;t available
+            right now. Check your device&apos;s location settings, then try again.
+          </p>
+          <Button variant="secondary" onClick={enable} className="self-start">
+            Try Again
+          </Button>
+        </div>
       )}
     </Sheet>
   );
