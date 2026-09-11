@@ -55,8 +55,11 @@ type Ward = {
   age_years: number;
   allergies: string | null;
   medications: string | null;
+  meal_notes: string | null;
   special_needs: string | null;
   routine_notes: string | null;
+  house_rules: string | null;
+  general_notes: string | null;
 };
 
 type EmergencyContact = { name: string; phone: string } | null;
