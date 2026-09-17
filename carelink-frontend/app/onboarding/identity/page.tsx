@@ -5,10 +5,6 @@ import { useRouter } from "next/navigation";
 import { CheckCircle, UploadSimple, Warning } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
-import {
-  pendingVerificationToFile,
-  readAndClearPendingVerification,
-} from "@/lib/pending-verification";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
@@ -56,31 +52,15 @@ export default function IdentityVerificationPage() {
   // pre-existing behavior for every parent.
   const [nextHref, setNextHref] = useState("/onboarding/setup");
 
-  // If the parent already took a live photo at registration (/register),
-  // pick it up here rather than asking again — read once (and cleared
-  // immediately by the read itself) to lazily seed the states below,
-  // rather than an effect that would set them after an extra render.
-  // This never submits anything on its own; it only pre-fills the same
-  // wizard/submission flow below.
-  const [pendingVerification] = useState(() => readAndClearPendingVerification());
-
-  const [step, setStep] = useState<Step>(pendingVerification ? "upload" : "intro");
+  // Registration (/register) no longer collects a Ghana Card number or a
+  // live photo — both are steps of this wizard on their own now, so
+  // there's nothing left to pre-fill here; every parent starts at
+  // "intro" and provides both fresh.
+  const [step, setStep] = useState<Step>("intro");
   const [idDocumentType, setIdDocumentType] = useState<IdType>("ghana_card");
-  // Registration no longer collects a Ghana Card number, so there's
-  // nothing to pre-fill here (only the live photo carries over) — the
-  // parent enters it fresh, same as anyone who never had a pending
-  // stash at all.
   const [idDocumentNumber, setIdDocumentNumber] = useState("");
   const [idFile, setIdFile] = useState<File | null>(null);
-  const [selfieFile, setSelfieFile] = useState<File | null>(() => {
-    if (!pendingVerification) return null;
-    try {
-      return pendingVerificationToFile(pendingVerification);
-    } catch {
-      // Malformed/undecodable stash — the photo step just asks again.
-      return null;
-    }
-  });
+  const [selfieFile, setSelfieFile] = useState<File | null>(null);
   const [selfieMode, setSelfieMode] = useState<"camera" | "file">("camera");
   const [referenceName, setReferenceName] = useState("");
   const [referencePhone, setReferencePhone] = useState("");
