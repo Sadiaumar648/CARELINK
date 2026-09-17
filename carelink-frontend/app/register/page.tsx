@@ -86,13 +86,11 @@ export default function RegisterPage() {
       });
       if (sessionErr) throw new Error(sessionErr.message);
       // No live photo or Ghana Card number is collected here — both are
-      // step 2 and step 1 of the dedicated Ghana Card verification a
-      // parent completes once signed in
-      // (components/parent/identity-verification.tsx, on
-      // /parent/account), never asked for twice. There is no approval/
-      // review step of any kind here — straight to Parent Home the
-      // moment they submit this form.
-      router.replace("/parent");
+      // step 2 and step 1 of the dedicated Ghana Card verification
+      // (components/parent/identity-verification.tsx), which a fresh
+      // account goes straight into next, before Home — not asked for
+      // twice, and not something the parent has to go find later.
+      router.replace("/parent/account");
     } catch (err) {
       setError(errorMessage(err));
     } finally {
