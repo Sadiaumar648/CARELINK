@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { CheckCircle, CircleNotch, Circle, ShieldWarning, XCircle } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
-import { Button } from "@/components/ui/button";
+import { Button, LinkButton } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -61,7 +61,15 @@ function formatDate(iso: string): string {
   });
 }
 
-function ResultCard({ result, onRetry }: { result: VerificationResult; onRetry: () => void }) {
+function ResultCard({
+  result,
+  onRetry,
+  continueHref,
+}: {
+  result: VerificationResult;
+  onRetry: () => void;
+  continueHref?: string;
+}) {
   if (result.status === "verified") {
     return (
       <Sheet className="flex flex-col gap-4">
@@ -115,6 +123,11 @@ function ResultCard({ result, onRetry }: { result: VerificationResult; onRetry: 
           Academic demonstration — simulated NIA/IVSP response. CareLink is not connected to the
           real National Identification Authority.
         </p>
+        {continueHref && (
+          <LinkButton href={continueHref} className="self-start">
+            Continue to CareLink
+          </LinkButton>
+        )}
       </Sheet>
     );
   }
@@ -171,7 +184,15 @@ function VerifyingCard({ stageIndex }: { stageIndex: number }) {
   );
 }
 
-export function ParentIdentityVerification() {
+export function ParentIdentityVerification({
+  continueHref,
+}: {
+  // When set, a verified result shows a "Continue to CareLink" button
+  // linking here — used by the forced post-registration verification
+  // page. Omitted on /parent/account, where this same component is
+  // embedded read-only alongside other settings.
+  continueHref?: string;
+} = {}) {
   const [step, setStep] = useState<Step>("intro");
   const [loadingExisting, setLoadingExisting] = useState(true);
   const [existingResult, setExistingResult] = useState<VerificationResult | null>(null);
@@ -275,11 +296,11 @@ export function ParentIdentityVerification() {
   }
 
   if (existingResult && step === "intro") {
-    return <ResultCard result={existingResult} onRetry={startOver} />;
+    return <ResultCard result={existingResult} onRetry={startOver} continueHref={continueHref} />;
   }
 
   if (step === "result" && result) {
-    return <ResultCard result={result} onRetry={startOver} />;
+    return <ResultCard result={result} onRetry={startOver} continueHref={continueHref} />;
   }
 
   if (step === "verifying") {

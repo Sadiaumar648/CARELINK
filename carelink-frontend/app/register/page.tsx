@@ -64,8 +64,11 @@ export default function RegisterPage() {
   // returns a real, usable session immediately, regardless of the
   // Supabase project's own "Confirm email" setting or whether its
   // built-in mailer can actually send anything right now. No email
-  // step, no code, no separate confirmation screen: setSession below is
-  // the parent's account the instant they submit this form.
+  // step, no code, no separate confirmation screen: setSession below
+  // signs the parent in immediately, but the account starts
+  // unverified — app/parent/layout.tsx won't let it into the dashboard
+  // until /verify-identity succeeds, so this only ever unlocks
+  // verification next, never Parent Home.
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -86,11 +89,11 @@ export default function RegisterPage() {
       });
       if (sessionErr) throw new Error(sessionErr.message);
       // No live photo or Ghana Card number is collected here — both are
-      // step 2 and step 1 of the dedicated Ghana Card verification
+      // step 1 and step 2 of the dedicated Ghana Card verification
       // (components/parent/identity-verification.tsx), which a fresh
       // account goes straight into next, before Home — not asked for
       // twice, and not something the parent has to go find later.
-      router.replace("/parent/account");
+      router.replace("/verify-identity");
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -105,7 +108,8 @@ export default function RegisterPage() {
         <div className="flex flex-col gap-2">
           <h1 className="text-[26px] font-semibold font-heading">Create your CareLink account</h1>
           <p className="text-[14px] text-ink-muted">
-            Let&apos;s get you set up so you can find trusted childcare for your family.
+            Fill in your account details. You&apos;ll verify your identity with your Ghana Card
+            next, before you can start finding care.
           </p>
         </div>
         <Sheet as="form" onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
@@ -174,7 +178,7 @@ export default function RegisterPage() {
           {fieldErrors.agreed && <p className="text-[13px] text-error">{fieldErrors.agreed}</p>}
           {error && <p className="text-[13px] text-error">{error}</p>}
           <Button type="submit" disabled={loading}>
-            {loading ? "Creating your account…" : "Create Account"}
+            {loading ? "Creating your account…" : "Continue to Verification"}
           </Button>
         </Sheet>
         <p className="text-center text-[13px] text-ink-muted">

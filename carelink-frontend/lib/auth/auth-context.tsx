@@ -10,6 +10,12 @@ type AuthState = {
   session: Session | null;
   user: User | null;
   role: UserRole | null;
+  // The signed-in parent's identity-verification status ("verified",
+  // "unverified", etc. — see /api/me), fetched alongside role so
+  // app/parent/layout.tsx can gate the dashboard without a second
+  // request. Null for a signed-out user or a non-parent role that
+  // doesn't care about it.
+  verificationStatus: string | null;
   // True until the initial session check (and, if signed in, the role
   // lookup) has settled — screens gate their first render on this rather
   // than flashing a signed-out state while Supabase restores the session.
@@ -22,6 +28,7 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
+  const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -30,14 +37,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     async function loadRole(nextSession: Session | null) {
       if (!nextSession) {
-        if (!cancelled) setRole(null);
+        if (!cancelled) {
+          setRole(null);
+          setVerificationStatus(null);
+        }
         return;
       }
       try {
-        const me = await apiFetch<{ id: string; role: UserRole }>("/api/me");
-        if (!cancelled) setRole(me.role);
+        const me = await apiFetch<{ id: string; role: UserRole; verificationStatus: string }>(
+          "/api/me",
+        );
+        if (!cancelled) {
+          setRole(me.role);
+          setVerificationStatus(me.verificationStatus);
+        }
       } catch {
-        if (!cancelled) setRole(null);
+        if (!cancelled) {
+          setRole(null);
+          setVerificationStatus(null);
+        }
       }
     }
 
@@ -65,7 +83,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ session, user: session?.user ?? null, role, loading, signOut }}>
+    <AuthContext.Provider
+      value={{ session, user: session?.user ?? null, role, verificationStatus, loading, signOut }}
+    >
       {children}
     </AuthContext.Provider>
   );
