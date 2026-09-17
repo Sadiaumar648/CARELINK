@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle, CircleNotch, Circle, ShieldWarning, XCircle } from "@phosphor-icons/react";
+import { CheckCircle, CircleNotch, Circle, XCircle } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -136,11 +136,6 @@ function ResultCard({
       </div>
       <p className="text-[13.5px] text-ink-muted">
         {result.failureReason ? FAILURE_COPY[result.failureReason] : FAILURE_COPY.incomplete}
-      </p>
-      <p className="flex items-start gap-1.5 text-[11.5px] leading-relaxed text-ink-muted">
-        <ShieldWarning size={14} className="mt-0.5 shrink-0" />
-        Academic demonstration — simulated NIA/IVSP response. CareLink is not connected to the real
-        National Identification Authority.
       </p>
       <Button type="button" onClick={onRetry} className="self-start">
         Try Again
@@ -371,12 +366,6 @@ export function ParentIdentityVerification({
         onChange={(e) => setDateOfBirth(e.target.value)}
         required
       />
-      <p className="text-[11.5px] leading-relaxed text-ink-muted">
-        Academic demonstration only — use a fictional Ghana Card PIN in the format shown. No real
-        Ghana Card numbers are checked or stored; this never contacts the National Identification
-        Authority.
-      </p>
-
       {formError && <p className="text-[13px] text-error">{formError}</p>}
       {submitError && <p className="text-[13px] text-error">{submitError}</p>}
 
