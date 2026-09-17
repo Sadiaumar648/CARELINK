@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle } from "@phosphor-icons/react";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Field } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
@@ -42,12 +42,6 @@ export default function RegisterPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [checkEmail, setCheckEmail] = useState(false);
-  const [code, setCode] = useState("");
-  const [verifying, setVerifying] = useState(false);
-  const [verifyError, setVerifyError] = useState<string | null>(null);
-  const [resending, setResending] = useState(false);
-  const [resendMessage, setResendMessage] = useState<string | null>(null);
 
   function validate(): boolean {
     const errors: Record<string, string> = {};
@@ -63,6 +57,15 @@ export default function RegisterPage() {
     return Object.keys(errors).length === 0;
   }
 
+  // Registration goes through POST /api/auth/register (service-role
+  // account creation + a server-side sign-in, the exact same shape
+  // /api/auth/claim-invitation already uses) rather than calling
+  // supabase.auth.signUp() directly — a self-service sign-up here always
+  // returns a real, usable session immediately, regardless of the
+  // Supabase project's own "Confirm email" setting or whether its
+  // built-in mailer can actually send anything right now. No email
+  // step, no code, no separate confirmation screen: setSession below is
+  // the parent's account the instant they submit this form.
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -70,123 +73,31 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
-      const { data, error: signUpErr } = await getSupabaseClient().auth.signUp({
-        email,
-        password,
-        options: {
-          data: { role: "parent", full_name: fullName, phone },
+      const res = await apiFetch<{ accessToken: string; refreshToken: string }>(
+        "/api/auth/register",
+        {
+          method: "POST",
+          body: { fullName, phone, email, password },
         },
+      );
+      const { error: sessionErr } = await getSupabaseClient().auth.setSession({
+        access_token: res.accessToken,
+        refresh_token: res.refreshToken,
       });
-      if (signUpErr) throw new Error(signUpErr.message);
+      if (sessionErr) throw new Error(sessionErr.message);
       // No live photo or Ghana Card number is collected here — both are
       // step 2 and step 1 of the dedicated Ghana Card verification a
       // parent completes once signed in
       // (components/parent/identity-verification.tsx, on
       // /parent/account), never asked for twice. There is no approval/
-      // review step of any kind here — a parent goes straight to Parent
-      // Home the moment they have a real session: immediately if email
-      // confirmation is off, or the instant they confirm and log in if
-      // it's on (sign-in already sends every role straight to /{role},
-      // with no intermediate screen).
-      if (data.session) router.replace("/parent");
-      else setCheckEmail(true);
+      // review step of any kind here — straight to Parent Home the
+      // moment they submit this form.
+      router.replace("/parent");
     } catch (err) {
       setError(errorMessage(err));
     } finally {
       setLoading(false);
     }
-  }
-
-  // Supabase's "Confirm signup" email template sends a real 6-digit
-  // code (the same {{ .Token }} it always generates — only the template
-  // content changed to show it instead of the confirmation link).
-  // verifyOtp with type "signup" is the exact same confirmation the old
-  // link performed, just entered here instead of clicked — on success it
-  // returns a real session immediately, same as clicking the link would
-  // have handed back to /sign-in.
-  async function verifyCode(e: React.FormEvent) {
-    e.preventDefault();
-    if (!code.trim()) {
-      setVerifyError("Enter the code we sent you.");
-      return;
-    }
-    setVerifying(true);
-    setVerifyError(null);
-    try {
-      const { data, error: verifyErr } = await getSupabaseClient().auth.verifyOtp({
-        email,
-        token: code.trim(),
-        type: "signup",
-      });
-      if (verifyErr) throw new Error(verifyErr.message);
-      if (!data.session)
-        throw new Error("Verification succeeded, but signing you in failed — try logging in.");
-      router.replace("/parent");
-    } catch (err) {
-      setVerifyError(errorMessage(err));
-    } finally {
-      setVerifying(false);
-    }
-  }
-
-  async function resendCode() {
-    setResending(true);
-    setResendMessage(null);
-    setVerifyError(null);
-    try {
-      const { error: resendErr } = await getSupabaseClient().auth.resend({
-        type: "signup",
-        email,
-      });
-      if (resendErr) throw new Error(resendErr.message);
-      setResendMessage("We sent you a new code.");
-    } catch (err) {
-      setVerifyError(errorMessage(err));
-    } finally {
-      setResending(false);
-    }
-  }
-
-  if (checkEmail) {
-    return (
-      <div className="flex flex-1 flex-col">
-        <RegisterHeader />
-        <div className="mx-auto flex w-full max-w-sm flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-          <CheckCircle size={44} weight="fill" className="text-wisteria" />
-          <h1 className="text-[24px] font-semibold font-heading">Check your email</h1>
-          <p className="text-[15px] text-ink-muted">
-            We sent a verification code to <strong className="text-ink">{email}</strong>. Enter it
-            below to confirm your account.
-          </p>
-          <Sheet as="form" onSubmit={verifyCode} className="flex w-full flex-col gap-3 text-left">
-            <Field
-              label="Verification code"
-              placeholder="123456"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              error={verifyError ?? undefined}
-            />
-            <Button type="submit" disabled={verifying}>
-              {verifying ? "Verifying…" : "Verify and Continue"}
-            </Button>
-          </Sheet>
-          {resendMessage && <p className="text-[13px] text-wisteria-pressed">{resendMessage}</p>}
-          <button
-            type="button"
-            onClick={() => void resendCode()}
-            disabled={resending}
-            className="text-[13px] font-semibold text-wisteria hover:text-wisteria-hover disabled:opacity-50"
-          >
-            {resending ? "Sending…" : "Didn't get a code? Resend"}
-          </button>
-          <Link href="/sign-in" className="font-semibold text-wisteria hover:text-wisteria-hover">
-            Already verified? Log in
-          </Link>
-        </div>
-      </div>
-    );
   }
 
   return (
