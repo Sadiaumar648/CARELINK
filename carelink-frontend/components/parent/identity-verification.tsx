@@ -231,6 +231,21 @@ export function ParentIdentityVerification({
     setStep("pin");
   }
 
+  // A failed live-photo comparison doesn't mean the PIN/DOB were wrong —
+  // the mock provider only reaches biometric_mismatch after pinMatch and
+  // biodataMatch both already succeeded — so "Try Again" retakes the
+  // selfie with those same details, instead of sending the parent all
+  // the way back to re-enter a PIN that was never the problem.
+  function retryAfterFailure() {
+    if (result?.failureReason === "biometric_mismatch") {
+      setSubmitError(null);
+      setResult(null);
+      setStep("selfie");
+      return;
+    }
+    startOver();
+  }
+
   function onPinContinue(e: React.FormEvent) {
     e.preventDefault();
     if (!ghanaCardPin.trim()) {
@@ -300,7 +315,7 @@ export function ParentIdentityVerification({
   }
 
   if (step === "result" && result) {
-    return <ResultCard result={result} onRetry={startOver} continueHref={continueHref} />;
+    return <ResultCard result={result} onRetry={retryAfterFailure} continueHref={continueHref} />;
   }
 
   if (step === "verifying") {
