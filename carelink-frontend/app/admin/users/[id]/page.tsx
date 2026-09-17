@@ -38,7 +38,30 @@ type ParentEntry = {
   bookingCount: number;
   area: string | null;
   createdAt: string;
+  // The academic NIA/IVSP simulation result (GET /api/admin/parents) —
+  // the parent's most recent attempt, verified or failed; null if
+  // they've never attempted it.
+  identityVerification: {
+    status: string;
+    provider: string;
+    reference: string;
+    verifiedAt: string;
+  } | null;
 };
+
+const IDENTITY_PROVIDER_LABEL: Record<string, string> = {
+  mock_nia_ivsp: "NIA/IVSP Simulation",
+};
+
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
 
 type BookingRow = {
   id: string;
@@ -186,6 +209,54 @@ export default function AdminParentDetailPage({ params }: { params: Promise<{ id
           )}
         </div>
       </Sheet>
+
+      {parent.identityVerification && (
+        <Sheet className="flex flex-col gap-3">
+          <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-ink-muted">
+            Identity Verification
+          </h2>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-muted">
+                Status
+              </p>
+              <StatusBadge
+                label={parent.identityVerification.status === "verified" ? "Verified" : "Failed"}
+                tone={parent.identityVerification.status === "verified" ? "positive" : "attention"}
+              />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-muted">
+                Verification provider
+              </p>
+              <p className="text-[14px] text-ink">
+                {IDENTITY_PROVIDER_LABEL[parent.identityVerification.provider] ??
+                  parent.identityVerification.provider}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-muted">
+                Verification reference
+              </p>
+              <p className="text-[14px] font-mono text-ink">
+                {parent.identityVerification.reference}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-muted">
+                Verified at
+              </p>
+              <p className="text-[14px] text-ink">
+                {formatDateTime(parent.identityVerification.verifiedAt)}
+              </p>
+            </div>
+          </div>
+          <p className="text-[11.5px] text-ink-muted">
+            Academic demonstration — simulated NIA/IVSP response, not a live National Identification
+            Authority connection.
+          </p>
+        </Sheet>
+      )}
 
       <section className="flex flex-col gap-3">
         <h2 className="text-[15px] font-semibold text-ink">Booking History</h2>

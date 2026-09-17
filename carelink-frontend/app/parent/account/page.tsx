@@ -19,7 +19,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
-import { VerificationForm } from "@/components/verification-form";
+import { ParentIdentityVerification } from "@/components/parent/identity-verification";
 
 function MenuRow({
   icon: IconComponent,
@@ -60,18 +60,29 @@ function MenuRow({
 // Verification below — there's no separate upload here, the same way
 // there's no separate "profile photo" concept for a parent anywhere
 // else in this app. It's fetched as a short-lived signed URL (the
-// storage bucket is private); once the retention job purges the
-// underlying image (30 days after a decision), this naturally goes
-// back to no photo, matching that existing policy rather than
-// overriding it — see GET /api/verification/submissions.
+// storage bucket is private) and preferred from the current NIA/IVSP
+// simulation flow (GET /api/parent/identity-verification); a parent who
+// only ever completed the older onboarding verification still gets a
+// photo from that route's own selfie (GET /api/verification/
+// submissions) as a fallback. Either way, once the relevant retention
+// job purges the underlying image, this naturally goes back to no
+// photo, matching that existing policy rather than overriding it.
 function ProfilePhoto() {
   const { user } = useAuth();
   const fullName = (user?.user_metadata?.full_name as string | undefined) ?? "Your photo";
   const [photoUrl, setPhotoUrl] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
-    apiFetch<{ photoUrl: string | null }>("/api/verification/submissions")
-      .then((res) => setPhotoUrl(res.photoUrl))
+    apiFetch<{ photoUrl: string | null }>("/api/parent/identity-verification")
+      .then((res) => {
+        if (res.photoUrl) {
+          setPhotoUrl(res.photoUrl);
+          return;
+        }
+        return apiFetch<{ photoUrl: string | null }>("/api/verification/submissions").then((r) =>
+          setPhotoUrl(r.photoUrl),
+        );
+      })
       .catch(() => setPhotoUrl(null));
   }, []);
 
@@ -216,7 +227,7 @@ export default function ParentAccountPage() {
         <h2 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
           Identity Verification
         </h2>
-        <VerificationForm />
+        <ParentIdentityVerification />
       </section>
 
       <section className="flex flex-col gap-3">

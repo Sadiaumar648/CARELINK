@@ -128,6 +128,40 @@ export async function GET(request: Request) {
       }),
     );
 
+    // The academic NIA/IVSP simulation result (see
+    // lib/services/identity-verification.ts) — each parent's most recent
+    // *successful* attempt only, never a stray later failed retry (a
+    // parent who's already verified and mistypes a PIN on a second
+    // attempt stays shown as verified here, matching users.
+    // verification_status, the authoritative flag, which a failed
+    // attempt never touches — see the route's own POST handler).
+    // Deliberately narrow: provider, reference, and when, never the
+    // underlying PIN/biodata match booleans or the selfie itself (those
+    // aren't needed for this admin list/detail view).
+    const { data: verificationRows } = await supabase
+      .from("parent_identity_verifications")
+      .select("user_id, status, provider, verification_reference, created_at")
+      .in(
+        "user_id",
+        data.map((row) => row.id),
+      )
+      .eq("status", "verified")
+      .order("created_at", { ascending: false });
+    const latestVerificationByUserId = new Map<
+      string,
+      { status: string; provider: string; reference: string; verifiedAt: string }
+    >();
+    for (const v of verificationRows ?? []) {
+      if (!latestVerificationByUserId.has(v.user_id)) {
+        latestVerificationByUserId.set(v.user_id, {
+          status: v.status,
+          provider: v.provider,
+          reference: v.verification_reference,
+          verifiedAt: v.created_at,
+        });
+      }
+    }
+
     const parentProfileIds = data
       .map((row) => {
         const profile = Array.isArray(row.parent_profiles)
@@ -169,6 +203,7 @@ export async function GET(request: Request) {
         accountStatus: row.account_status,
         verificationStatus: row.verification_status,
         verificationMethod: row.verification_method,
+        identityVerification: latestVerificationByUserId.get(row.id) ?? null,
         agencyReferenceId: row.agency_reference_id,
         existingAgencyUser: row.invited_by !== null,
         // account_status flips from "invited" to "active" the moment
