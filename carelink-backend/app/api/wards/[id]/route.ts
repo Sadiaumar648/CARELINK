@@ -5,9 +5,17 @@ import { authErrorResponse, requireRole } from "@/lib/auth/require-user";
 
 const wardUpdateSchema = wardProfileSchema.partial();
 
+// Read-only, unlike PATCH/DELETE below: a caregiver needs to resolve a
+// ward's own name for a booking they're party to (e.g. the "Care for
+// <name>" conversation title on /staff/messages) — exactly what the
+// wards_caregiver_via_booking RLS policy already grants a caregiver read
+// access to (their own booking, status pending through completed). This
+// route's role check was stricter than that policy, so a caregiver's
+// otherwise-authorized read was rejected here before RLS was ever
+// consulted. Editing/archiving a ward stays parent-only below.
 export async function GET(request: Request, ctx: RouteContext<"/api/wards/[id]">) {
   try {
-    const { supabase } = await requireRole(request, ["parent"]);
+    const { supabase } = await requireRole(request, ["parent", "staff"]);
     const { id } = await ctx.params;
 
     const { data, error } = await supabase.from("wards").select("*").eq("id", id).maybeSingle();
