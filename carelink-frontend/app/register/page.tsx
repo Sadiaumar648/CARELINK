@@ -49,8 +49,7 @@ export default function RegisterPage() {
     if (!lastName.trim()) errors.lastName = "Enter your last name.";
     if (!EMAIL_RE.test(email)) errors.email = "Please enter a valid email address.";
     if (!PHONE_RE.test(phone)) errors.phone = "Please enter a valid phone number.";
-    if (password.length < 8)
-      errors.password = "Your password does not meet the required requirements.";
+    if (password.length < 8) errors.password = "Password must be at least 8 characters.";
     if (password !== confirmPassword) errors.confirmPassword = "The passwords don't match.";
     if (!agreed) errors.agreed = "Please agree to the Terms of Service and Privacy Policy.";
     setFieldErrors(errors);
