@@ -119,11 +119,6 @@ function ResultCard({
             </span>
           </div>
         </div>
-        <p className="flex items-start gap-1.5 text-[11.5px] leading-relaxed text-ink-muted">
-          <ShieldWarning size={14} className="mt-0.5 shrink-0" />
-          Academic demonstration — simulated NIA/IVSP response. CareLink is not connected to the
-          real National Identification Authority.
-        </p>
         {continueHref && (
           <LinkButton href={continueHref} className="self-start">
             Continue to CareLink
