@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { CheckCircle, CircleNotch, Circle, ShieldWarning, XCircle } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
+import { useAuth } from "@/lib/auth/auth-context";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
@@ -193,6 +194,7 @@ export function ParentIdentityVerification({
   // embedded read-only alongside other settings.
   continueHref?: string;
 } = {}) {
+  const { refreshVerificationStatus } = useAuth();
   const [step, setStep] = useState<Step>("intro");
   const [loadingExisting, setLoadingExisting] = useState(true);
   const [existingResult, setExistingResult] = useState<VerificationResult | null>(null);
@@ -214,12 +216,14 @@ export function ParentIdentityVerification({
     apiFetch<{ attempts: VerificationResult[] }>("/api/parent/identity-verification")
       .then((res) => {
         const latest = res.attempts[0] ?? null;
-        if (latest?.status === "verified") setExistingResult(latest);
-        else if (latest?.status === "failed") setLastFailure(latest);
+        if (latest?.status === "verified") {
+          setExistingResult(latest);
+          void refreshVerificationStatus();
+        } else if (latest?.status === "failed") setLastFailure(latest);
       })
       .catch(() => undefined)
       .finally(() => setLoadingExisting(false));
-  }, []);
+  }, [refreshVerificationStatus]);
 
   function stopStageTimer() {
     if (stageTimerRef.current) {
@@ -281,7 +285,14 @@ export function ParentIdentityVerification({
       stopStageTimer();
       setStageIndex(STAGES.length);
       setResult(res.result);
-      if (res.result.status === "verified") setExistingResult(res.result);
+      if (res.result.status === "verified") {
+        setExistingResult(res.result);
+        // The auth context's cached verificationStatus predates this
+        // result — refresh it now so app/parent/layout.tsx's guard
+        // already sees "verified" by the time the Continue to CareLink
+        // button below is tapped, instead of bouncing back here.
+        await refreshVerificationStatus();
+      }
       setStep("result");
     } catch (err) {
       stopStageTimer();

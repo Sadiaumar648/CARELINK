@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import type { UserRole } from "@carelink/shared";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -21,6 +21,14 @@ type AuthState = {
   // than flashing a signed-out state while Supabase restores the session.
   loading: boolean;
   signOut: () => Promise<void>;
+  // Re-fetches /api/me and updates role/verificationStatus without a
+  // full session reload. Needed because those only otherwise refresh on
+  // sign-in/sign-out/token-refresh — a parent who just completed
+  // /verify-identity has a server-side verification_status of
+  // "verified" already, but this context wouldn't know that until the
+  // next auth event, so app/parent/layout.tsx's guard would bounce them
+  // straight back. Called right after a successful verification.
+  refreshVerificationStatus: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -82,9 +90,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await getSupabaseClient().auth.signOut();
   }
 
+  // useCallback with no deps: a stable reference, safe to list in a
+  // caller's own useEffect dependency array without retriggering it.
+  const refreshVerificationStatus = useCallback(async () => {
+    try {
+      const me = await apiFetch<{ id: string; role: UserRole; verificationStatus: string }>(
+        "/api/me",
+      );
+      setRole(me.role);
+      setVerificationStatus(me.verificationStatus);
+    } catch {
+      // Leave existing state as-is — a transient failure here shouldn't
+      // knock a verified parent back to unverified.
+    }
+  }, []);
+
   return (
     <AuthContext.Provider
-      value={{ session, user: session?.user ?? null, role, verificationStatus, loading, signOut }}
+      value={{
+        session,
+        user: session?.user ?? null,
+        role,
+        verificationStatus,
+        loading,
+        signOut,
+        refreshVerificationStatus,
+      }}
     >
       {children}
     </AuthContext.Provider>
