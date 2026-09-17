@@ -48,7 +48,6 @@ export default function RegisterPage() {
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [ghanaCardId, setGhanaCardId] = useState("");
   const [livePhoto, setLivePhoto] = useState<File | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -103,7 +102,6 @@ export default function RegisterPage() {
     if (!lastName.trim()) errors.lastName = "Enter your last name.";
     if (!EMAIL_RE.test(email)) errors.email = "Please enter a valid email address.";
     if (!PHONE_RE.test(phone)) errors.phone = "Please enter a valid phone number.";
-    if (!ghanaCardId.trim()) errors.ghanaCardId = "Enter your Ghana Card ID number.";
     if (!livePhoto) errors.livePhoto = "Add a live photo of your face.";
     if (password.length < 8)
       errors.password = "Your password does not meet the required requirements.";
@@ -113,17 +111,21 @@ export default function RegisterPage() {
     return Object.keys(errors).length === 0;
   }
 
-  // Identity verification itself is never done here — it's the existing,
-  // authenticated /api/verification/submissions flow at /onboarding/
-  // identity (real ID-document upload, reference contact, admin review).
-  // signUp() returns no session while email confirmation is required (the
-  // live default for this project — confirmed separately), so there is no
-  // authenticated request this page could honestly make yet. What it CAN
-  // do without fabricating anything: hand the Ghana Card number and the
-  // live photo the parent already gave us to that existing page, so it
-  // can pre-fill them instead of asking twice. Best-effort and disposable
-  // — never something the actual verification decision depends on, and
-  // /onboarding/identity clears it the moment it's read.
+  // Identity verification itself is never done here — a Ghana Card is
+  // verified later, once the parent has a real session, either through
+  // the dedicated NIA/IVSP simulation
+  // (components/parent/identity-verification.tsx) or the existing
+  // /onboarding/identity wizard (real ID-document upload, reference
+  // contact, admin review) — registration no longer asks for a Ghana
+  // Card ID number itself, only the live photo. signUp() returns no
+  // session while email confirmation is required (the live default for
+  // this project — confirmed separately), so there is no authenticated
+  // request this page could honestly make yet. What it CAN do without
+  // fabricating anything: hand the live photo the parent already gave us
+  // to /onboarding/identity, so it can pre-fill it instead of asking
+  // again. Best-effort and disposable — never something the actual
+  // verification decision depends on, and /onboarding/identity clears it
+  // the moment it's read.
   async function stashPendingVerification() {
     if (!livePhoto) return;
     try {
@@ -131,7 +133,6 @@ export default function RegisterPage() {
       sessionStorage.setItem(
         PENDING_VERIFICATION_KEY,
         JSON.stringify({
-          idDocumentNumber: ghanaCardId.trim(),
           livePhotoDataUrl,
           livePhotoName: livePhoto.name,
           livePhotoType: livePhoto.type,
@@ -160,10 +161,10 @@ export default function RegisterPage() {
       });
       if (signUpErr) throw new Error(signUpErr.message);
       await stashPendingVerification();
-      // Their Ghana Card number/live photo are still waiting in
-      // sessionStorage whenever they later complete identity verification
-      // at /onboarding/identity — never auto-submitted, since that still
-      // requires the ID-card photo and a reference contact this page
+      // Their live photo is still waiting in sessionStorage whenever they
+      // later complete identity verification at /onboarding/identity —
+      // never auto-submitted, since that still requires the ID-card
+      // photo, a Ghana Card number, and a reference contact this page
       // never collected. There is no approval/review step of any kind
       // here — a parent goes straight to Parent Home the moment they have
       // a real session: immediately if email confirmation is off, or the
@@ -315,19 +316,6 @@ export default function RegisterPage() {
             onChange={(e) => setPhone(e.target.value)}
             error={fieldErrors.phone}
           />
-          <div className="flex flex-col gap-2">
-            <Field
-              label="Ghana Card ID number"
-              placeholder="Enter your Ghana Card ID number"
-              required
-              value={ghanaCardId}
-              onChange={(e) => setGhanaCardId(e.target.value)}
-              error={fieldErrors.ghanaCardId}
-            />
-            <p className="text-[12px] text-ink-muted">
-              This helps us verify your identity and keep our community safe.
-            </p>
-          </div>
           <div className="flex flex-col gap-2">
             <label className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
               Live photo <span aria-hidden>*</span>

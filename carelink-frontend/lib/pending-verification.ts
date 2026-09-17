@@ -1,19 +1,22 @@
 // A tiny, disposable bridge between /register and /onboarding/identity.
 //
-// A parent gives their Ghana Card number and a live photo during
-// registration, but the real, authenticated verification submission
-// (POST /api/verification/submissions) can only happen once they have a
-// session — which signUp() does not return while email confirmation is
-// required (the live default for this project). Rather than fabricate a
-// submission or silently drop what they already typed, this stashes it in
-// sessionStorage so /onboarding/identity's existing wizard can pre-fill it
-// once they're actually signed in — never anything the real verification
-// decision itself relies on, and read-once: the consuming page clears the
-// key immediately after reading it.
+// A parent takes a live photo during registration, but the real,
+// authenticated verification submission (POST /api/verification/
+// submissions) can only happen once they have a session — which
+// signUp() does not return while email confirmation is required (the
+// live default for this project). Rather than fabricate a submission or
+// silently drop the photo they already took, this stashes it in
+// sessionStorage so /onboarding/identity's existing wizard can pre-fill
+// it once they're actually signed in — never anything the real
+// verification decision itself relies on, and read-once: the consuming
+// page clears the key immediately after reading it. Registration no
+// longer collects a Ghana Card ID number itself — that's now the
+// dedicated NIA/IVSP simulation flow's own job
+// (components/parent/identity-verification.tsx, once the parent is
+// signed in), not something asked for twice.
 export const PENDING_VERIFICATION_KEY = "carelink:pending-verification";
 
 export type PendingVerification = {
-  idDocumentNumber: string;
   livePhotoDataUrl: string;
   livePhotoName: string;
   livePhotoType: string;
@@ -27,7 +30,6 @@ export function readAndClearPendingVerification(): PendingVerification | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (
-      typeof parsed?.idDocumentNumber === "string" &&
       typeof parsed?.livePhotoDataUrl === "string" &&
       typeof parsed?.livePhotoName === "string" &&
       typeof parsed?.livePhotoType === "string"
