@@ -198,7 +198,6 @@ export function ParentIdentityVerification({
   const [ghanaCardPin, setGhanaCardPin] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
-  const [selfieMode, setSelfieMode] = useState<"camera" | "file">("camera");
 
   const [stageIndex, setStageIndex] = useState(0);
   const [result, setResult] = useState<VerificationResult | null>(null);
@@ -317,30 +316,18 @@ export function ParentIdentityVerification({
     return (
       <Sheet className="flex flex-col gap-4">
         <div>
-          <h3 className="text-[16px] font-semibold text-ink">Step 2 of 3 — Live photo</h3>
+          <h3 className="text-[16px] font-semibold text-ink">
+            Step 2 of 2 — Live Photo Verification
+          </h3>
           <p className="text-[13px] text-ink-muted">
             Take a live selfie so we can compare it against your Ghana Card photo.
           </p>
         </div>
-        {selfieMode === "camera" ? (
-          <CameraCapture
-            onCapture={(f) => void submit(f)}
-            onFallback={() => setSelfieMode("file")}
-          />
-        ) : (
-          <div className="flex flex-col gap-3">
-            <input
-              type="file"
-              accept="image/*"
-              capture="user"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) void submit(f);
-              }}
-              className="text-[13px]"
-            />
-          </div>
-        )}
+        <CameraCapture
+          onCapture={(f) => void submit(f)}
+          onFallback={() => {}}
+          showFallback={false}
+        />
         <button
           type="button"
           onClick={() => setStep("pin")}
@@ -356,7 +343,7 @@ export function ParentIdentityVerification({
   return (
     <Sheet as="form" onSubmit={onPinContinue} className="flex flex-col gap-4">
       <div>
-        <h3 className="text-[16px] font-semibold text-ink">Step 1 of 3 — Ghana Card PIN</h3>
+        <h3 className="text-[16px] font-semibold text-ink">Step 1 of 2 — Ghana Card PIN</h3>
         <p className="text-[13px] text-ink-muted">
           Identity verification is required to help maintain trust and safety on CareLink.
         </p>
