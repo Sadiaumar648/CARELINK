@@ -188,7 +188,7 @@ export default function RegisterPage() {
         </p>
         <p className="text-center text-[13px] text-ink-muted">
           <span className="font-semibold text-ink">Are you a caregiver?</span> You&apos;ll need an
-          invitation from your agency to join CareLink.
+          invitation from CareLink to join.
         </p>
       </div>
     </div>
