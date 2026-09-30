@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { CaretDown, GearSix, SignOut } from "@phosphor-icons/react";
 import { useAuth } from "@/lib/auth/auth-context";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 function initialsFor(fullName: string): string {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
@@ -53,6 +54,9 @@ export function AdminHeaderProfile() {
       {open && (
         <div className="absolute right-0 z-30 mt-2 w-52 overflow-hidden rounded-[14px] border border-[var(--color-lavender-border)] bg-sheet py-1.5 shadow-[var(--shadow-card-hover)]">
           <p className="truncate px-4 py-2 text-[13px] font-semibold text-ink">{fullName}</p>
+          <div className="border-y border-[var(--color-lavender-border)]">
+            <ThemeToggle />
+          </div>
           <Link
             href="/admin/settings"
             onClick={() => setOpen(false)}

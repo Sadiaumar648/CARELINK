@@ -81,6 +81,101 @@
   --shadow-card-hover: 0 2px 4px rgb(37 42 39 / 0.05), 0 8px 24px rgb(37 42 39 / 0.09);
 }
 
+/* Dark theme — every component already renders through these same
+   named custom properties (bg-paper, text-ink, border-hairline,
+   bg-wisteria, shadow-[var(--shadow-card)], etc.), so redefining the
+   properties themselves is enough to re-theme the entire app; no
+   component needed a dark: variant of its own. Each light-mode
+   "deepened" accent (gold, error, success, bluebell-pressed,
+   wisteria-pressed, pistachio-pressed) was darkened specifically for
+   AA text contrast on a *white* card, so it's lightened back up here
+   instead — the same dark tone would be nearly invisible on a dark
+   card. Each light-mode "tint" (a near-white wash) becomes a dark,
+   desaturated fill instead, so badges/active rows keep working as
+   low-emphasis fills rather than turning into bright white patches.
+   Defined twice, same values both times: once for prefers-color-scheme
+   (the default, no toggle touched yet — see theme-toggle.tsx's "system"
+   starting point), guarded off when an explicit light choice is
+   stamped; once for an explicit dark choice, so the toggle wins either
+   direction over the OS setting. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-paper: #161320;
+    --color-sheet: #211d2e;
+    --color-ink: #f1eef8;
+    --color-ink-muted: #a89fc0;
+    --color-hairline: #332d47;
+
+    --color-pistachio: #ccc09c;
+    --color-pistachio-tint: #2c2919;
+    --color-pistachio-pressed: #ddd3ae;
+
+    --color-peach: #f4a58f;
+    --color-peach-tint: #3a241f;
+    --color-gold: #e0a04f;
+    --color-gold-tint: #3a2c12;
+    --color-bluebell: #a8c2d6;
+    --color-bluebell-tint: #1c2a33;
+    --color-bluebell-pressed: #9dc0d9;
+
+    --color-wisteria: #8d67ff;
+    --color-wisteria-hover: #7a4eef;
+    --color-wisteria-pressed: #6a3fd9;
+    --color-wisteria-tint: #251f3d;
+
+    --color-lavender-bg: #14121b;
+    --color-lavender-border: #2b2738;
+
+    --color-success: #7fa888;
+    --color-success-tint: #1f2a20;
+    --color-warning: #e0a04f;
+    --color-warning-tint: #3a2c12;
+    --color-error: #d98a82;
+    --color-error-tint: #3a211f;
+
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.35), 0 4px 16px rgb(0 0 0 / 0.45);
+    --shadow-card-hover: 0 2px 4px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.5);
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-paper: #161320;
+  --color-sheet: #211d2e;
+  --color-ink: #f1eef8;
+  --color-ink-muted: #a89fc0;
+  --color-hairline: #332d47;
+
+  --color-pistachio: #ccc09c;
+  --color-pistachio-tint: #2c2919;
+  --color-pistachio-pressed: #ddd3ae;
+
+  --color-peach: #f4a58f;
+  --color-peach-tint: #3a241f;
+  --color-gold: #e0a04f;
+  --color-gold-tint: #3a2c12;
+  --color-bluebell: #a8c2d6;
+  --color-bluebell-tint: #1c2a33;
+  --color-bluebell-pressed: #9dc0d9;
+
+  --color-wisteria: #8d67ff;
+  --color-wisteria-hover: #7a4eef;
+  --color-wisteria-pressed: #6a3fd9;
+  --color-wisteria-tint: #251f3d;
+
+  --color-lavender-bg: #14121b;
+  --color-lavender-border: #2b2738;
+
+  --color-success: #7fa888;
+  --color-success-tint: #1f2a20;
+  --color-warning: #e0a04f;
+  --color-warning-tint: #3a2c12;
+  --color-error: #d98a82;
+  --color-error-tint: #3a211f;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.35), 0 4px 16px rgb(0 0 0 / 0.45);
+  --shadow-card-hover: 0 2px 4px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.5);
+}
+
 body {
   background: var(--color-paper);
   color: var(--color-ink);
