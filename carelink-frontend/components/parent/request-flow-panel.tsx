@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, MagnifyingGlass, Plus } from "@phosphor-icons/react";
+import { ArrowLeft, Check, Plus } from "@phosphor-icons/react";
 import {
   CARE_DAY_HOURS,
   MAX_CARE_DAYS,
@@ -15,51 +15,11 @@ import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { LocationPicker, type ResolvedLocation } from "@/components/location-picker";
 import { AddWardForm } from "@/components/parent/add-ward-form";
-import { apiFetch, ApiError } from "@/lib/api/client";
+import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
-import { NannyCard } from "@/components/parent/nanny-card";
-import {
-  CaregiverProfileView,
-  type CaregiverProfile,
-} from "@/components/parent/caregiver-profile-view";
 import { suggestedSkillForAge, type SearchFilters, type Ward } from "@/components/find-care/types";
 
 type CaregiverType = "nanny" | "babysitter";
-
-// The parent's required pick of one specific caregiver — CareLink no
-// longer auto-selects one. Real eligibility (date/time, service area) is
-// always checked server-side when dispatch actually runs
-// (lib/services/dispatch.ts's existing preferred-caregiver path);
-// appearing in this list is never a guarantee. Reuses the existing
-// GET /api/search/caregivers results (same data Find Care shows, now
-// with real lat/lng so it's genuinely proximity-sorted) — every real
-// caregiver near the location, Nanny and (historically) Babysitter
-// alike, since CareLink no longer asks a parent to choose a type before
-// searching. `caregiver_type` is still whatever real value is on file
-// for that caregiver (needed only so the request submits with a value
-// the backend's existing validation already understands) — it's never
-// shown or asked about here.
-type PreferredCandidate = {
-  staff_profile_id: string;
-  full_name: string;
-  caregiver_type: "nanny" | "babysitter" | null;
-  // Shown on the pick card and linked to the full profile
-  // (/parent/caregivers/[id]) — all straight from GET /api/search/caregivers.
-  photo_path?: string | null;
-  rating_avg?: number | null;
-  rating_count?: number;
-  years_experience?: number | null;
-  bookings_completed?: number;
-  verification_status?: string;
-  verification_method?: "carelink" | "agency" | null;
-  bio?: string | null;
-  areas?: { area: string; isPrimary: boolean }[];
-};
-
-// "form" collects the request details; "results" is the caregiver
-// pick-list; "profile" is a read-only look at one caregiver from that
-// list, with a Back that returns to the list exactly as it was.
-type FlowStep = "form" | "results" | "profile";
 
 export type RequestFlowInitial = {
   startDate?: string;
@@ -307,75 +267,6 @@ export function RequestFlowPanel({
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const [step, setStep] = useState<FlowStep>("form");
-  const [preferredCandidates, setPreferredCandidates] = useState<PreferredCandidate[] | null>(null);
-  const [preferredSearch, setPreferredSearch] = useState("");
-
-  // "View profile" from the pick-list: an in-panel read-only look at one
-  // caregiver, so "Back" returns to the list with everything intact
-  // (never a navigation away that would drop the request in progress).
-  const [profileCaregiver, setProfileCaregiver] = useState<CaregiverProfile | null>(null);
-  const [profileError, setProfileError] = useState<string | null>(null);
-
-  function viewProfile(staffProfileId: string) {
-    setProfileCaregiver(null);
-    setProfileError(null);
-    setStep("profile");
-    apiFetch<{ caregiver: CaregiverProfile }>(`/api/caregivers/${staffProfileId}`)
-      .then((res) => setProfileCaregiver(res.caregiver))
-      .catch((err) => setProfileError(errorMessage(err)));
-  }
-
-  // "Ask Nia to help me pick" — only ever a suggestion the parent still
-  // acts on themselves. Nia recommends one caregiver from exactly the
-  // list on screen (POST /api/care-assistant/recommend-caregiver).
-  const [niaOpen, setNiaOpen] = useState(false);
-  const [niaMessage, setNiaMessage] = useState("");
-  const [niaLoading, setNiaLoading] = useState(false);
-  const [niaError, setNiaError] = useState<string | null>(null);
-  const [niaPick, setNiaPick] = useState<{ staffProfileId: string; reason: string } | null>(null);
-
-  async function askNia() {
-    const text = niaMessage.trim();
-    if (!text || niaLoading || !preferredCandidates) return;
-    setNiaLoading(true);
-    setNiaError(null);
-    setNiaPick(null);
-    try {
-      const res = await apiFetch<{ staffProfileId: string; reason: string }>(
-        "/api/care-assistant/recommend-caregiver",
-        {
-          method: "POST",
-          body: {
-            message: text,
-            candidates: preferredCandidates.slice(0, 10).map((c) => ({
-              staffProfileId: c.staff_profile_id,
-              fullName: c.full_name,
-              yearsExperience: c.years_experience ?? null,
-              ratingAvg: c.rating_avg ?? null,
-              ratingCount: c.rating_count ?? 0,
-              bio: c.bio ?? null,
-              skills: [] as string[],
-              primaryArea: c.areas?.find((a) => a.isPrimary)?.area ?? c.areas?.[0]?.area ?? null,
-            })),
-          },
-        },
-      );
-      setNiaPick(res);
-    } catch (err) {
-      setNiaError(errorMessage(err));
-    } finally {
-      setNiaLoading(false);
-    }
-  }
-
-  // The one nanny the parent just tapped "Request This Nanny" on — kept
-  // only so that card can show its own "Sending…" state while the
-  // request is created. Tapping it submits immediately (the request
-  // details form above was already filled in to get this list), then
-  // navigates to the request-tracking page.
-  const [selectedNanny, setSelectedNanny] = useState<PreferredCandidate | null>(null);
-
   // Every field the backend will require — checked before "Find Care"
   // (surfacing it early) and again before "Send Request".
   function formValidationError(): string | null {
@@ -391,57 +282,61 @@ export function RequestFlowPanel({
     return null;
   }
 
-  function fetchRecommendedNannies() {
-    if (!location) return;
-    setPreferredCandidates(null); // re-fetch every time — proximity depends on location, which can change
-    setNiaPick(null);
-    setNiaError(null);
-    const params = new URLSearchParams();
-    // Only real coordinates are sent — never the coarse area string.
-    // The area string was an exact-match hard filter (a caregiver whose
-    // service area didn't spell the parent's suburb identically was
-    // dropped entirely); this flow instead shows every eligible
-    // caregiver and lets the coordinates sort them by real distance
-    // (computeProximityFit in lib/services/matching.ts). A parent picks
-    // one regardless of how their typed areas happen to be worded.
-    params.set("latitude", String(location.latitude));
-    params.set("longitude", String(location.longitude));
-    // The requested window + availability=conflicts: the list still
-    // shows everyone, minus anyone already on a booking that clashes
-    // with this time (or mid-session) — never anyone just because it's
-    // outside their usual weekly hours.
-    params.set("date", startDate);
-    params.set("startTime", startTime);
-    params.set("endTime", addHours(startTime, CARE_DAY_HOURS));
-    params.set("durationDays", days);
-    params.set("availability", "conflicts");
-    apiFetch<{ results: PreferredCandidate[] }>(`/api/search/caregivers?${params.toString()}`)
-      .then((res) => setPreferredCandidates(res.results))
-      .catch(() => setPreferredCandidates([]));
-  }
-
-  // "Find Care" → the Recommended Nannies list.
-  function onFindCare(e: React.FormEvent) {
+  // "Find Care" *is* the real submit now — CareLink assigns the
+  // top-ranked eligible caregiver automatically (lib/services/
+  // dispatch.ts), so there's no intermediate pick-a-caregiver step here
+  // any more. The tracking page (/parent/care-requests/[id]) is where a
+  // parent sees who they were matched with, and can browse and switch
+  // to someone else themselves if they'd rather not use that caregiver.
+  async function onFindCare(e: React.FormEvent) {
     e.preventDefault();
     const err = formValidationError();
     if (err) {
       setFormError(err);
       return;
     }
+    if (submitting || !location) return;
     setFormError(null);
-    setStep("results");
-    fetchRecommendedNannies();
-  }
+    setSubmitting(true);
+    try {
+      const endTime = addHours(startTime, CARE_DAY_HOURS);
+      // The coarse area — never the full address — is what still feeds
+      // the existing area-string search/dispatch filters, exactly as a
+      // typed area name did before.
+      const searchArea = location.coarseArea ?? location.formattedAddress;
+      const filters: SearchFilters = { date: startDate, startTime, endTime, area: searchArea };
+      if (requirementChips.size > 0) filters.skills = Array.from(requirementChips);
 
-  // Nia's suggestion (when there is one) moves to the top of the list
-  // she suggested it from — never reordered any other way.
-  const filteredPreferredCandidates = (preferredCandidates ?? [])
-    .filter((c) => c.full_name.toLowerCase().includes(preferredSearch.trim().toLowerCase()))
-    .sort((a, b) => {
-      const aPick = a.staff_profile_id === niaPick?.staffProfileId ? 1 : 0;
-      const bPick = b.staff_profile_id === niaPick?.staffProfileId ? 1 : 0;
-      return bPick - aPick;
-    });
+      const res = await apiFetch<{ careRequest: { id: string } }>("/api/care-requests", {
+        method: "POST",
+        body: {
+          wardIds,
+          source: "direct",
+          // Every caregiver is a Nanny to parents now — there's no type
+          // choice here, and no specific caregiver picked yet either.
+          caregiverType: "nanny",
+          date: filters.date,
+          startTime: filters.startTime,
+          endTime: filters.endTime,
+          durationDays: Number(days),
+          location: searchArea,
+          serviceAddress: location.formattedAddress,
+          serviceLatitude: location.latitude,
+          serviceLongitude: location.longitude,
+          locationPlaceId: location.placeId ?? undefined,
+          locationSource: location.source,
+          locationResolved: true,
+          skills: filters.skills,
+          notes: requirements.trim() || undefined,
+        },
+      });
+      await apiFetch(`/api/care-requests/${res.careRequest.id}/dispatch/start`, { method: "POST" });
+      router.push(`/parent/care-requests/${res.careRequest.id}`);
+    } catch (err) {
+      setSubmitting(false);
+      setFormError(errorMessage(err));
+    }
+  }
 
   useEffect(() => {
     apiFetch<{ wards: Ward[] }>("/api/wards")
@@ -491,71 +386,6 @@ export function RequestFlowPanel({
     });
   }
 
-  // Tapping "Request This Nanny" *is* the real submit — it creates the
-  // care request and offers it, via lib/services/dispatch.ts's existing
-  // preferred-caregiver path, ONLY to this one nanny (it never falls
-  // through to a sequential queue). `location` and the other fields
-  // were already validated by onFindCare before this list was shown.
-  async function chooseCaregiver(c: PreferredCandidate) {
-    if (submitting || !location) return;
-    setFormError(null);
-    setSubmitting(true);
-
-    try {
-      const endTime = addHours(startTime, CARE_DAY_HOURS);
-      // The coarse area — never the full address — is what still feeds
-      // the existing area-string search/dispatch filters, exactly as a
-      // typed area name did before.
-      const searchArea = location.coarseArea ?? location.formattedAddress;
-      const filters: SearchFilters = { date: startDate, startTime, endTime, area: searchArea };
-      if (requirementChips.size > 0) filters.skills = Array.from(requirementChips);
-
-      const res = await apiFetch<{ careRequest: { id: string } }>("/api/care-requests", {
-        method: "POST",
-        body: {
-          wardIds,
-          preferredStaffProfileId: c.staff_profile_id,
-          source: "direct",
-          // The chosen caregiver's own real type — never a value the
-          // parent picked, since they never see this distinction. A
-          // caregiver with no type on file yet defaults to "nanny"
-          // (every caregiver is a Nanny to parents now). The backend's
-          // preferred-caregiver-type check (app/api/care-requests/
-          // route.ts) allows a null-typed preferred caregiver through.
-          caregiverType: c.caregiver_type ?? "nanny",
-          date: filters.date,
-          startTime: filters.startTime,
-          endTime: filters.endTime,
-          durationDays: Number(days),
-          location: searchArea,
-          serviceAddress: location.formattedAddress,
-          serviceLatitude: location.latitude,
-          serviceLongitude: location.longitude,
-          locationPlaceId: location.placeId ?? undefined,
-          locationSource: location.source,
-          locationResolved: true,
-          skills: filters.skills,
-          notes: requirements.trim() || undefined,
-        },
-      });
-      await apiFetch(`/api/care-requests/${res.careRequest.id}/dispatch/start`, { method: "POST" });
-      router.push(`/parent/care-requests/${res.careRequest.id}`);
-    } catch (err) {
-      setSubmitting(false);
-      // The nanny became unavailable between being recommended and Send
-      // Request — the request was NOT created. Send the parent back to
-      // Recommended Nannies (refreshed) to pick someone else.
-      if (err instanceof ApiError && err.code === "nanny_unavailable") {
-        setSelectedNanny(null);
-        setStep("results");
-        setFormError(errorMessage(err));
-        fetchRecommendedNannies();
-        return;
-      }
-      setFormError(errorMessage(err));
-    }
-  }
-
   // CareLink's finalized fixed-rate model: informational only, but
   // computed from the exact same start/end time pair the backend will
   // independently recompute and charge from (POST /api/care-requests,
@@ -573,9 +403,7 @@ export function RequestFlowPanel({
 
   // Find Care stays disabled until every field the backend will actually
   // require is genuinely filled in — mirrors onFindCare's own checks
-  // above, just surfaced before the click instead of after it. Choosing
-  // a caregiver happens on the next screen, so it's not part of this
-  // check.
+  // above, just surfaced before the click instead of after it.
   const hasCareNeed = requirementChips.size > 0 || (showOther && Boolean(requirements.trim()));
   const canFindCare =
     wardIds.length > 0 &&
@@ -587,23 +415,16 @@ export function RequestFlowPanel({
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-      {/* Only the form step gets this top Back (out of the request flow).
-          The Recommended Nannies step has its own "Edit request details"
-          control, and the profile step has "Back to caregivers" — a
-          second Back button on either is just noise. */}
-      {step === "form" && (
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex items-center gap-1.5 self-start text-[13px] font-semibold text-ink-muted hover:text-ink"
-        >
-          <ArrowLeft size={16} /> Back
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={onBack}
+        className="flex items-center gap-1.5 self-start text-[13px] font-semibold text-ink-muted hover:text-ink"
+      >
+        <ArrowLeft size={16} /> Back
+      </button>
 
-      {/* No "Request a Nanny" title block — the Back button, the numbered
-          sections, and (on the results step) the "Choose a caregiver"
-          heading already say where the parent is. */}
+      {/* No "Request a Nanny" title block — the Back button and the
+          numbered sections already say where the parent is. */}
 
       <div className="w-full">
         {addingWard ? (
@@ -620,147 +441,6 @@ export function RequestFlowPanel({
             }}
             onCancel={() => setAddingWard(false)}
           />
-        ) : step === "results" ? (
-          <Sheet className="flex flex-col gap-5 border-[var(--color-lavender-border)]">
-            <button
-              type="button"
-              onClick={() => setStep("form")}
-              className="flex items-center gap-1.5 self-start text-[13px] font-semibold text-ink-muted hover:text-ink"
-            >
-              <ArrowLeft size={14} /> Edit request details
-            </button>
-
-            <div>
-              <h2 className="text-[19px] font-semibold font-heading text-ink">
-                Recommended Nannies
-              </h2>
-              <p className="text-[13px] text-ink-muted">
-                Based on your care needs, location and schedule, these CareLink nannies may be a
-                good fit. Pick one and your request goes only to them.
-              </p>
-            </div>
-
-            <div className="relative">
-              <MagnifyingGlass
-                size={16}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted"
-              />
-              <input
-                value={preferredSearch}
-                onChange={(e) => setPreferredSearch(e.target.value)}
-                placeholder="Search by name"
-                className="w-full rounded-[10px] border border-[var(--color-lavender-border)] bg-sheet py-2 pl-9 pr-3 text-[14px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
-              />
-            </div>
-
-            {/* ASK NIA TO HELP PICK — advice only; the parent still
-              presses Request on whoever they choose. Nia only ever
-              recommends someone from this exact on-screen list. */}
-            {filteredPreferredCandidates.length > 1 && (
-              <div className="rounded-[12px] border border-[var(--color-lavender-border)] bg-wisteria-tint p-3">
-                {!niaOpen ? (
-                  <button
-                    type="button"
-                    onClick={() => setNiaOpen(true)}
-                    className="text-[13px] font-semibold text-wisteria hover:text-wisteria-hover"
-                  >
-                    Not sure who to pick? Ask Nia
-                  </button>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    <p className="text-[12.5px] font-semibold text-ink">
-                      Tell Nia what matters to you and she&apos;ll suggest one of the caregivers
-                      below.
-                    </p>
-                    <textarea
-                      rows={2}
-                      maxLength={1000}
-                      value={niaMessage}
-                      onChange={(e) => setNiaMessage(e.target.value)}
-                      placeholder="e.g. My son is 1 and shy — I'd like someone gentle with lots of infant experience"
-                      className="rounded-[10px] border border-[var(--color-lavender-border)] bg-sheet px-3 py-2 text-[13.5px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
-                    />
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        onClick={() => void askNia()}
-                        disabled={niaLoading || !niaMessage.trim()}
-                      >
-                        {niaLoading ? "Nia is thinking…" : "Ask Nia"}
-                      </Button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setNiaOpen(false);
-                          setNiaError(null);
-                        }}
-                        className="text-[13px] font-semibold text-ink-muted hover:text-ink"
-                      >
-                        Close
-                      </button>
-                    </div>
-                    {niaError && <p className="text-[13px] text-error">{niaError}</p>}
-                    {niaPick && (
-                      <p className="rounded-[10px] bg-sheet px-3 py-2 text-[13px] text-ink">
-                        <span className="font-semibold text-wisteria">Nia suggests: </span>
-                        {niaPick.reason}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {preferredCandidates === null && (
-              <p className="text-[13px] text-ink-muted">Finding nannies for your request…</p>
-            )}
-            {preferredCandidates !== null && filteredPreferredCandidates.length === 0 && (
-              <p className="text-[13px] text-ink-muted">
-                {preferredSearch.trim()
-                  ? `No nannies match “${preferredSearch.trim()}”.`
-                  : "No CareLink nannies are available for your requested time right now. Try a different date or time."}
-              </p>
-            )}
-            {filteredPreferredCandidates.length > 0 && (
-              <div className="flex flex-col gap-3">
-                {filteredPreferredCandidates.map((c) => (
-                  <NannyCard
-                    key={c.staff_profile_id}
-                    nanny={c}
-                    disabled={submitting}
-                    requesting={
-                      submitting && selectedNanny?.staff_profile_id === c.staff_profile_id
-                    }
-                    highlighted={niaPick?.staffProfileId === c.staff_profile_id}
-                    highlightLabel="Nia's suggestion"
-                    onRequest={() => {
-                      setSelectedNanny(c);
-                      setFormError(null);
-                      void chooseCaregiver(c);
-                    }}
-                    onViewProfile={() => viewProfile(c.staff_profile_id)}
-                  />
-                ))}
-              </div>
-            )}
-
-            {formError && <p className="text-[13px] text-error">{formError}</p>}
-          </Sheet>
-        ) : step === "profile" ? (
-          <Sheet className="flex flex-col gap-5 border-[var(--color-lavender-border)]">
-            <button
-              type="button"
-              onClick={() => setStep("results")}
-              className="flex items-center gap-1.5 self-start text-[13px] font-semibold text-ink-muted hover:text-ink"
-            >
-              <ArrowLeft size={14} /> Back to caregivers
-            </button>
-            {profileError && <p className="text-[13px] text-error">{profileError}</p>}
-            {!profileError && !profileCaregiver && (
-              <p className="text-[13px] text-ink-muted">Loading profile…</p>
-            )}
-            {profileCaregiver && <CaregiverProfileView caregiver={profileCaregiver} />}
-          </Sheet>
         ) : (
           <Sheet
             as="form"
@@ -989,8 +669,8 @@ export function RequestFlowPanel({
                   )}
                   <p className="text-[12px] text-ink-muted">
                     This is an estimate only — you won&apos;t be charged now. You&apos;ll pay once
-                    your chosen caregiver accepts your request. This is exactly what your chosen
-                    caregiver will see too.
+                    you&apos;re matched with a caregiver. This is exactly what your caregiver will
+                    see too.
                   </p>
                 </div>
               </section>
@@ -1002,13 +682,13 @@ export function RequestFlowPanel({
               <Button
                 type="submit"
                 size="lg"
-                disabled={wards === null || wards.length === 0 || !canFindCare}
+                disabled={wards === null || wards.length === 0 || !canFindCare || submitting}
                 className="w-full justify-center"
               >
-                Find Care
+                {submitting ? "Finding your caregiver…" : "Find Care"}
               </Button>
               <p className="text-[12px] text-ink-muted">
-                We&apos;ll show you CareLink nannies who fit your request.
+                We&apos;ll match you with a CareLink caregiver who fits your request.
               </p>
             </div>
           </Sheet>

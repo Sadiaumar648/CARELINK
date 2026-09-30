@@ -245,7 +245,13 @@ export async function notifyCaregiverNewOffer(booking: {
     areaLine && `Area: ${areaLine}`,
   ].filter((l): l is string => Boolean(l));
 
-  const viewHref = `${appUrl()}/staff/requests`;
+  // /staff/requests no longer exists — CareLink's dispatch flow assigns
+  // caregivers directly now and never creates a 'pending' offer this way
+  // any more (see lib/services/dispatch.ts). This function stays only
+  // for the separate direct-booking path (app/api/bookings/route.ts),
+  // which has no live frontend caller today; Home is always a safe
+  // destination regardless.
+  const viewHref = `${appUrl()}/staff`;
 
   await sendEmail(admin, {
     userId,
@@ -277,6 +283,90 @@ export async function notifyCaregiverNewOffer(booking: {
       </table>
       <p style="font-size:13px;color:#6b6478;margin:12px 0 0;">If you don't respond within the response window, this request may be offered to another caregiver.</p>`,
       { label: "View Request in CareLink", href: viewHref },
+    ),
+  });
+}
+
+// ── Caregiver: assigned a care request (no response needed) ────────────
+// CareLink's auto-assign dispatch: unlike notifyCaregiverNewOffer above
+// (still used by the separate direct-booking path, where the caregiver
+// genuinely does accept/decline), a dispatch-assigned booking is already
+// 'accepted' the moment this fires — there's nothing to respond to and
+// no response window that could hand it to someone else, so the copy
+// says so plainly instead of asking for an action.
+export async function notifyCaregiverAssigned(booking: {
+  id: string;
+  staff_profile_id: string;
+}): Promise<void> {
+  const admin = createServiceRoleClient();
+  const userId = await staffUserId(admin, booking.staff_profile_id);
+  if (!userId) return;
+
+  const [{ data: bookingRow }, { data: staffProfile }] = await Promise.all([
+    admin
+      .from("bookings")
+      .select("starts_at, ends_at, duration_hours, duration_days, address")
+      .eq("id", booking.id)
+      .maybeSingle(),
+    admin
+      .from("staff_profiles")
+      .select("caregiver_type")
+      .eq("id", booking.staff_profile_id)
+      .maybeSingle(),
+  ]);
+
+  const careTypeLabel = staffProfile?.caregiver_type
+    ? (CAREGIVER_TYPE_LABEL[staffProfile.caregiver_type] ?? staffProfile.caregiver_type)
+    : "care";
+  const dateLine = bookingRow ? formatDateLong(bookingRow.starts_at) : null;
+  const timeLine = bookingRow ? formatTimeRange(bookingRow.starts_at, bookingRow.ends_at) : null;
+  const days = bookingRow?.duration_days ?? 1;
+  const durationLine = bookingRow
+    ? days > 1
+      ? `${bookingRow.duration_hours} hours/day for ${days} days`
+      : `${bookingRow.duration_hours} hours`
+    : null;
+  const areaLine = bookingRow?.address ?? null;
+
+  const detailLines = [
+    `Care type: ${careTypeLabel}`,
+    dateLine && `Date: ${dateLine}`,
+    timeLine && `Time: ${timeLine}`,
+    durationLine && `Duration: ${durationLine}`,
+    areaLine && `Area: ${areaLine}`,
+  ].filter((l): l is string => Boolean(l));
+
+  const viewHref = `${appUrl()}/staff/schedule`;
+
+  await sendEmail(admin, {
+    userId,
+    bookingId: booking.id,
+    eventType: "assignment_created",
+    email: await emailForUser(admin, userId),
+    subject: "New Care Session Assigned — CareLink",
+    body:
+      `Hello,\n\nYou've been assigned a new care session on CareLink.\n\n` +
+      detailLines.join("\n") +
+      `\n\nNo action is needed from you — this session is already confirmed on your schedule.\n\n${viewHref}\n\n${BRAND_SIGNOFF}`,
+    html: emailShell(
+      `<p style="font-size:15px;margin:0 0 12px;">You've been assigned a new care session on CareLink.</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;margin:12px 0;">
+        ${[
+          ["Care type", careTypeLabel],
+          dateLine ? ["Date", dateLine] : null,
+          timeLine ? ["Time", timeLine] : null,
+          durationLine ? ["Duration", durationLine] : null,
+          areaLine ? ["Area", areaLine] : null,
+        ]
+          .filter((row): row is [string, string] => Boolean(row))
+          .map(
+            ([label, value]) =>
+              `<tr><td style="padding:4px 12px 4px 0;color:#6b6478;">${label}</td><td style="padding:4px 0;font-weight:600;">${value}</td></tr>`,
+          )
+          .join("")}
+      </table>
+      <p style="font-size:13px;color:#6b6478;margin:12px 0 0;">No action is needed from you — this session is already confirmed on your schedule.</p>`,
+      { label: "View in CareLink", href: viewHref },
     ),
   });
 }

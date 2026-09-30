@@ -1,6 +1,6 @@
 "use client";
 
-import { House, Tray, CalendarBlank, ChatCircle, Wallet } from "@phosphor-icons/react";
+import { House, CalendarBlank, ChatCircle, Wallet } from "@phosphor-icons/react";
 import { RequireRole } from "@/components/require-role";
 import { RoleShell, type NavItem } from "@/components/role-shell";
 import { StaffHeaderLogo, StaffHeaderIcons } from "@/components/staff/header-nav";
@@ -43,19 +43,17 @@ function StaffLoadingSkeleton() {
 // lives as a header icon (StaffHeaderIcons) and Settings/Log Out live in
 // the profile dropdown (StaffHeaderProfile).
 //
-// /staff/requests is the full pending-requests list; Home now also
-// shows a "New care request" alert at the top (app/staff/page.tsx's
-// NewRequestsAlert) with the same Accept/Decline actions, so a
-// caregiver is told about a new request the moment they open the app.
+// No "Requests" nav item any more — CareLink assigns a care session
+// directly (lib/services/dispatch.ts), so there's no pending-offer queue
+// for a caregiver to visit and act on. A new assignment shows up
+// immediately in Today's Care / Schedule instead.
 //
 // The header's NotificationsBell is shown again: it was hidden while
 // SMS carried the action-required alerts, but notifications
-// (/api/notifications — a 'booking_request' row is created for the
-// caregiver by a DB trigger the instant an offer lands) are now the
-// primary channel, with email only a backup.
+// (/api/notifications) are now the primary channel, with email only a
+// backup.
 const items: NavItem[] = [
   { href: "/staff", label: "Home", icon: House },
-  { href: "/staff/requests", label: "Requests", icon: Tray },
   { href: "/staff/schedule", label: "Schedule", icon: CalendarBlank },
   { href: "/staff/messages", label: "Messages", icon: ChatCircle },
   { href: "/staff/earnings", label: "Earnings", icon: Wallet },

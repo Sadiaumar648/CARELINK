@@ -236,15 +236,7 @@ export default function StaffSchedulePage() {
               <EmptyState
                 icon={CalendarBlank}
                 title="No upcoming care sessions"
-                description="When you accept a care request, your confirmed sessions will appear here."
-                action={
-                  <Link
-                    href="/staff/requests"
-                    className="text-[13px] font-semibold text-wisteria hover:text-wisteria-hover"
-                  >
-                    Go to Care Requests
-                  </Link>
-                }
+                description="When CareLink assigns you a care session, it will appear here."
               />
             ) : (
               <div className="flex flex-col gap-3">

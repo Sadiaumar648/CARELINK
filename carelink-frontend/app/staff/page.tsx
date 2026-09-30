@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarCheck, Sparkle, Wallet, BellRinging } from "@phosphor-icons/react";
+import { CalendarCheck, Sparkle, Wallet } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -10,7 +10,6 @@ import { Button, LinkButton } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { RequestCard, type StaffRequestBooking } from "@/components/staff/request-card";
 import { SessionActionButton } from "@/components/staff/session-action-button";
 import { WardCareProfileList, type WardBrief } from "@/components/ward-care-profile";
 
@@ -63,74 +62,6 @@ function DashboardHeader() {
       </div>
       <p className="hidden text-[13px] font-medium text-ink-muted sm:block">{formatTodayLong()}</p>
     </div>
-  );
-}
-
-// NEW CARE REQUESTS — the alert a caregiver sees the moment a parent
-// picks them. A dispatch offer is a real `bookings` row in 'pending'
-// status (same data /staff/requests shows), and the parent's chosen
-// caregiver is always offered it first (lib/services/dispatch.ts's
-// preferred-caregiver path). Shown here at the very top of Home, with
-// the same Accept/Decline actions as the Requests page — a caregiver
-// never has to leave Home (or wait for the backup email) to respond.
-// Renders nothing at all when there's nothing pending, so Home stays
-// quiet the rest of the time.
-function NewRequestsAlert({ onChange }: { onChange: () => void }) {
-  const [bookings, setBookings] = useState<StaffRequestBooking[] | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
-
-  // Re-fetch on mount, after the caregiver responds to one, and on a
-  // 20s poll so a request that lands while Home is open shows up on its
-  // own — the "it pops up on your homepage" behaviour — without needing
-  // a manual refresh.
-  useEffect(() => {
-    let cancelled = false;
-    function load() {
-      apiFetch<{ bookings: StaffRequestBooking[] }>("/api/bookings?status=pending")
-        .then((res) => {
-          if (!cancelled) setBookings(res.bookings);
-        })
-        .catch(() => {
-          if (!cancelled) setBookings((prev) => prev ?? []);
-        });
-    }
-    load();
-    const interval = setInterval(load, 20_000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [reloadKey]);
-
-  if (!bookings || bookings.length === 0) return null;
-
-  return (
-    <section className="flex flex-col gap-3 rounded-[18px] border border-wisteria/40 bg-wisteria-tint p-4 sm:p-5">
-      <div className="flex items-center gap-2">
-        <BellRinging size={18} weight="fill" className="text-wisteria" />
-        <h2 className="text-[15px] font-bold text-ink">
-          {bookings.length === 1 ? "New care request" : `${bookings.length} new care requests`}
-        </h2>
-      </div>
-      <p className="text-[13px] font-semibold text-ink">
-        A family has requested you for this care session.
-      </p>
-      <p className="text-[13px] text-ink-muted">
-        Review the details below and accept if you&apos;re available.
-      </p>
-      <div className="flex flex-col gap-3">
-        {bookings.map((b) => (
-          <RequestCard
-            key={b.id}
-            booking={b}
-            onRespond={() => {
-              setReloadKey((k) => k + 1);
-              onChange();
-            }}
-          />
-        ))}
-      </div>
-    </section>
   );
 }
 
@@ -402,29 +333,22 @@ function ProfileReadinessBanner() {
   );
 }
 
-// Care Requests (the pending-offers list) was removed from Home per
-// explicit request — /staff/requests is still the real, unchanged place
-// to see and act on them. Location Sharing/base location/service area
-// moved to Settings (components/staff-location-settings.tsx) — a
-// caregiver updates those there whenever they move, not from Home.
+// CareLink assigns care sessions directly — there's no pending-offer
+// queue for a caregiver to respond to any more, so there's nothing left
+// on Home to alert on or act from. Location Sharing/base location/
+// service area live in Settings (components/staff-location-settings.tsx)
+// — a caregiver updates those there whenever they move, not from Home.
 export default function StaffHomePage() {
-  // Bumped when a caregiver accepts/declines a request from the alert
-  // above, so the sections that depend on booking state (Today's Care,
-  // Upcoming) re-fetch instead of showing stale counts.
-  const [refreshKey, setRefreshKey] = useState(0);
-
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-8 p-6 md:p-8">
       <DashboardHeader />
 
-      <NewRequestsAlert onChange={() => setRefreshKey((k) => k + 1)} />
-
       <ReceivingRequestsControl />
 
-      <TodaysCareSection key={`today-${refreshKey}`} />
+      <TodaysCareSection />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <UpcomingStat key={`upcoming-${refreshKey}`} />
+        <UpcomingStat />
         <EarningsStat />
       </div>
 

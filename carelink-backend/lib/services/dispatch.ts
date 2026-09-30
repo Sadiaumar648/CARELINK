@@ -8,40 +8,48 @@ import {
   isPaymentExpired,
   paymentDeadline as computePaymentDeadline,
 } from "@/lib/services/payment-window";
-import { notifyCaregiverNewOffer } from "@/lib/services/notify";
+import { notifyCaregiverAssigned } from "@/lib/services/notify";
 
-// The sequential dispatch engine. Every function here runs using the
-// CALLING PARENT's own RLS-scoped Supabase client (never service-role) —
-// the same client app/api/bookings/route.ts already uses to insert a
-// booking targeting any caregiver, and the same one that already lets a
-// party to a booking update its status. RLS is the real authority
-// throughout; nothing here bypasses it.
+// CareLink's auto-assign dispatch engine. Every function here runs using
+// the CALLING PARENT's own RLS-scoped Supabase client (never
+// service-role) — the same client app/api/bookings/route.ts already
+// uses to insert a booking targeting any caregiver.
 //
-// Every "offer" is a real bookings row (status 'pending') — this reuses
-// the existing accept/decline routes, the existing bookings_no_overlap
-// exclusion constraint, and the existing notify_on_booking_created
-// trigger untouched. Idempotent and safe to call repeatedly: this is
-// what a parent's poll of GET /api/care-requests/[id]/dispatch calls on
-// every tick, which is the entire timeout/advance mechanism — no cron
-// needed for the live path (see lib/dispatch-config.ts).
+// CareLink no longer asks a caregiver to accept or decline a dispatched
+// request: the top-ranked eligible caregiver (already excluding anyone
+// on an active booking or with a genuine schedule conflict — see
+// findEligibleCaregivers's onDuty/availability filters) is assigned
+// directly, as a bookings row inserted straight into 'accepted' with
+// terms_locked_at set immediately. That's legal with no migration —
+// enforce_booking_transition (20260827110000_bookings.sql) is a
+// `before update` trigger only, so it never runs on INSERT — and it
+// means the existing payment-window machinery (which keys purely off
+// terms_locked_at, see lib/services/payment-window.ts) needs no changes
+// at all. Idempotent and safe to call repeatedly: this is what a
+// parent's poll of GET /api/care-requests/[id]/dispatch calls, though
+// with no human response to wait on, a request now resolves to
+// 'accepted' or 'exhausted' on essentially the first call.
+//
+// A parent who doesn't want the assigned caregiver can swap to a
+// specific one themselves via reassignCaregiver ("Browse other
+// caregivers") — the one place a particular caregiver is still
+// deliberately chosen rather than auto-picked.
 
 export type ActiveOfferSummary = {
   bookingId: string;
   staffProfileId: string;
   caregiverName: string;
   hourlyRate: number;
-  expiresAt: string | null;
   status: string;
   // CareLink's finalized payment workflow, Part 4: the real deadline
-  // this offer's 10-minute payment window closes at — null once there's
-  // nothing left to count down to (not yet accepted, or already
-  // resolved). A frontend countdown is built from this real timestamp,
-  // never a duration it invents itself.
+  // this booking's 10-minute payment window closes at — null once
+  // there's nothing left to count down to. A frontend countdown is
+  // built from this real timestamp, never a duration it invents itself.
   paymentDeadline: string | null;
-  // True only when this offer's booking was cancelled by the payment
-  // window's own lazy sweep — never a parent/staff-initiated cancel —
-  // so the UI can show "Payment window expired" instead of a generic
-  // cancellation message.
+  // True only when this booking was cancelled by the payment window's
+  // own lazy sweep — never a parent/staff-initiated cancel — so the UI
+  // can show "Payment window expired" instead of a generic cancellation
+  // message.
   paymentExpired: boolean;
 };
 
@@ -49,14 +57,13 @@ export type DispatchStatusResult = {
   dispatchStatus: string;
   vicinityRound: number;
   activeOffer: ActiveOfferSummary | null;
-  // The one nanny the parent picked for this request — resolved from
-  // care_requests.preferred_staff_profile_id so the parent-facing
-  // "Request sent to <name>" / "<name> isn't available" screens always
-  // have the name, even once there's no active offer (preferred_declined).
-  preferredCaregiverName: string | null;
-  // On preferred_declined: whether the picked nanny actively declined or
-  // simply let the response window lapse — drives which message shows.
-  preferredOutcome: "declined" | "expired" | null;
+  // The caregiver currently assigned to this request — resolved from
+  // care_requests.preferred_staff_profile_id, which this module now
+  // also uses to record the auto-picked (or swapped-in) caregiver, not
+  // only a parent's upfront pick. Still populated even once there's no
+  // active booking to read a name off (e.g. right after assignment,
+  // before the booking summary has loaded).
+  assignedCaregiverName: string | null;
 };
 
 type CareRequestRow = {
@@ -77,10 +84,8 @@ type CareRequestRow = {
   notes: string | null;
   dispatch_status: string;
   vicinity_round: number;
-  response_window_seconds: number;
   preferred_staff_profile_id: string | null;
   preferred_dispatch_done: boolean;
-  preferred_continue_authorized: boolean;
 };
 
 type SummarizedBooking = {
@@ -93,7 +98,6 @@ type SummarizedBooking = {
   // second query.
   parent_profile_id: string;
   hourly_rate: number;
-  offer_expires_at: string | null;
   status: string;
   terms_locked_at: string | null;
   cancelled_by: string | null;
@@ -119,7 +123,6 @@ async function summarize(
       staffProfileId: booking.staff_profile_id,
       caregiverName: caregiver?.full_name ?? "A caregiver",
       hourlyRate: booking.hourly_rate,
-      expiresAt: booking.offer_expires_at,
       status: booking.status,
       paymentDeadline:
         booking.status === "accepted" && booking.terms_locked_at
@@ -129,41 +132,106 @@ async function summarize(
     };
   }
 
-  let preferredCaregiverName: string | null = activeOffer?.caregiverName ?? null;
-  if (!preferredCaregiverName && cr.preferred_staff_profile_id) {
+  let assignedCaregiverName: string | null = activeOffer?.caregiverName ?? null;
+  if (!assignedCaregiverName && cr.preferred_staff_profile_id) {
     const { data } = await supabase
       .from("public_caregivers")
       .select("full_name")
       .eq("staff_profile_id", cr.preferred_staff_profile_id)
       .maybeSingle();
-    preferredCaregiverName = data?.full_name ?? null;
-  }
-
-  let preferredOutcome: "declined" | "expired" | null = null;
-  if (cr.dispatch_status === "preferred_declined") {
-    const { data: lastOffer } = await supabase
-      .from("bookings")
-      .select("status")
-      .eq("care_request_id", cr.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    // "expired" only when there really was an offer that timed out;
-    // a decline, or a nanny who turned out ineligible before any offer
-    // was ever made, both read as "isn't available".
-    preferredOutcome = lastOffer && lastOffer.status !== "declined" ? "expired" : "declined";
+    assignedCaregiverName = data?.full_name ?? null;
   }
 
   return {
     dispatchStatus: cr.dispatch_status,
     vicinityRound: cr.vicinity_round,
     activeOffer,
-    preferredCaregiverName,
-    preferredOutcome,
+    assignedCaregiverName,
   };
 }
 
 const TERMINAL_STATUSES = new Set(["accepted", "exhausted", "cancelled"]);
+
+type EligibleCandidate = Awaited<ReturnType<typeof findEligibleCaregivers>>["results"][number];
+
+// Shared by the auto-assign path in advanceDispatch and the swap path in
+// reassignCaregiver, so the two can never drift on pricing or on what
+// "assigned" means (status + terms_locked_at together). Inserts the
+// booking straight into 'accepted' — no 'pending' offer, no response
+// window — and records the caregiver on care_requests so the UI/
+// summarize() always has a name to show.
+async function insertAssignedBooking(
+  supabase: SupabaseClient,
+  careRequest: CareRequestRow,
+  candidate: EligibleCandidate,
+): Promise<SummarizedBooking> {
+  const startsAt = new Date(`${careRequest.date}T${careRequest.start_time.slice(0, 5)}:00Z`);
+  const endsAt = new Date(`${careRequest.date}T${careRequest.end_time.slice(0, 5)}:00Z`);
+  const durationHours = (endsAt.getTime() - startsAt.getTime()) / 3_600_000;
+  const wardIds =
+    careRequest.ward_ids && careRequest.ward_ids.length > 0
+      ? careRequest.ward_ids
+      : careRequest.ward_id
+        ? [careRequest.ward_id]
+        : [];
+  const durationDays = careRequest.duration_days || 1;
+  const fixedRate = hourlyRateFor(careRequest.caregiver_type);
+  const totalAmount = calculateTotalAmount(
+    careRequest.caregiver_type,
+    durationHours,
+    durationDays,
+    wardIds.length || 1,
+  );
+  const now = new Date().toISOString();
+
+  const { data: booking, error: insertErr } = await supabase
+    .from("bookings")
+    .insert({
+      reference: generateBookingReference(),
+      parent_profile_id: careRequest.parent_profile_id,
+      staff_profile_id: candidate.staff_profile_id,
+      ward_id: wardIds[0] ?? careRequest.ward_id,
+      ward_ids: wardIds,
+      duration_days: durationDays,
+      starts_at: startsAt.toISOString(),
+      ends_at: endsAt.toISOString(),
+      hourly_rate: fixedRate,
+      total_amount: totalAmount,
+      // The real, geocoded address goes straight on the booking — there's
+      // no "reveal on accept" step anymore, since assignment IS
+      // acceptance. Falls back to the coarse area only for an older
+      // request that predates service_address ever being resolved.
+      address: careRequest.service_address ?? careRequest.location,
+      one_off_notes: careRequest.notes,
+      match_score: candidate.matchScore,
+      match_breakdown: candidate.matchBreakdown,
+      care_request_id: careRequest.id,
+      status: "accepted",
+      terms_locked_at: now,
+    })
+    .select(
+      "id, staff_profile_id, parent_profile_id, hourly_rate, status, terms_locked_at, cancelled_by",
+    )
+    .single();
+  if (insertErr) throw insertErr;
+
+  await supabase
+    .from("care_requests")
+    .update({ preferred_staff_profile_id: candidate.staff_profile_id })
+    .eq("id", careRequest.id);
+
+  // CareLink's real email notification system: exactly the caregiver who
+  // was actually assigned this request, via the one bookings row just
+  // inserted for them. Awaited so it actually runs to completion in a
+  // serverless request, but never lets an email failure affect the
+  // dispatch result already computed above.
+  await notifyCaregiverAssigned({
+    id: booking.id,
+    staff_profile_id: booking.staff_profile_id,
+  }).catch(() => {});
+
+  return booking as SummarizedBooking;
+}
 
 export async function advanceDispatch(
   supabase: SupabaseClient,
@@ -181,92 +249,40 @@ export async function advanceDispatch(
     const { data: finalBookingRow } = await supabase
       .from("bookings")
       .select(
-        "id, staff_profile_id, parent_profile_id, hourly_rate, offer_expires_at, status, terms_locked_at, cancelled_by",
+        "id, staff_profile_id, parent_profile_id, hourly_rate, status, terms_locked_at, cancelled_by",
       )
       .eq("care_request_id", careRequestId)
-      // 'cancelled' included so a booking the payment window's own
-      // lazy sweep already released is still visible here as the offer
-      // outcome — not dropped, which would leave a "Caregiver found!"
-      // page polling into silence once its booking expired.
-      .in("status", ["pending", "accepted", "cancelled"])
+      // 'cancelled' included so a booking the payment window's own lazy
+      // sweep (or a reassignCaregiver swap) already released is still
+      // visible here as the outcome — not dropped, which would leave a
+      // "You've been matched!" page polling into silence.
+      .in("status", ["accepted", "cancelled"])
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
-    // The dispatch status page is the screen most likely to be
-    // actively polled while a parent is looking at a live countdown —
-    // this is the primary enforcement point in practice, not just a
-    // backstop.
     const finalBooking = finalBookingRow
       ? await expirePaymentWindowIfPassed(supabase, finalBookingRow)
       : null;
     return summarize(supabase, careRequest, finalBooking);
   }
 
-  // Preferred-caregiver-declined is a PAUSE, not a terminal outcome and
-  // not something dispatch auto-advances out of the way every other
-  // decline/timeout above does — it stays here, with no active offer,
-  // until the parent explicitly calls continuePreferredDispatch below
-  // (POST .../dispatch/continue).
-  if (careRequest.dispatch_status === "preferred_declined") {
-    return summarize(supabase, careRequest, null);
-  }
-
-  // The current active offer, if any.
-  const { data: activeBooking } = await supabase
-    .from("bookings")
-    .select(
-      "id, staff_profile_id, parent_profile_id, hourly_rate, offer_expires_at, status, terms_locked_at, cancelled_by",
-    )
-    .eq("care_request_id", careRequestId)
-    .eq("status", "pending")
-    .maybeSingle();
-
-  if (activeBooking) {
-    const expired = activeBooking.offer_expires_at
-      ? new Date(activeBooking.offer_expires_at) <= new Date()
-      : false;
-    if (!expired) {
-      // Still within the response window — nothing to advance yet.
-      return summarize(supabase, careRequest, activeBooking);
-    }
-    // Expire it. Conditional on still being 'pending' — race-safe
-    // against a concurrent accept: whichever UPDATE's WHERE clause
-    // matches the row first wins; the other affects zero rows.
-    await supabase
-      .from("bookings")
-      .update({ status: "expired" })
-      .eq("id", activeBooking.id)
-      .eq("status", "pending");
-  }
-
-  // Everyone already offered this request, in any round, any status —
-  // never offered twice in the same search cycle.
-  const { data: priorOffers } = await supabase
-    .from("bookings")
-    .select("staff_profile_id")
-    .eq("care_request_id", careRequestId);
-  const excludeStaffProfileIds = (priorOffers ?? []).map((b) => b.staff_profile_id as string);
-
   const weights = await loadMatchWeights(supabase);
   let round = careRequest.vicinity_round;
-  let next: Awaited<ReturnType<typeof findEligibleCaregivers>>["results"][number] | null = null;
+  let next: EligibleCandidate | null = null;
 
-  // CareLink location system, Part 7/8: a request with resolved
-  // coordinates gets a genuine distance-ring expansion instead of the
-  // original area-string round — see dispatch-config.ts for why both
-  // paths still exist and are capped at the same two rounds.
+  // CareLink location system: a request with resolved coordinates gets a
+  // genuine distance-ring expansion instead of the original area-string
+  // round — see dispatch-config.ts for why both paths still exist and
+  // are capped at the same two rounds.
   const hasCoordinates =
     careRequest.service_latitude != null && careRequest.service_longitude != null;
 
-  // The one nanny the parent picked. CareLink offers the request only
-  // to them — it never falls through to a sequential queue or contacts
-  // anyone else. The eligibility check here is exactly the one the
-  // "Recommended Nannies" list used to produce them (public_caregivers
-  // membership = active + CareLink-verified + accepting; plus a
-  // conflicts-only availability check = no clashing booking, no
-  // marked-unavailable date — never their declared weekly hours), so a
-  // nanny who was recommended for this slot is offered it. If they've
-  // become unavailable since, or later decline / don't respond, the
-  // request pauses at preferred_declined and the parent picks another
-  // nanny themselves (POST .../dispatch/reselect) — never automatic.
+  // An optional fast-path: if something upstream ever sets a preferred
+  // caregiver (care_requests.preferred_staff_profile_id), try them
+  // first, same eligibility bar the old "Recommended Nannies" list used.
+  // If they're not eligible, this falls straight through to the normal
+  // auto-search below rather than stopping — there's no caregiver
+  // response to wait on, so there's nothing to pause for.
   if (careRequest.preferred_staff_profile_id && !careRequest.preferred_dispatch_done) {
     const eligible = await findEligibleCaregivers(
       supabase,
@@ -288,37 +304,7 @@ export async function advanceDispatch(
       .from("care_requests")
       .update({ preferred_dispatch_done: true })
       .eq("id", careRequestId);
-    if (preferredMatch) {
-      next = preferredMatch;
-    } else {
-      await supabase
-        .from("care_requests")
-        .update({ dispatch_status: "preferred_declined" })
-        .eq("id", careRequestId);
-      return summarize(supabase, { ...careRequest, dispatch_status: "preferred_declined" });
-    }
-  }
-
-  // The preferred caregiver's own offer (created on a previous call)
-  // has just been declined or timed out — activeBooking above found
-  // nothing pending, and the branch immediately above was skipped
-  // because preferred_dispatch_done is already true. This is the one
-  // moment that distinguishes "just concluded, pause here" from "the
-  // parent already clicked Find another caregiver, proceed normally" —
-  // preferred_continue_authorized is what continuePreferredDispatch
-  // sets to tell the two apart; without it, both look identical
-  // (preferred_dispatch_done = true, no active booking).
-  if (
-    !next &&
-    careRequest.preferred_staff_profile_id &&
-    careRequest.preferred_dispatch_done &&
-    !careRequest.preferred_continue_authorized
-  ) {
-    await supabase
-      .from("care_requests")
-      .update({ dispatch_status: "preferred_declined" })
-      .eq("id", careRequestId);
-    return summarize(supabase, { ...careRequest, dispatch_status: "preferred_declined" });
+    if (preferredMatch) next = preferredMatch;
   }
 
   if (!next) {
@@ -340,22 +326,16 @@ export async function advanceDispatch(
         weights,
         {
           caregiverType: careRequest.caregiver_type,
-          excludeStaffProfileIds,
           maxDistanceKm: hasCoordinates ? DISPATCH_VICINITY_RADII_KM[round] : undefined,
-          // CareLink's current dispatch rule (superseding the comment this
-          // replaced): an approved, active caregiver is automatically
-          // dispatch-eligible — accepting_bookings (default true at
-          // profile creation) plus the same hard filters ordinary search
-          // already applies (caregiver type, schedule/conflicts, skills,
-          // verification via public_caregivers), no separate manual
-          // "go available" action required. Distance still prefers a live
-          // dispatch fix (staff_dispatch_locations) when the caregiver has
-          // location sharing on, falling back to their base/service
-          // location (staff_profiles.base_latitude/longitude) otherwise —
-          // nearby_caregiver_distances already does this coalesce, so nothing
-          // here has to choose between the two. requireDispatchAvailable
-          // stays available in caregiver-search.ts but is deliberately not
-          // passed anymore.
+          // CareLink's current dispatch rule: an approved, active
+          // caregiver is automatically dispatch-eligible —
+          // accepting_bookings (default true at profile creation) plus
+          // the same hard filters ordinary search already applies
+          // (caregiver type, schedule/conflicts, skills, verification
+          // via public_caregivers, and onDuty — never a caregiver
+          // already on an active booking). Distance prefers a live
+          // dispatch fix when the caregiver has location sharing on,
+          // falling back to their base/service location otherwise.
         },
       );
       if (outcome.results.length > 0) {
@@ -381,123 +361,29 @@ export async function advanceDispatch(
     return summarize(supabase, { ...careRequest, dispatch_status: "exhausted" });
   }
 
-  const startsAt = new Date(`${careRequest.date}T${careRequest.start_time.slice(0, 5)}:00Z`);
-  const endsAt = new Date(`${careRequest.date}T${careRequest.end_time.slice(0, 5)}:00Z`);
-  const durationHours = (endsAt.getTime() - startsAt.getTime()) / 3_600_000;
-  // CareLink's finalized fixed-rate model: priced from the care
-  // request's caregiver_type — never the offered caregiver's own
-  // staff_profiles.hourly_rate. The booking's starts_at/ends_at are day
-  // one's window; duration_days is how many consecutive days it runs,
-  // and total_amount is the whole engagement (daily hours × rate × days
-  // × children).
-  const wardIds =
-    careRequest.ward_ids && careRequest.ward_ids.length > 0
-      ? careRequest.ward_ids
-      : careRequest.ward_id
-        ? [careRequest.ward_id]
-        : [];
-  const durationDays = careRequest.duration_days || 1;
-  const fixedRate = hourlyRateFor(careRequest.caregiver_type);
-  const totalAmount = calculateTotalAmount(
-    careRequest.caregiver_type,
-    durationHours,
-    durationDays,
-    wardIds.length || 1,
-  );
-  const expiresAt = new Date(Date.now() + careRequest.response_window_seconds * 1000);
+  const booking = await insertAssignedBooking(supabase, careRequest, next);
 
-  const { data: booking, error: insertErr } = await supabase
-    .from("bookings")
-    .insert({
-      reference: generateBookingReference(),
-      parent_profile_id: careRequest.parent_profile_id,
-      staff_profile_id: next.staff_profile_id,
-      ward_id: wardIds[0] ?? careRequest.ward_id,
-      ward_ids: wardIds,
-      duration_days: durationDays,
-      starts_at: startsAt.toISOString(),
-      ends_at: endsAt.toISOString(),
-      hourly_rate: fixedRate,
-      total_amount: totalAmount,
-      // CareLink's parent-selected-nanny model: this offer is sent
-      // directly to the one nanny the parent already picked, never
-      // broadcast — so the real, geocoded address goes on the offer from
-      // the start, letting that nanny see exactly where the session is
-      // before deciding. Falls back to the coarse area only for an older
-      // request that predates service_address ever being resolved.
-      address: careRequest.service_address ?? careRequest.location,
-      one_off_notes: careRequest.notes,
-      match_score: next.matchScore,
-      match_breakdown: next.matchBreakdown,
-      care_request_id: careRequestId,
-      offer_expires_at: expiresAt.toISOString(),
-    })
-    .select(
-      "id, staff_profile_id, parent_profile_id, hourly_rate, offer_expires_at, status, terms_locked_at, cancelled_by",
-    )
-    .single();
-  if (insertErr) throw insertErr;
-
-  // CareLink's real email notification system: exactly the caregiver
-  // who was actually offered this request, via the one bookings row
-  // just inserted for them — never anyone else in the round, never a
-  // caregiver who was skipped as unavailable/ineligible. Awaited so it
-  // actually runs to completion in a serverless request, but never lets
-  // an email failure affect the dispatch result already computed above.
-  await notifyCaregiverNewOffer({
-    id: booking.id,
-    staff_profile_id: booking.staff_profile_id,
-  }).catch(() => {});
-
-  const dispatchStatus = round === 0 ? "searching" : "expanding";
   await supabase
     .from("care_requests")
-    .update({ dispatch_status: dispatchStatus })
+    .update({ dispatch_status: "accepted" })
     .eq("id", careRequestId);
 
   return summarize(
     supabase,
-    { ...careRequest, dispatch_status: dispatchStatus, vicinity_round: round },
+    { ...careRequest, dispatch_status: "accepted", vicinity_round: round },
     booking,
   );
 }
 
-// "Find another caregiver" — the parent's explicit choice to move past
-// a preferred caregiver who declined, didn't respond, or wasn't
-// eligible. Only legal from the paused preferred_declined state (never
-// silently resumes anything else). Clearing it back to not_started lets
-// the very next advanceDispatch fall straight into the normal
-// sequential queue — preferred_dispatch_done is already true by this
-// point, so the preferred-caregiver check above is never re-entered.
-export async function continuePreferredDispatch(
-  supabase: SupabaseClient,
-  careRequestId: string,
-): Promise<DispatchStatusResult> {
-  const { data: cr, error } = await supabase
-    .from("care_requests")
-    .select("dispatch_status")
-    .eq("id", careRequestId)
-    .single();
-  if (error || !cr) throw error ?? new Error("Care request not found");
-  if (cr.dispatch_status !== "preferred_declined") {
-    throw new Error("This request isn't waiting on a preferred-caregiver decision");
-  }
-  await supabase
-    .from("care_requests")
-    .update({ dispatch_status: "not_started", preferred_continue_authorized: true })
-    .eq("id", careRequestId);
-  return advanceDispatch(supabase, careRequestId);
-}
-
-// "Choose Another Nanny" — the parent picked a different nanny after
-// their first pick declined or didn't respond. This re-targets the SAME
-// care request at the new nanny and offers it to them (and only them);
-// it never starts a sequential queue. Only legal from preferred_declined
-// (the paused state the two "isn't available" / "didn't respond" screens
-// show). Re-validates eligibility for the requested slot first, exactly
-// like POST /api/care-requests does on the first send — a nanny who
-// can't take it is refused here, not offered.
-export async function reselectPreferredCaregiver(
+// "Browse other caregivers" — the parent doesn't want the auto-assigned
+// (or previously swapped-in) caregiver and picks someone else
+// themselves. Legal only while the current booking is still 'accepted'
+// and unpaid (once paid, this is a cancellation/rebooking situation, a
+// different flow). Re-validates the new caregiver's eligibility for the
+// slot, exactly like the initial assignment does, then cancels the old
+// booking and assigns the new one in the same call — no waiting, no
+// intermediate state, since neither caregiver ever has to respond.
+export async function reassignCaregiver(
   supabase: SupabaseClient,
   careRequestId: string,
   staffProfileId: string,
@@ -509,23 +395,18 @@ export async function reselectPreferredCaregiver(
     .single();
   if (error || !cr) throw error ?? new Error("Care request not found");
   const careRequest = cr as CareRequestRow;
-  if (careRequest.dispatch_status !== "preferred_declined") {
-    throw new Error("This request isn't waiting for you to choose another nanny");
-  }
 
-  // A caregiver already offered this request who declined or let the
-  // window lapse can't be picked again for it — the parent chooses
-  // someone new. (The "choose another nanny" list already hides them;
-  // this is the server-side guard.)
-  const { data: priorOffers } = await supabase
+  const { data: currentBooking } = await supabase
     .from("bookings")
-    .select("staff_profile_id")
+    .select("id, staff_profile_id, status")
     .eq("care_request_id", careRequestId)
-    .in("status", ["declined", "expired", "cancelled"]);
-  if ((priorOffers ?? []).some((b) => b.staff_profile_id === staffProfileId)) {
-    const err = new Error(
-      "You've already sent this request to that nanny. Please choose a different one.",
-    );
+    .eq("status", "accepted")
+    .maybeSingle();
+  if (!currentBooking) {
+    throw new Error("This request doesn't have an active assignment to change");
+  }
+  if (currentBooking.staff_profile_id === staffProfileId) {
+    const err = new Error("You're already assigned to this caregiver.");
     err.name = "NannyUnavailable";
     throw err;
   }
@@ -546,38 +427,37 @@ export async function reselectPreferredCaregiver(
     weights,
     { availabilityCheck: "conflicts" },
   );
-  if (!eligible.results.some((r) => r.staff_profile_id === staffProfileId)) {
+  const candidate = eligible.results.find((r) => r.staff_profile_id === staffProfileId);
+  if (!candidate) {
     const err = new Error(
-      "This nanny is no longer available for your selected time. Please choose another nanny.",
+      "This caregiver is no longer available for your selected time. Please choose another.",
     );
     err.name = "NannyUnavailable";
     throw err;
   }
 
-  await supabase
-    .from("care_requests")
-    .update({
-      preferred_staff_profile_id: staffProfileId,
-      preferred_dispatch_done: false,
-      preferred_continue_authorized: false,
-      dispatch_status: "not_started",
-      vicinity_round: 0,
-    })
-    .eq("id", careRequestId);
+  // Conditional on still being 'accepted' — race-safe against a
+  // concurrent payment: whichever UPDATE's WHERE clause matches the row
+  // first wins.
+  const { error: cancelErr } = await supabase
+    .from("bookings")
+    .update({ status: "cancelled" })
+    .eq("id", currentBooking.id)
+    .eq("status", "accepted");
+  if (cancelErr) throw cancelErr;
 
-  return advanceDispatch(supabase, careRequestId);
+  const booking = await insertAssignedBooking(supabase, careRequest, candidate);
+
+  return summarize(supabase, { ...careRequest, dispatch_status: "accepted" }, booking);
 }
 
 export async function cancelDispatch(
   supabase: SupabaseClient,
   careRequestId: string,
 ): Promise<void> {
-  await supabase
-    .from("bookings")
-    .update({ status: "expired" })
-    .eq("care_request_id", careRequestId)
-    .eq("status", "pending");
-  // Never cancels a request that's already been accepted by a caregiver.
+  // Never cancels a request that's already been assigned a caregiver —
+  // once matched, cancelling goes through the booking-level cancel route
+  // instead (app/api/bookings/[id]/cancel).
   await supabase
     .from("care_requests")
     .update({ dispatch_status: "cancelled" })

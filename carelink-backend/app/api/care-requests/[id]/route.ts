@@ -22,30 +22,7 @@ export async function GET(request: Request, ctx: RouteContext<"/api/care-request
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!careRequest) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    // Every caregiver this request has already been offered to and that
-    // fell through (declined / no response / released) — so the "choose
-    // another nanny" screen never lists someone the parent has already
-    // tried for this exact request. Read-only; RLS (bookings_owner)
-    // already scopes this to the caller's own bookings.
-    const { data: priorOffers } = await supabase
-      .from("bookings")
-      .select("staff_profile_id, status")
-      .eq("care_request_id", id)
-      .in("status", ["declined", "expired", "cancelled"]);
-    const tried = new Set((priorOffers ?? []).map((b) => b.staff_profile_id as string));
-    // The nanny currently on the request when it's paused at
-    // preferred_declined is one the parent has already tried, even in
-    // the edge case where she went unavailable before any offer row was
-    // ever written.
-    if (
-      careRequest.dispatch_status === "preferred_declined" &&
-      careRequest.preferred_staff_profile_id
-    ) {
-      tried.add(careRequest.preferred_staff_profile_id as string);
-    }
-    const triedStaffProfileIds = Array.from(tried);
-
-    return NextResponse.json({ careRequest, triedStaffProfileIds });
+    return NextResponse.json({ careRequest });
   } catch (error) {
     return (
       authErrorResponse(error) ?? NextResponse.json({ error: "Unexpected error" }, { status: 500 })
