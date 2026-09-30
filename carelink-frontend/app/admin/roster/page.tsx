@@ -337,11 +337,11 @@ export default function AdminRosterPage() {
               <EmptyState
                 icon={UsersThree}
                 title="No caregivers yet"
-                description="Caregivers who register with your agency will appear here."
+                description="Caregivers who register with CareLink will appear here."
                 tone="bluebell"
                 action={
                   <p className="max-w-xs text-[13px] text-ink-muted">
-                    Use the onboarding link to invite caregivers to join your agency.
+                    Use the onboarding link to invite caregivers to join CareLink.
                   </p>
                 }
               />

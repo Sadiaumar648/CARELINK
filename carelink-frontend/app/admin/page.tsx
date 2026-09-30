@@ -338,16 +338,13 @@ export default function AdminOverviewPage() {
       {!error && (
         <>
           <section className="flex flex-col gap-4">
-            <SectionHeading
-              title="Quick Actions"
-              subtitle="Common tasks for managing your agency."
-            />
+            <SectionHeading title="Quick Actions" subtitle="Common tasks for managing CareLink." />
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
               <QuickAction
                 href="/admin/onboarding-link"
                 icon={LinkIcon}
                 label="Generate Caregiver Onboarding Link"
-                description="Create a secure registration link for your agency caregivers."
+                description="Create a secure registration link for CareLink caregivers."
                 tint={QUICK_ACTION_TINT[0]}
               />
               <QuickAction

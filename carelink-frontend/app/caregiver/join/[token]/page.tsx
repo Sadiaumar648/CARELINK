@@ -148,7 +148,7 @@ export default function CaregiverJoinPage({ params }: { params: Promise<{ token:
         <h1 className="text-[22px] font-semibold font-heading">Link not available</h1>
         <p className="text-[14px] text-ink-muted">
           {INVALID_REASON_COPY[status.reason] ?? "This onboarding link isn't available anymore."}{" "}
-          Ask your agency for a new one.
+          Ask CareLink for a new one.
         </p>
         <Link href="/sign-in" className="text-[13px] font-semibold text-wisteria">
           Already have an account? Log in

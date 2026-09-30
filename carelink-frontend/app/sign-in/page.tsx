@@ -151,7 +151,7 @@ function SignInForm() {
           <div className="flex flex-col gap-1 rounded-[12px] bg-wisteria-tint/60 p-4 text-center">
             <p className="text-[13px] font-semibold text-ink">Joining as a caregiver?</p>
             <p className="text-[12.5px] text-ink-muted">
-              Use the invitation link provided by your agency.
+              Use the invitation link provided by CareLink.
             </p>
             <Link
               href="/claim-invitation"

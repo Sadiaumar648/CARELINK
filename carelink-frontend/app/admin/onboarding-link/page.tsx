@@ -326,7 +326,7 @@ export default function AdminOnboardingLinkPage() {
           Generate Caregiver Onboarding Link
         </h1>
         <p className="text-[14px] text-ink-muted">
-          Create a secure registration link for your agency caregivers.
+          Create a secure registration link for CareLink caregivers.
         </p>
       </div>
 
@@ -338,7 +338,7 @@ export default function AdminOnboardingLinkPage() {
           <div className="flex flex-col gap-1">
             <h2 className="text-[16px] font-semibold text-ink">Create onboarding link</h2>
             <p className="text-[13px] leading-relaxed text-ink-muted">
-              Generate a secure link that you can share with your agency caregivers. Each caregiver
+              Generate a secure link that you can share with CareLink caregivers. Each caregiver
               will use the link to create their own account and complete their registration.
             </p>
           </div>
@@ -346,7 +346,7 @@ export default function AdminOnboardingLinkPage() {
 
         <Field label="Agency" value="CareLink Agency" readOnly disabled />
         <p className="-mt-4 text-[12.5px] text-ink-muted">
-          Caregivers registering through this link will be associated with your agency.
+          Caregivers registering through this link will be associated with CareLink.
         </p>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -419,7 +419,7 @@ export default function AdminOnboardingLinkPage() {
           <EmptyState
             icon={LinkIcon}
             title="No active onboarding links"
-            description="Generate a link to begin onboarding your agency caregivers."
+            description="Generate a link to begin onboarding CareLink caregivers."
           />
         </Sheet>
       )}

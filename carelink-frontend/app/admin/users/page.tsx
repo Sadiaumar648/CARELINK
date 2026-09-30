@@ -270,7 +270,7 @@ export default function AdminUsersPage() {
                 icon={Baby}
                 title="No parents yet"
                 tone="bluebell"
-                description="Parents who register with your agency will appear here."
+                description="Parents who register with CareLink will appear here."
               />
             </div>
           )}
