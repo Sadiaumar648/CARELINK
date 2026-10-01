@@ -2,13 +2,15 @@
 
 import { use, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft, CheckCircle, PaperPlaneTilt } from "@phosphor-icons/react";
+import { ArrowLeft, PaperPlaneTilt } from "@phosphor-icons/react";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Sheet } from "@/components/ui/sheet";
 import { Button, LinkButton } from "@/components/ui/button";
+import { Avatar } from "@/components/ui/avatar";
 import { ErrorState } from "@/components/ui/empty-state";
 import { NannyCard, type RecommendedNanny } from "@/components/parent/nanny-card";
+import { caregiverPhotoUrl } from "@/lib/photo-url";
 
 type ActiveOffer = {
   bookingId: string;
@@ -64,6 +66,31 @@ function useDispatchPolling(
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run only when the id or active flag changes
   }, [careRequestId, active]);
+}
+
+// The assigned caregiver's own photo — from the existing GET
+// /api/caregivers/[id] (same route the full profile page already
+// uses), never fabricated or reused from a placeholder.
+function useCaregiverPhoto(staffProfileId: string | null): string | null {
+  const [photoPath, setPhotoPath] = useState<string | null>(null);
+  useEffect(() => {
+    if (!staffProfileId) {
+      void Promise.resolve().then(() => setPhotoPath(null));
+      return;
+    }
+    let cancelled = false;
+    apiFetch<{ caregiver: { photo_path: string | null } }>(`/api/caregivers/${staffProfileId}`)
+      .then((res) => {
+        if (!cancelled) setPhotoPath(res.caregiver.photo_path);
+      })
+      .catch(() => {
+        if (!cancelled) setPhotoPath(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [staffProfileId]);
+  return photoPath;
 }
 
 // The parent doesn't want the auto-assigned caregiver and picks someone
@@ -220,6 +247,7 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
 
   const nannyName =
     status?.assignedCaregiverName ?? acceptedOffer?.caregiverName ?? "your caregiver";
+  const nannyPhotoPath = useCaregiverPhoto(acceptedOffer?.staffProfileId ?? null);
 
   async function cancel() {
     setCancelling(true);
@@ -290,7 +318,7 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
           (View Nanny), so this screen stays to the point. */}
       {acceptedOffer && offerAwaitingPayment && (
         <Sheet className="flex flex-col items-center gap-4 border-[var(--color-lavender-border)] py-10 text-center">
-          <CheckCircle size={40} weight="fill" className="text-[var(--color-success)]" />
+          <Avatar photoUrl={caregiverPhotoUrl(nannyPhotoPath)} name={nannyName} size="lg" />
           <h1 className="text-[19px] font-bold font-heading text-ink">
             You&apos;ve been matched with {nannyName}
           </h1>
