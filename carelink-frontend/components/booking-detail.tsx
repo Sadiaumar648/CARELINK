@@ -303,6 +303,10 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
   }
 
   const canCancel = ["pending", "accepted", "paid"].includes(booking.status);
+  // The parent, still at the "complete payment" moment — this screen
+  // stays a lean payment summary; the child's care profile, the booking
+  // timeline, and Safety/Report all return once the booking is paid.
+  const parentAwaitingPayment = viewerRole === "parent" && booking.status === "accepted";
   const isToday = new Date().toISOString().slice(0, 10) === booking.starts_at.slice(0, 10);
   const primaryArea =
     caregiver?.areas?.find((a) => a.isPrimary)?.area ?? caregiver?.areas?.[0]?.area;
@@ -355,27 +359,23 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
         </Sheet>
       )}
 
-      {booking.status === "accepted" && viewerRole === "parent" && (
-        <Sheet className="flex flex-col items-center gap-2 bg-wisteria-tint text-center">
-          <CheckCircle size={28} weight="fill" className="text-wisteria-pressed" />
-          <p className="text-[16px] font-semibold text-wisteria-pressed">Caregiver found!</p>
-          <p className="text-[13px] text-wisteria-pressed">
-            {caregiver?.full_name ?? "Your caregiver"} has accepted this request. Complete payment
-            to confirm your booking.
-          </p>
-        </Sheet>
-      )}
-
       {booking.status === "paid" && viewerRole === "parent" && (
         <Sheet className="flex flex-col items-center gap-2 bg-wisteria-tint text-center">
           <CheckCircle size={28} weight="fill" className="text-wisteria-pressed" />
-          <p className="text-[16px] font-semibold text-wisteria-pressed">Booking confirmed 🎉</p>
+          <p className="text-[16px] font-semibold text-wisteria-pressed">
+            Your session has been booked successfully
+          </p>
           <p className="text-[13px] text-wisteria-pressed">
             Your care booking with {caregiver?.full_name ?? "your caregiver"} is confirmed.
           </p>
-          <Link href="/parent">
-            <Button variant="secondary">Back to Dashboard</Button>
-          </Link>
+          <div className="flex flex-wrap justify-center gap-3">
+            <Link href={`/parent/messages/${id}`}>
+              <Button>Message {caregiver?.full_name ?? "your caregiver"}</Button>
+            </Link>
+            <Link href="/parent">
+              <Button variant="secondary">Back to Dashboard</Button>
+            </Link>
+          </div>
         </Sheet>
       )}
 
@@ -453,7 +453,7 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
         </div>
       </Sheet>
 
-      {wards.length > 0 && (
+      {wards.length > 0 && !parentAwaitingPayment && (
         <Sheet id="care-profile" className="flex flex-col gap-3 scroll-mt-6">
           <h2 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
             {wards.length === 1 ? "Care profile" : `Care profiles · ${wards.length} children`}
@@ -479,7 +479,7 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
         </p>
       )}
 
-      {events.length > 0 && (
+      {events.length > 0 && !parentAwaitingPayment && (
         <Sheet className="flex flex-col gap-3">
           <h2 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
             Booking timeline
@@ -630,33 +630,35 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
         <CaregiverLocationView bookingId={id} active={booking.status === "active"} />
       )}
 
-      {!["pending", "declined"].includes(booking.status) && counterpartyUserId && (
-        <Sheet className="flex flex-col gap-3">
-          <h2 className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-            <ShieldCheck size={16} className="text-wisteria" />
-            {viewerRole === "staff" ? "Safety & Support" : "CareLink Safety"}
-          </h2>
-          <p className="text-[13px] text-ink-muted">
-            Keep communication and booking information within CareLink whenever possible.
-          </p>
-          {viewerRole === "staff" && ["accepted", "paid", "active"].includes(booking.status) && (
-            <button
-              type="button"
-              onClick={() => setSosOpen(true)}
-              className="flex min-h-[52px] items-center gap-3 rounded-[12px] border border-error/40 bg-error-tint px-4 py-3 text-left hover:border-error"
-            >
-              <ShieldWarning size={22} weight="fill" className="shrink-0 text-error" />
-              <span className="flex flex-col">
-                <span className="text-[14px] font-semibold text-ink">SOS / Emergency</span>
-                <span className="text-[12px] text-ink-muted">
-                  Police, fire, medical, or alert CareLink Safety Team
+      {!["pending", "declined"].includes(booking.status) &&
+        counterpartyUserId &&
+        !parentAwaitingPayment && (
+          <Sheet className="flex flex-col gap-3">
+            <h2 className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+              <ShieldCheck size={16} className="text-wisteria" />
+              {viewerRole === "staff" ? "Safety & Support" : "CareLink Safety"}
+            </h2>
+            <p className="text-[13px] text-ink-muted">
+              Keep communication and booking information within CareLink whenever possible.
+            </p>
+            {viewerRole === "staff" && ["accepted", "paid", "active"].includes(booking.status) && (
+              <button
+                type="button"
+                onClick={() => setSosOpen(true)}
+                className="flex min-h-[52px] items-center gap-3 rounded-[12px] border border-error/40 bg-error-tint px-4 py-3 text-left hover:border-error"
+              >
+                <ShieldWarning size={22} weight="fill" className="shrink-0 text-error" />
+                <span className="flex flex-col">
+                  <span className="text-[14px] font-semibold text-ink">SOS / Emergency</span>
+                  <span className="text-[12px] text-ink-muted">
+                    Police, fire, medical, or alert CareLink Safety Team
+                  </span>
                 </span>
-              </span>
-            </button>
-          )}
-          <ReportForm bookingId={id} subjectUserId={counterpartyUserId} />
-        </Sheet>
-      )}
+              </button>
+            )}
+            <ReportForm bookingId={id} subjectUserId={counterpartyUserId} />
+          </Sheet>
+        )}
 
       {sosOpen && counterpartyUserId && (
         <SosScreen
@@ -750,7 +752,9 @@ function PaymentForm({
     return (
       <Sheet className="flex flex-col items-center gap-3 text-center">
         <CheckCircle size={40} weight="fill" className="text-[var(--color-success)]" />
-        <h2 className="text-[19px] font-semibold font-heading">Payment successful</h2>
+        <h2 className="text-[19px] font-semibold font-heading">
+          Your session has been booked successfully
+        </h2>
         <p className="text-[13px] text-ink-muted">Your booking is confirmed.</p>
         <div className="flex flex-col gap-1 text-[13px] text-ink-muted">
           <p>Amount paid: GH₵{payment.amount}</p>
@@ -796,8 +800,7 @@ function PaymentForm({
       <div className="flex flex-col gap-1">
         <h2 className="text-[17px] font-semibold font-heading">Complete your booking</h2>
         <p className="text-[13px] text-ink-muted">
-          Your caregiver has accepted your booking request. Review the details above before
-          completing payment.
+          Review your booking details above, then complete payment to confirm your session.
         </p>
       </div>
       <div className="flex flex-col gap-2">
