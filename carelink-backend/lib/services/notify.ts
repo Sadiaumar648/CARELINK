@@ -416,65 +416,6 @@ export async function notifyParentDirectBookingDeclined(booking: {
   });
 }
 
-// ── Parent: the 10-minute payment window is closing soon ───────────────
-// Called from lib/services/payment-window.ts's expirePaymentWindowIfPassed
-// on every poll while the booking is 'accepted' and still within the
-// window — safe to call repeatedly; sendEmail's own idempotency guard
-// means it only actually sends once per booking.
-export async function notifyParentPaymentReminder(booking: {
-  id: string;
-  parent_profile_id: string;
-}): Promise<void> {
-  const admin = createServiceRoleClient();
-  const userId = await parentUserId(admin, booking.parent_profile_id);
-  if (!userId) return;
-  await sendEmail(admin, {
-    userId,
-    bookingId: booking.id,
-    eventType: "payment_reminder",
-    email: await emailForUser(admin, userId),
-    subject: "Complete your CareLink payment",
-    body: `Hello,\n\nYour payment window is closing soon. Please open CareLink to complete payment and keep your booking.\n\n${BRAND_SIGNOFF}`,
-  });
-}
-
-// ── Both sides: the payment window actually closed and the booking was
-// released ──────────────────────────────────────────────────────────────
-// Called from the same expirePaymentWindowIfPassed, exactly once, right
-// after it genuinely cancels the booking (never before — this is a real
-// state transition, not a simulated one).
-export async function notifyPaymentWindowExpired(booking: {
-  id: string;
-  parent_profile_id: string;
-  staff_profile_id: string;
-}): Promise<void> {
-  const admin = createServiceRoleClient();
-
-  const parentId = await parentUserId(admin, booking.parent_profile_id);
-  if (parentId) {
-    await sendEmail(admin, {
-      userId: parentId,
-      bookingId: booking.id,
-      eventType: "payment_window_expired",
-      email: await emailForUser(admin, parentId),
-      subject: "Your booking was released",
-      body: `Hello,\n\nYour payment window expired, so this booking was automatically released. Please open CareLink if you'd like to request care again.\n\n${BRAND_SIGNOFF}`,
-    });
-  }
-
-  const staffId = await staffUserId(admin, booking.staff_profile_id);
-  if (staffId) {
-    await sendEmail(admin, {
-      userId: staffId,
-      bookingId: booking.id,
-      eventType: "booking_released",
-      email: await emailForUser(admin, staffId),
-      subject: "You're available for new requests",
-      body: `Hello,\n\nA request you accepted was released because payment wasn't completed in time. You're available to receive new care requests.\n\n${BRAND_SIGNOFF}`,
-    });
-  }
-}
-
 // ── Booking confirmed/paid — both sides ─────────────────────────────────
 // Called from app/api/bookings/[id]/payments/route.ts the moment
 // bookings.status genuinely flips to 'paid' there — today that's still

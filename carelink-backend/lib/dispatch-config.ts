@@ -34,11 +34,3 @@ export const DISPATCH_VICINITY_RADII_KM = [5, 15];
 // treated as not having a usable current position for this dispatch
 // cycle — never silently used as if it were current.
 export const MAX_DISPATCH_LOCATION_AGE_SECONDS = 10 * 60;
-
-// CareLink's finalized payment workflow: once a caregiver accepts, the
-// parent has exactly this long — measured from bookings.terms_locked_at,
-// the real timestamp the accept route already sets — to complete
-// payment before the booking is automatically released back for a new
-// request. See lib/services/payment-window.ts for where this is
-// actually enforced (never just a browser countdown).
-export const PAYMENT_WINDOW_SECONDS = 10 * 60;

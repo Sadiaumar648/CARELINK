@@ -4,7 +4,6 @@ import { initiatePaymentSchema } from "@carelink/shared";
 import { authErrorResponse, requireRole } from "@/lib/auth/require-user";
 import { getOwnParentProfileId } from "@/lib/parents";
 import { getPaymentProvider } from "@/lib/services/payment-provider";
-import { expirePaymentWindowIfPassed, isPaymentExpired } from "@/lib/services/payment-window";
 import { notifyCaregiverBookingConfirmed, notifyParentBookingPaid } from "@/lib/services/notify";
 
 // Task 3.7. The amount comes from the booking's locked total, never the
@@ -27,18 +26,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/bookings/[i
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    // CareLink's finalized payment workflow, Part 4: the authoritative
-    // enforcement point for the 10-minute payment window. A client that
-    // waited past the deadline (or is replaying a stale page) is
-    // rejected here regardless of what the browser's own countdown
-    // showed — never trusted from the client.
-    const booking = await expirePaymentWindowIfPassed(supabase, bookingRow);
-    if (isPaymentExpired(booking)) {
-      return NextResponse.json(
-        { error: "Payment window expired — this booking was automatically released" },
-        { status: 400 },
-      );
-    }
+    const booking = bookingRow;
     if (booking.status !== "accepted") {
       return NextResponse.json({ error: "This booking isn't ready for payment" }, { status: 400 });
     }
@@ -86,12 +74,12 @@ export async function POST(request: Request, ctx: RouteContext<"/api/bookings/[i
     if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 400 });
 
     if (result.status === "succeeded") {
-      // Race-safe against a concurrent payment-window expiry: only
+      // Race-safe against a concurrent reassignCaregiver swap: only
       // moves the booking to 'paid' if it's still genuinely 'accepted'
-      // right now. If the window's own lazy sweep already cancelled it
-      // in the moment between the check above and this update, this
-      // simply matches zero rows rather than resurrecting a released
-      // booking as paid.
+      // right now. If the parent swapped to a different caregiver (which
+      // cancels this booking) in the moment between the check above and
+      // this update, this simply matches zero rows rather than
+      // resurrecting a released booking as paid.
       const { data: paidRow } = await supabase
         .from("bookings")
         .update({ status: "paid" })
@@ -102,9 +90,9 @@ export async function POST(request: Request, ctx: RouteContext<"/api/bookings/[i
 
       // Only fires when this call is genuinely what flipped the row —
       // the race-safe .eq("status", "accepted") above matches zero rows
-      // (paidRow is null) if the payment window's own lazy sweep already
-      // released it first, and this never double-fires on a retry either
-      // way (sendEmail's own idempotency guard on booking_id+event_type).
+      // (paidRow is null) if a concurrent swap already released it
+      // first, and this never double-fires on a retry either way
+      // (sendEmail's own idempotency guard on booking_id+event_type).
       if (paidRow) {
         await notifyParentBookingPaid({
           id: paidRow.id,

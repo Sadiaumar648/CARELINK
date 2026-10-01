@@ -1,13 +1,12 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { ArrowLeft, ChatCircleText, CheckCircle, PaperPlaneTilt } from "@phosphor-icons/react";
+import { ArrowLeft, CheckCircle, PaperPlaneTilt } from "@phosphor-icons/react";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { Sheet } from "@/components/ui/sheet";
 import { Button, LinkButton } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/empty-state";
-import { useCountdown } from "@/lib/use-countdown";
 import { NannyCard, type RecommendedNanny } from "@/components/parent/nanny-card";
 
 // The real, locked terms of the one booking this request created —
@@ -29,8 +28,6 @@ type ActiveOffer = {
   caregiverName: string;
   hourlyRate: number;
   status: string;
-  paymentDeadline: string | null;
-  paymentExpired: boolean;
 };
 
 type DispatchStatus = {
@@ -262,13 +259,8 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
     !status || ["not_started", "searching", "expanding"].includes(status.dispatchStatus);
   const acceptedOffer = status?.dispatchStatus === "accepted" ? (status.activeOffer ?? null) : null;
   const offerAwaitingPayment = acceptedOffer?.status === "accepted";
-  const offerPaymentExpired = Boolean(acceptedOffer?.paymentExpired);
 
   const offerBooking = useOfferBooking(acceptedOffer?.bookingId ?? null);
-
-  const paymentCountdown = useCountdown(
-    offerAwaitingPayment ? (acceptedOffer?.paymentDeadline ?? null) : null,
-  );
 
   const nannyName =
     status?.assignedCaregiverName ?? acceptedOffer?.caregiverName ?? "your caregiver";
@@ -350,12 +342,6 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
             </p>
           </div>
 
-          {paymentCountdown && (
-            <p className="rounded-full bg-error-tint px-3 py-1 text-[12.5px] font-semibold text-error">
-              Payment required within {paymentCountdown}
-            </p>
-          )}
-
           {offerBooking && (
             <div className="flex w-full max-w-sm flex-col gap-1.5 rounded-[14px] border border-hairline p-4 text-left text-[13px]">
               <DetailRow label="Nanny" value={nannyName} />
@@ -383,39 +369,25 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
             </div>
           )}
 
-          <div className="flex flex-wrap justify-center gap-3">
+          <div className="flex flex-col items-center gap-2">
             <LinkButton
               href={`/parent/caregivers/${acceptedOffer.staffProfileId}`}
               variant="secondary"
             >
               View Nanny
             </LinkButton>
-            <LinkButton href={`/parent/messages/${acceptedOffer.bookingId}`} variant="secondary">
-              <ChatCircleText size={16} /> Message {nannyName.split(" ")[0]}
-            </LinkButton>
-            <LinkButton href={`/parent/bookings/${acceptedOffer.bookingId}`}>
-              Pay &amp; Confirm Booking
-            </LinkButton>
+            <button
+              type="button"
+              onClick={() => setReselecting(true)}
+              className="text-[13px] font-semibold text-wisteria hover:text-wisteria-hover"
+            >
+              Not the right fit? Browse other caregivers
+            </button>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setReselecting(true)}
-            className="text-[13px] font-semibold text-wisteria hover:text-wisteria-hover"
-          >
-            Not the right fit? Browse other caregivers
-          </button>
-        </Sheet>
-      )}
-
-      {acceptedOffer && offerPaymentExpired && (
-        <Sheet className="flex flex-col items-center gap-4 border-[var(--color-lavender-border)] py-10 text-center">
-          <h1 className="text-[19px] font-bold font-heading text-ink">Payment window expired</h1>
-          <p className="mt-1 text-[13.5px] text-ink-muted">
-            {nannyName} is no longer reserved for this booking. You can request care again when
-            you&apos;re ready.
-          </p>
-          <LinkButton href={`/parent?retryCareRequestId=${id}`}>Request Care Again</LinkButton>
+          <LinkButton href={`/parent/bookings/${acceptedOffer.bookingId}`}>
+            Pay &amp; Confirm Booking
+          </LinkButton>
         </Sheet>
       )}
 

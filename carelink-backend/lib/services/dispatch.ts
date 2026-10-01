@@ -3,11 +3,6 @@ import { calculateTotalAmount, hourlyRateFor, type SkillTag } from "@carelink/sh
 import { findEligibleCaregivers, loadMatchWeights } from "@/lib/services/caregiver-search";
 import { generateBookingReference } from "@/lib/bookings";
 import { DISPATCH_VICINITY_RADII_KM, MAX_VICINITY_ROUND } from "@/lib/dispatch-config";
-import {
-  expirePaymentWindowIfPassed,
-  isPaymentExpired,
-  paymentDeadline as computePaymentDeadline,
-} from "@/lib/services/payment-window";
 import { notifyCaregiverAssigned } from "@/lib/services/notify";
 
 // CareLink's auto-assign dispatch engine. Every function here runs using
@@ -22,10 +17,8 @@ import { notifyCaregiverAssigned } from "@/lib/services/notify";
 // directly, as a bookings row inserted straight into 'accepted' with
 // terms_locked_at set immediately. That's legal with no migration —
 // enforce_booking_transition (20260827110000_bookings.sql) is a
-// `before update` trigger only, so it never runs on INSERT — and it
-// means the existing payment-window machinery (which keys purely off
-// terms_locked_at, see lib/services/payment-window.ts) needs no changes
-// at all. Idempotent and safe to call repeatedly: this is what a
+// `before update` trigger only, so it never runs on INSERT. Idempotent
+// and safe to call repeatedly: this is what a
 // parent's poll of GET /api/care-requests/[id]/dispatch calls, though
 // with no human response to wait on, a request now resolves to
 // 'accepted' or 'exhausted' on essentially the first call.
@@ -41,16 +34,6 @@ export type ActiveOfferSummary = {
   caregiverName: string;
   hourlyRate: number;
   status: string;
-  // CareLink's finalized payment workflow, Part 4: the real deadline
-  // this booking's 10-minute payment window closes at — null once
-  // there's nothing left to count down to. A frontend countdown is
-  // built from this real timestamp, never a duration it invents itself.
-  paymentDeadline: string | null;
-  // True only when this booking was cancelled by the payment window's
-  // own lazy sweep — never a parent/staff-initiated cancel — so the UI
-  // can show "Payment window expired" instead of a generic cancellation
-  // message.
-  paymentExpired: boolean;
 };
 
 export type DispatchStatusResult = {
@@ -91,16 +74,10 @@ type CareRequestRow = {
 type SummarizedBooking = {
   id: string;
   staff_profile_id: string;
-  // Additive: selected alongside the columns this type already carried
-  // so lib/services/payment-window.ts's expiry/reminder notifications
-  // (CareLink's real email notification system) can resolve both
-  // parties from the same row already being fetched here, with no
-  // second query.
   parent_profile_id: string;
   hourly_rate: number;
   status: string;
   terms_locked_at: string | null;
-  cancelled_by: string | null;
 };
 
 async function summarize(
@@ -124,11 +101,6 @@ async function summarize(
       caregiverName: caregiver?.full_name ?? "A caregiver",
       hourlyRate: booking.hourly_rate,
       status: booking.status,
-      paymentDeadline:
-        booking.status === "accepted" && booking.terms_locked_at
-          ? computePaymentDeadline(booking.terms_locked_at).toISOString()
-          : null,
-      paymentExpired: isPaymentExpired(booking),
     };
   }
 
@@ -209,9 +181,7 @@ async function insertAssignedBooking(
       status: "accepted",
       terms_locked_at: now,
     })
-    .select(
-      "id, staff_profile_id, parent_profile_id, hourly_rate, status, terms_locked_at, cancelled_by",
-    )
+    .select("id, staff_profile_id, parent_profile_id, hourly_rate, status, terms_locked_at")
     .single();
   if (insertErr) throw insertErr;
 
@@ -248,22 +218,17 @@ export async function advanceDispatch(
   if (TERMINAL_STATUSES.has(careRequest.dispatch_status)) {
     const { data: finalBookingRow } = await supabase
       .from("bookings")
-      .select(
-        "id, staff_profile_id, parent_profile_id, hourly_rate, status, terms_locked_at, cancelled_by",
-      )
+      .select("id, staff_profile_id, parent_profile_id, hourly_rate, status, terms_locked_at")
       .eq("care_request_id", careRequestId)
-      // 'cancelled' included so a booking the payment window's own lazy
-      // sweep (or a reassignCaregiver swap) already released is still
-      // visible here as the outcome — not dropped, which would leave a
-      // "You've been matched!" page polling into silence.
+      // 'cancelled' included so a booking a reassignCaregiver swap
+      // already released is still visible here as the outcome — not
+      // dropped, which would leave a "You've been matched!" page
+      // polling into silence.
       .in("status", ["accepted", "cancelled"])
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    const finalBooking = finalBookingRow
-      ? await expirePaymentWindowIfPassed(supabase, finalBookingRow)
-      : null;
-    return summarize(supabase, careRequest, finalBooking);
+    return summarize(supabase, careRequest, finalBookingRow);
   }
 
   const weights = await loadMatchWeights(supabase);

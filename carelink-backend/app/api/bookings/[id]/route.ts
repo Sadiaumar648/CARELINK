@@ -1,11 +1,6 @@
 import { NextResponse } from "next/server";
 import { authErrorResponse, requireUser } from "@/lib/auth/require-user";
 import { createServiceRoleClient } from "@/lib/db/supabase-server";
-import {
-  expirePaymentWindowIfPassed,
-  isPaymentExpired,
-  paymentDeadline,
-} from "@/lib/services/payment-window";
 
 // A caregiver is a party to a booking (and so passes bookings_read_parties)
 // from the moment a parent requests it — RLS has no status condition, by
@@ -48,13 +43,7 @@ export async function GET(request: Request, ctx: RouteContext<"/api/bookings/[id
     if (bookingErr) return NextResponse.json({ error: bookingErr.message }, { status: 500 });
     if (!bookingRow) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    // CareLink's finalized payment workflow: viewing a booking is itself
-    // one of the places the 10-minute payment window is enforced —
-    // never just the two obvious touch-points (the dispatch poll, the
-    // payment route) — so a parent who lands here after the window
-    // closed always sees the real, already-expired state, not a stale
-    // 'accepted' row waiting for some other request to notice.
-    const booking = await expirePaymentWindowIfPassed(supabase, bookingRow);
+    const booking = bookingRow;
 
     // A booking can cover more than one child (multi-child "Request a
     // Nanny"). `wards` is the full set, primary first; `ward` stays as
@@ -143,15 +132,6 @@ export async function GET(request: Request, ctx: RouteContext<"/api/bookings/[id
 
     return NextResponse.json({
       booking: responseBooking,
-      // The real deadline this booking's payment window closes at —
-      // null once there's nothing left to count down to. A frontend
-      // countdown is built from this real timestamp, never a duration
-      // it invents itself.
-      paymentDeadline:
-        booking.status === "accepted" && booking.terms_locked_at
-          ? paymentDeadline(booking.terms_locked_at).toISOString()
-          : null,
-      paymentExpired: isPaymentExpired(booking),
       careLocationGeneral,
       ward,
       wards,
