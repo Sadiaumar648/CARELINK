@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft, CheckCircle, PaperPlaneTilt } from "@phosphor-icons/react";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
@@ -8,19 +9,6 @@ import { Sheet } from "@/components/ui/sheet";
 import { Button, LinkButton } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/empty-state";
 import { NannyCard, type RecommendedNanny } from "@/components/parent/nanny-card";
-
-// The real, locked terms of the one booking this request created —
-// fetched from the existing GET /api/bookings/[id], never recomputed
-// here.
-type OfferBooking = {
-  starts_at: string;
-  ends_at: string;
-  duration_hours: number;
-  duration_days: number | null;
-  hourly_rate: number;
-  total_amount: number;
-  status: string;
-};
 
 type ActiveOffer = {
   bookingId: string;
@@ -76,48 +64,6 @@ function useDispatchPolling(
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run only when the id or active flag changes
   }, [careRequestId, active]);
-}
-
-function formatDateLong(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function formatTimeRange(startsAt: string, endsAt: string): string {
-  const time = (iso: string) =>
-    new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-  return `${time(startsAt)} – ${time(endsAt)}`;
-}
-
-// Fetches the one real booking this request created — from the existing
-// GET /api/bookings/[id], never recomputed on this page.
-function useOfferBooking(bookingId: string | null) {
-  const [booking, setBooking] = useState<OfferBooking | null>(null);
-  useEffect(() => {
-    if (!bookingId) return;
-    let cancelled = false;
-    apiFetch<{ booking: OfferBooking }>(`/api/bookings/${bookingId}`)
-      .then((res) => {
-        if (!cancelled) setBooking(res.booking);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [bookingId]);
-  return bookingId ? booking : null;
-}
-
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between gap-3">
-      <span className="text-ink-muted">{label}</span>
-      <span className="font-semibold">{value}</span>
-    </div>
-  );
 }
 
 // The parent doesn't want the auto-assigned caregiver and picks someone
@@ -244,10 +190,22 @@ function ChooseAnotherNanny({
 
 export default function CareRequestDispatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const searchParams = useSearchParams();
   const [status, setStatus] = useState<DispatchStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [reselecting, setReselecting] = useState(false);
+
+  // Arriving here with ?reselect=1 (the caregiver profile page's "Not
+  // the right fit? Browse other caregivers", once a parent has already
+  // clicked through to View Nanny) opens the same picker directly,
+  // rather than landing back on the plain matched screen first.
+  useEffect(() => {
+    if (searchParams.get("reselect") === "1") {
+      void Promise.resolve().then(() => setReselecting(true));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- read once on mount only
+  }, []);
 
   const active =
     !status ||
@@ -259,8 +217,6 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
     !status || ["not_started", "searching", "expanding"].includes(status.dispatchStatus);
   const acceptedOffer = status?.dispatchStatus === "accepted" ? (status.activeOffer ?? null) : null;
   const offerAwaitingPayment = acceptedOffer?.status === "accepted";
-
-  const offerBooking = useOfferBooking(acceptedOffer?.bookingId ?? null);
 
   const nannyName =
     status?.assignedCaregiverName ?? acceptedOffer?.caregiverName ?? "your caregiver";
@@ -329,64 +285,20 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
         </Sheet>
       )}
 
-      {/* Matched → complete payment. */}
+      {/* Matched — payment, caregiver details, and the option to switch
+          all live one tap away, on the caregiver's own profile
+          (View Nanny), so this screen stays to the point. */}
       {acceptedOffer && offerAwaitingPayment && (
         <Sheet className="flex flex-col items-center gap-4 border-[var(--color-lavender-border)] py-10 text-center">
           <CheckCircle size={40} weight="fill" className="text-[var(--color-success)]" />
-          <div>
-            <h1 className="text-[19px] font-bold font-heading text-ink">
-              You&apos;ve been matched with {nannyName}
-            </h1>
-            <p className="mt-1 text-[13.5px] text-ink-muted">
-              Complete payment to confirm your booking.
-            </p>
-          </div>
+          <h1 className="text-[19px] font-bold font-heading text-ink">
+            You&apos;ve been matched with {nannyName}
+          </h1>
 
-          {offerBooking && (
-            <div className="flex w-full max-w-sm flex-col gap-1.5 rounded-[14px] border border-hairline p-4 text-left text-[13px]">
-              <DetailRow label="Nanny" value={nannyName} />
-              <DetailRow label="Care type" value="Nanny" />
-              <DetailRow label="Date" value={formatDateLong(offerBooking.starts_at)} />
-              <DetailRow
-                label="Time"
-                value={formatTimeRange(offerBooking.starts_at, offerBooking.ends_at)}
-              />
-              <DetailRow
-                label="Duration"
-                value={
-                  (offerBooking.duration_days ?? 1) > 1
-                    ? `${offerBooking.duration_hours} hrs/day · ${offerBooking.duration_days} days`
-                    : `${offerBooking.duration_hours} hours`
-                }
-              />
-              <DetailRow label="Rate" value={`GH₵${offerBooking.hourly_rate}/hour`} />
-              <div className="flex justify-between border-t border-hairline pt-1.5">
-                <span className="text-ink-muted">Total</span>
-                <span className="text-[16px] font-bold tabular-nums text-ink">
-                  GH₵{offerBooking.total_amount}
-                </span>
-              </div>
-            </div>
-          )}
-
-          <div className="flex flex-col items-center gap-2">
-            <LinkButton
-              href={`/parent/caregivers/${acceptedOffer.staffProfileId}`}
-              variant="secondary"
-            >
-              View Nanny
-            </LinkButton>
-            <button
-              type="button"
-              onClick={() => setReselecting(true)}
-              className="text-[13px] font-semibold text-wisteria hover:text-wisteria-hover"
-            >
-              Not the right fit? Browse other caregivers
-            </button>
-          </div>
-
-          <LinkButton href={`/parent/bookings/${acceptedOffer.bookingId}`}>
-            Pay &amp; Confirm Booking
+          <LinkButton
+            href={`/parent/caregivers/${acceptedOffer.staffProfileId}?bookingId=${acceptedOffer.bookingId}`}
+          >
+            View Nanny
           </LinkButton>
         </Sheet>
       )}
