@@ -144,9 +144,12 @@ export default function PayForBookingPage({ params }: { params: Promise<{ id: st
         amount={booking.total_amount}
         onPaid={() => {
           // A beat to actually see PaymentForm's own "booked
-          // successfully" confirmation before moving on to the fuller
-          // booking page (which adds the real "Message {name}" action).
-          setTimeout(() => router.replace(`/parent/bookings/${id}`), 1500);
+          // successfully" confirmation before moving on. ?justPaid=1
+          // tells the booking page to show only its own matching
+          // confirmation card (with the real "Message {name}" action) —
+          // not the full location/care-profile/timeline/safety detail,
+          // which stays reachable the normal way, from My Bookings.
+          setTimeout(() => router.replace(`/parent/bookings/${id}?justPaid=1`), 1500);
         }}
       />
     </div>

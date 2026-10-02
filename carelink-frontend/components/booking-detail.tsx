@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   CheckCircle,
@@ -165,6 +165,8 @@ function bookingStages(booking: Booking, events: BookingEvent[]): Stage[] {
 
 export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "parent" | "staff" }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const justPaid = searchParams.get("justPaid") === "1";
   const [booking, setBooking] = useState<Booking | null>(null);
   const [wards, setWards] = useState<Ward[]>([]);
   const [emergencyContact, setEmergencyContact] = useState<EmergencyContact>(null);
@@ -311,6 +313,35 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
         </div>
         <Skeleton className="h-20 w-full rounded-[18px]" />
         <Skeleton className="h-32 w-full rounded-[18px]" />
+      </div>
+    );
+  }
+
+  // Arriving straight from paying (app/parent/bookings/[id]/pay's
+  // onPaid redirect) — just the confirmation, nothing else. The full
+  // location/care-profile/timeline/Safety view below is still exactly
+  // where it's always been, for whenever this same booking is opened
+  // normally from My Bookings.
+  if (justPaid && viewerRole === "parent" && booking.status === "paid") {
+    return (
+      <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
+        <Sheet className="flex flex-col items-center gap-2 bg-wisteria-tint text-center">
+          <CheckCircle size={28} weight="fill" className="text-wisteria-pressed" />
+          <p className="text-[16px] font-semibold text-wisteria-pressed">
+            Your session has been booked successfully
+          </p>
+          <p className="text-[13px] text-wisteria-pressed">
+            Your care booking with {caregiver?.full_name ?? "your caregiver"} is confirmed.
+          </p>
+          <div className="flex flex-wrap justify-center gap-3">
+            <Link href={`/parent/messages/${id}`}>
+              <Button>Message {caregiver?.full_name ?? "your caregiver"}</Button>
+            </Link>
+            <Link href="/parent">
+              <Button variant="secondary">Back to Dashboard</Button>
+            </Link>
+          </div>
+        </Sheet>
       </div>
     );
   }
