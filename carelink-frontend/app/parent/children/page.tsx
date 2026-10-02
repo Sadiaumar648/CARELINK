@@ -92,6 +92,26 @@ export default function ParentChildrenPage() {
   const [addingWard, setAddingWard] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+
+  // Archives rather than deletes (DELETE /api/wards/[id]) — a completed
+  // booking keeps the version of this child's profile that was in force
+  // when it was made, so removing a child here never rewrites history.
+  async function removeWard(id: string) {
+    setRemovingId(id);
+    setRemoveError(null);
+    try {
+      await apiFetch(`/api/wards/${id}`, { method: "DELETE" });
+      setWards((prev) => (prev ?? []).filter((w) => w.id !== id));
+      setConfirmRemoveId(null);
+    } catch (err) {
+      setRemoveError(errorMessage(err));
+    } finally {
+      setRemovingId(null);
+    }
+  }
 
   function retry() {
     setError(null);
@@ -212,20 +232,60 @@ export default function ParentChildrenPage() {
                     ))}
                   </div>
                 )}
-                <div className="flex items-center gap-5 border-t border-hairline pt-3.5 text-[13px] font-semibold">
-                  <Link
-                    href={`/parent/children/${w.id}`}
-                    className="text-wisteria hover:text-wisteria-hover"
-                  >
-                    View Profile
-                  </Link>
-                  <Link
-                    href={`/parent/children/${w.id}?edit=1`}
-                    className="text-ink-muted hover:text-ink"
-                  >
-                    Edit
-                  </Link>
-                </div>
+                {confirmRemoveId === w.id ? (
+                  <div className="flex flex-col gap-2 border-t border-hairline pt-3.5">
+                    <p className="text-[13px] text-ink-muted">
+                      Remove {w.display_name}? This won&apos;t affect any booking already made for
+                      them.
+                    </p>
+                    {removeError && <p className="text-[13px] text-error">{removeError}</p>}
+                    <div className="flex gap-3">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="default"
+                        onClick={() => setConfirmRemoveId(null)}
+                        disabled={removingId === w.id}
+                      >
+                        Keep
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="danger"
+                        size="default"
+                        onClick={() => void removeWard(w.id)}
+                        disabled={removingId === w.id}
+                      >
+                        {removingId === w.id ? "Removing…" : "Remove"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-5 border-t border-hairline pt-3.5 text-[13px] font-semibold">
+                    <Link
+                      href={`/parent/children/${w.id}`}
+                      className="text-wisteria hover:text-wisteria-hover"
+                    >
+                      View Profile
+                    </Link>
+                    <Link
+                      href={`/parent/children/${w.id}?edit=1`}
+                      className="text-ink-muted hover:text-ink"
+                    >
+                      Edit
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRemoveError(null);
+                        setConfirmRemoveId(w.id);
+                      }}
+                      className="text-error hover:text-error/80"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
               </Sheet>
             );
           })}
