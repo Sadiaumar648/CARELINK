@@ -257,13 +257,17 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
     document.getElementById("care-profile")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [wards]);
 
-  // While a booking is genuinely awaiting payment, keep re-checking it —
-  // the payment window's own server-side expiry (or the parent paying
-  // from a different tab/device) only ever becomes visible through a
-  // fresh fetch, same reasoning as the dispatch status page's own poll.
+  // While a booking is genuinely awaiting payment, or paid and waiting
+  // for its scheduled start time, keep re-checking it — the payment
+  // window's own server-side expiry (or the parent paying from a
+  // different tab/device) only becomes visible through a fresh fetch,
+  // same reasoning as the dispatch status page's own poll; a 'paid'
+  // booking's own fetch is also what actually advances it to 'active'
+  // once its time arrives (lib/services/session-lifecycle.ts runs as a
+  // side effect of GET /api/bookings/[id] itself).
   const bookingStatus = booking?.status;
   useEffect(() => {
-    if (bookingStatus !== "accepted") return;
+    if (bookingStatus !== "accepted" && bookingStatus !== "paid") return;
     const interval = setInterval(load, 5000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load() closes over id via props, re-created each render; only bookingStatus should restart the interval
@@ -348,7 +352,6 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
   // stays a lean payment summary; the child's care profile, the booking
   // timeline, and Safety/Report all return once the booking is paid.
   const parentAwaitingPayment = viewerRole === "parent" && booking.status === "accepted";
-  const isToday = new Date().toISOString().slice(0, 10) === booking.starts_at.slice(0, 10);
   const primaryArea =
     caregiver?.areas?.find((a) => a.isPrimary)?.area ?? caregiver?.areas?.[0]?.area;
 
@@ -636,19 +639,13 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
           </Sheet>
         )}
 
-        {/* Starting and ending a session is the caregiver's action alone
-            — the parent only ever watches it happen (the "Session in
-            progress" card on their own home page, and the read-only
-            location view below). Same control, and the same mandatory-
-            location gate, as the one on the caregiver's own Home. */}
-        {viewerRole === "staff" && (booking.status === "paid" || booking.status === "active") && (
-          <SessionActionButton
-            bookingId={id}
-            status={booking.status}
-            isToday={isToday}
-            onChanged={load}
-            size="lg"
-          />
+        {/* A session starts on its own once its scheduled time arrives
+            (lib/services/session-lifecycle.ts) — ending one is the only
+            action left for the caregiver to take. The parent only ever
+            watches it happen (the "Session in progress" card on their
+            own home page, and the read-only location view below). */}
+        {viewerRole === "staff" && booking.status === "active" && (
+          <SessionActionButton bookingId={id} status={booking.status} onChanged={load} size="lg" />
         )}
 
         {viewerRole === "parent" && booking.status === "completed" && <ReviewForm bookingId={id} />}

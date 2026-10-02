@@ -101,13 +101,14 @@ function formatSessionRange(startsAt: string, endsAt: string): string {
   return `${time(startsAt)} – ${time(endsAt)}`;
 }
 
-// A booking only ever reaches status 'active' once the caregiver taps
-// "Start session" (staff-only now — see PATCH /api/bookings/[id]/start)
-// and leaves it the instant the caregiver taps "End session"
-// (PATCH .../end, which moves it to 'completed') — the parent never
-// starts or ends a session themselves, only watches it happen here.
-// This card appears the moment one starts and disappears the moment it
-// ends, with no separate "Today's Care" list to go find it in first.
+// A booking reaches status 'active' automatically once its scheduled
+// starts_at time arrives (lib/services/session-lifecycle.ts) — no
+// caregiver action required — and leaves it the instant the caregiver
+// taps "End session" (PATCH .../end, which moves it to 'completed').
+// The parent never starts or ends a session themselves, only watches it
+// happen here. This card appears the moment one starts and disappears
+// the moment it ends, with no separate "Today's Care" list to go find
+// it in first.
 function ActiveSessionCard() {
   // undefined = still loading; null = confirmed none in progress.
   const [booking, setBooking] = useState<ActiveBooking | null | undefined>(undefined);

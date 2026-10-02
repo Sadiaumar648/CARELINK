@@ -11,6 +11,7 @@ import {
   type BusyRange,
 } from "@/lib/services/availability";
 import { notifyCaregiverNewOffer } from "@/lib/services/notify";
+import { advanceDueSessions } from "@/lib/services/session-lifecycle";
 
 const AVAILABILITY_REASON_MESSAGES: Record<string, string> = {
   outside_declared_hours: "This caregiver hasn't declared availability for this time.",
@@ -194,6 +195,8 @@ export async function GET(request: Request) {
     const { supabase, role } = await requireRole(request, ["parent", "staff", "admin"]);
     const url = new URL(request.url);
     const status = url.searchParams.get("status");
+
+    await advanceDueSessions(supabase);
 
     let query = supabase.from("bookings").select("*").order("created_at", { ascending: false });
     if (status) query = query.eq("status", status);

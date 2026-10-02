@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { authErrorResponse, requireUser } from "@/lib/auth/require-user";
 import { createServiceRoleClient } from "@/lib/db/supabase-server";
+import { advanceDueSessions } from "@/lib/services/session-lifecycle";
 
 // A caregiver is a party to a booking (and so passes bookings_read_parties)
 // from the moment a parent requests it — RLS has no status condition, by
@@ -34,6 +35,8 @@ export async function GET(request: Request, ctx: RouteContext<"/api/bookings/[id
   try {
     const { supabase, role } = await requireUser(request);
     const { id } = await ctx.params;
+
+    await advanceDueSessions(supabase, id);
 
     const { data: bookingRow, error: bookingErr } = await supabase
       .from("bookings")
