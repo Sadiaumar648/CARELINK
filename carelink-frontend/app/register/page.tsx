@@ -9,6 +9,7 @@ import { errorMessage } from "@/lib/error-message";
 import { Field } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { TermsAndPrivacyOverlay } from "@/components/terms-and-privacy";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^[+\d][\d\s-]{6,}$/;
@@ -39,6 +40,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [agreed, setAgreed] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -165,15 +167,26 @@ export default function RegisterPage() {
             onChange={(e) => setConfirmPassword(e.target.value)}
             error={fieldErrors.confirmPassword}
           />
-          <label className="flex items-start gap-2 text-[13px] text-ink-muted">
+          <div className="flex items-start gap-2 text-[13px] text-ink-muted">
             <input
+              id="agree-terms"
               type="checkbox"
               checked={agreed}
               onChange={(e) => setAgreed(e.target.checked)}
               className="mt-0.5"
             />
-            I agree to CareLink&apos;s Terms of Service and Privacy Policy.
-          </label>
+            <label htmlFor="agree-terms">
+              I agree to CareLink&apos;s{" "}
+              <button
+                type="button"
+                onClick={() => setShowTerms(true)}
+                className="font-semibold text-wisteria hover:text-wisteria-hover hover:underline"
+              >
+                Terms of Service and Privacy Policy
+              </button>
+              .
+            </label>
+          </div>
           {fieldErrors.agreed && <p className="text-[13px] text-error">{fieldErrors.agreed}</p>}
           {error && <p className="text-[13px] text-error">{error}</p>}
           <Button type="submit" disabled={loading}>
@@ -191,6 +204,7 @@ export default function RegisterPage() {
           invitation from CareLink to join.
         </p>
       </div>
+      {showTerms && <TermsAndPrivacyOverlay onClose={() => setShowTerms(false)} />}
     </div>
   );
 }
