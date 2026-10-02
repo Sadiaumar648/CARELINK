@@ -12,6 +12,7 @@ import {
   Link as LinkIcon,
   MagnifyingGlass,
   ShieldWarning,
+  Sparkle,
   Star,
   UsersFour,
   UsersThree,
@@ -94,7 +95,8 @@ const CAREGIVER_TYPE_LABEL: Record<"nanny" | "babysitter", string> = {
 
 // One pastel accent per Quick Action card, drawn only from CareLink's
 // existing palette tokens (no new colors introduced): light blue,
-// lavender, mint, peach, pink, lavender again for the sixth.
+// lavender, mint, peach, pink, lavender again for the sixth and
+// seventh.
 const QUICK_ACTION_TINT = [
   "bg-bluebell-tint text-[var(--color-bluebell-pressed)]",
   "bg-wisteria-tint text-wisteria-pressed",
@@ -102,6 +104,7 @@ const QUICK_ACTION_TINT = [
   "bg-gold-tint text-[var(--color-gold)]",
   "bg-error-tint text-error",
   "bg-wisteria-tint text-wisteria-pressed",
+  "bg-bluebell-tint text-[var(--color-bluebell-pressed)]",
 ] as const;
 
 function activityDotClass(label: string): string {
@@ -381,6 +384,13 @@ export default function AdminOverviewPage() {
                 label="View Reports"
                 description="See platform activity and insights."
                 tint={QUICK_ACTION_TINT[5]}
+              />
+              <QuickAction
+                href="/admin/assistant"
+                icon={Sparkle}
+                label="Ask the Admin Assistant"
+                description="Get quick answers about reports, revenue, bookings, and caregivers."
+                tint={QUICK_ACTION_TINT[6]}
               />
             </div>
           </section>
