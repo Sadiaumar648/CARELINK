@@ -2,8 +2,6 @@
 
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { ErrorState } from "@/components/ui/empty-state";
@@ -101,13 +99,6 @@ export default function PayForBookingPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="mx-auto flex max-w-sm flex-col gap-6 p-6">
-      <Link
-        href="/parent/bookings"
-        className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-muted hover:text-ink"
-      >
-        <ArrowLeft size={16} /> My Bookings
-      </Link>
-
       <h1 className="text-[20px] font-bold font-heading text-ink">Complete Payment</h1>
 
       {caregiver && (

@@ -1,7 +1,6 @@
 "use client";
 
 import { Star, SealCheck } from "@phosphor-icons/react";
-import { hourlyRateFor } from "@carelink/shared";
 import { Avatar } from "@/components/ui/avatar";
 import { caregiverPhotoUrl } from "@/lib/photo-url";
 
@@ -29,17 +28,40 @@ export type CaregiverProfile = {
   bio: string | null;
 };
 
-// Every caregiver is presented to parents as a "Nanny" now.
-function typeLabel(type: "nanny" | "babysitter" | null): string {
-  return type ? "Nanny" : "Nanny";
-}
-
 function skillLabel(skill: string): string {
   return skill.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function displayRate(c: CaregiverProfile): number {
-  return c.caregiver_type ? hourlyRateFor(c.caregiver_type) : c.hourly_rate;
+// A caregiver with no reviews yet shows five empty stars rather than
+// the word "New" — still a real rating widget, just with nothing
+// filled in, instead of a text placeholder.
+function StarRating({ ratingAvg, ratingCount }: { ratingAvg: number | null; ratingCount: number }) {
+  if (ratingAvg == null) {
+    return (
+      <div className="flex items-center gap-0.5" aria-label="Not yet rated">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <Star key={n} size={15} className="text-ink-muted/40" />
+        ))}
+      </div>
+    );
+  }
+  const filled = Math.round(ratingAvg);
+  return (
+    <p className="flex items-center gap-1 text-[14px] text-ink-muted">
+      <span className="flex items-center gap-0.5">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <Star
+            key={n}
+            size={15}
+            weight={n <= filled ? "fill" : "regular"}
+            className={n <= filled ? "text-gold" : "text-ink-muted/40"}
+          />
+        ))}
+      </span>
+      <span className="font-semibold text-ink">{ratingAvg.toFixed(1)}</span>
+      {ratingCount > 0 && <span>· {ratingCount} reviews</span>}
+    </p>
+  );
 }
 
 // The read-only "who they are, their ratings, everything about them"
@@ -59,20 +81,7 @@ export function CaregiverProfileView({ caregiver }: { caregiver: CaregiverProfil
             className="h-32 w-32 lg:h-40 lg:w-40"
           />
           <h1 className="text-[24px] font-semibold font-heading">{caregiver.full_name}</h1>
-          <p className="flex items-center gap-1 text-[14px] text-ink-muted">
-            <Star size={15} weight="fill" className="text-gold" />
-            <span className="font-semibold text-ink">
-              {caregiver.rating_avg ? caregiver.rating_avg.toFixed(1) : "New"}
-            </span>
-            {caregiver.rating_count > 0 && <span>· {caregiver.rating_count} reviews</span>}
-          </p>
-          <p className="text-[13px] text-ink-muted">
-            {typeLabel(caregiver.caregiver_type)} · {caregiver.years_experience ?? 0} yrs experience
-          </p>
-          <p className="text-[24px] font-semibold tabular-nums">
-            GH₵{displayRate(caregiver)}
-            <span className="text-[14px] font-normal text-ink-muted">/hr</span>
-          </p>
+          <StarRating ratingAvg={caregiver.rating_avg} ratingCount={caregiver.rating_count} />
         </div>
       </div>
 
