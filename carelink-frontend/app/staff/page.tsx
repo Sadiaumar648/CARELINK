@@ -10,7 +10,6 @@ import { Button, LinkButton } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { SessionActionButton } from "@/components/staff/session-action-button";
 import { WardCareProfileList, type WardBrief } from "@/components/ward-care-profile";
 
 type Booking = {
@@ -133,13 +132,7 @@ function ReceivingRequestsControl() {
 // child's name reveals their care profile inline, right here — the
 // caregiver never has to leave Home to check on the child they're
 // caring for.
-function TodaysCareRow({
-  booking: b,
-  onChanged,
-}: {
-  booking: EnrichedBooking;
-  onChanged: () => void;
-}) {
+function TodaysCareRow({ booking: b }: { booking: EnrichedBooking }) {
   const [wardsOpen, setWardsOpen] = useState(false);
 
   return (
@@ -156,19 +149,9 @@ function TodaysCareRow({
             {b.address ?? b.careLocationGeneral ?? "Address shared with confirmed bookings"}
           </p>
         </Link>
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          {/* Start/End Session lives right here on Home, not only on the
-              booking detail page — the caregiver's own action, same
-              mandatory-location gate either way. */}
-          {(b.status === "paid" || b.status === "active") && (
-            <SessionActionButton bookingId={b.id} status={b.status} isToday onChanged={onChanged} />
-          )}
-          {b.status === "accepted" && (
-            <span className="rounded-full bg-wisteria-tint px-2.5 py-1 text-[11.5px] font-semibold capitalize text-wisteria-pressed">
-              {b.status}
-            </span>
-          )}
-        </div>
+        <span className="shrink-0 rounded-full bg-wisteria-tint px-2.5 py-1 text-[11.5px] font-semibold capitalize text-wisteria-pressed">
+          {b.status}
+        </span>
       </div>
       {b.wards.length > 0 && (
         <div className="flex items-center gap-2 border-t border-hairline pt-3">
@@ -244,7 +227,7 @@ function TodaysCareSection() {
       {!error && bookings && bookings.length > 0 && (
         <div className="flex flex-col gap-2.5">
           {bookings.map((b) => (
-            <TodaysCareRow key={b.id} booking={b} onChanged={load} />
+            <TodaysCareRow key={b.id} booking={b} />
           ))}
         </div>
       )}
