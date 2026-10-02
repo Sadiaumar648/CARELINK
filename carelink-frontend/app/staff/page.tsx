@@ -335,9 +335,7 @@ function ProfileReadinessBanner() {
 
 // CareLink assigns care sessions directly — there's no pending-offer
 // queue for a caregiver to respond to any more, so there's nothing left
-// on Home to alert on or act from. Location Sharing/base location/
-// service area live in Settings (components/staff-location-settings.tsx)
-// — a caregiver updates those there whenever they move, not from Home.
+// on Home to alert on or act from.
 export default function StaffHomePage() {
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-8 p-6 md:p-8">
