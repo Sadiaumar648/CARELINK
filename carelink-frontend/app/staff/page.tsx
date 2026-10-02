@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { CalendarCheck, Sparkle, Wallet } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
@@ -22,6 +22,132 @@ type Booking = {
   status: string;
 };
 type EnrichedBooking = Booking & { wards: WardBrief[] };
+
+function formatTimeRangeShort(startsAt: string, endsAt: string): string {
+  const time = (d: Date) => d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return `${time(new Date(startsAt))} – ${time(new Date(endsAt))}`;
+}
+
+// The caregiver-side mirror of app/parent/page.tsx's ActiveSessionCard —
+// same polling + "confirm it actually reached completed, not just
+// cancelled" pattern, so both parties see a real "session ended" card
+// whether the session ended automatically at its scheduled time
+// (lib/services/session-lifecycle.ts) or the caregiver tapped "End
+// session" early themselves. Shows the ward(s) being cared for rather
+// than a counterparty photo/name — a caregiver never sees the parent's
+// own name directly on Home, same as everywhere else in the app.
+function CaregiverActiveSessionCard() {
+  const [booking, setBooking] = useState<Booking | null | undefined>(undefined);
+  const [wards, setWards] = useState<WardBrief[]>([]);
+  const [ended, setEnded] = useState<{ id: string; wardNames: string } | null>(null);
+
+  const lastActiveRef = useRef<{ id: string; wardNames: string } | null>(null);
+  useEffect(() => {
+    if (booking) {
+      lastActiveRef.current = {
+        id: booking.id,
+        wardNames: wards.length > 0 ? wards.map((w) => w.display_name).join(" & ") : "this family",
+      };
+    }
+  }, [booking, wards]);
+
+  function load() {
+    apiFetch<{ bookings: Booking[] }>("/api/bookings?status=active")
+      .then((res) => {
+        const next = res.bookings[0] ?? null;
+        const wasActive = lastActiveRef.current;
+        if (!next && wasActive) {
+          apiFetch<{ booking: { status: string } }>(`/api/bookings/${wasActive.id}`)
+            .then((res2) => {
+              if (res2.booking.status === "completed") setEnded(wasActive);
+            })
+            .catch(() => undefined)
+            .finally(() => {
+              lastActiveRef.current = null;
+            });
+        }
+        setBooking(next);
+      })
+      .catch(() => setBooking(null));
+  }
+
+  useEffect(() => {
+    load();
+    const interval = setInterval(load, 20_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const activeBookingId = booking?.id ?? null;
+  useEffect(() => {
+    if (!activeBookingId) return;
+    let cancelled = false;
+    apiFetch<{ ward: WardBrief | null; wards: WardBrief[] | null }>(
+      `/api/bookings/${activeBookingId}`,
+    )
+      .then((res) => {
+        if (!cancelled) setWards(res.wards?.length ? res.wards : res.ward ? [res.ward] : []);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [activeBookingId]);
+
+  if (ended) {
+    return (
+      <Sheet className="flex flex-col gap-3 border-wisteria/40 bg-wisteria-tint sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-[15px] font-semibold text-ink">Session ended</p>
+          <p className="text-[12.5px] text-ink-muted">
+            Leave a review for {ended.wardNames}&apos;s family.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setEnded(null)}
+            className="text-[12.5px] font-semibold text-ink-muted hover:text-ink"
+          >
+            Not now
+          </button>
+          <LinkButton
+            href={`/staff/schedule/${ended.id}`}
+            className="w-full justify-center sm:w-auto"
+          >
+            Leave a Review
+          </LinkButton>
+        </div>
+      </Sheet>
+    );
+  }
+
+  if (!booking) return null;
+
+  return (
+    <Sheet className="flex flex-col gap-3 border-[var(--color-success)]/40 bg-success-tint sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-1">
+        <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--color-success)]">
+          <span className="h-2 w-2 rounded-full bg-[var(--color-success)]" aria-hidden />
+          Session in progress
+        </p>
+        <p className="text-[15px] font-semibold text-ink">
+          {wards.length > 0
+            ? `Caring for ${wards.map((w) => w.display_name).join(" & ")}`
+            : "Session in progress"}
+        </p>
+        <p className="text-[12.5px] text-ink-muted">
+          {formatTimeRangeShort(booking.starts_at, booking.ends_at)}
+        </p>
+      </div>
+      <Link
+        href={`/staff/schedule/${booking.id}`}
+        className="shrink-0 text-[12.5px] font-semibold text-wisteria hover:text-wisteria-hover"
+      >
+        View Details
+      </Link>
+    </Sheet>
+  );
+}
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -317,14 +443,15 @@ function ProfileReadinessBanner() {
 }
 
 // CareLink assigns care sessions directly — there's no pending-offer
-// queue for a caregiver to respond to any more, so there's nothing left
-// on Home to alert on or act from.
+// queue for a caregiver to respond to any more.
 export default function StaffHomePage() {
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-8 p-6 md:p-8">
       <DashboardHeader />
 
       <ReceivingRequestsControl />
+
+      <CaregiverActiveSessionCard />
 
       <TodaysCareSection />
 

@@ -257,17 +257,19 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
     document.getElementById("care-profile")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [wards]);
 
-  // While a booking is genuinely awaiting payment, or paid and waiting
-  // for its scheduled start time, keep re-checking it — the payment
-  // window's own server-side expiry (or the parent paying from a
-  // different tab/device) only becomes visible through a fresh fetch,
-  // same reasoning as the dispatch status page's own poll; a 'paid'
-  // booking's own fetch is also what actually advances it to 'active'
-  // once its time arrives (lib/services/session-lifecycle.ts runs as a
-  // side effect of GET /api/bookings/[id] itself).
+  // While a booking is genuinely awaiting payment, paid and waiting for
+  // its scheduled start time, or active and waiting for its scheduled
+  // end time, keep re-checking it — the payment window's own
+  // server-side expiry (or the parent paying from a different
+  // tab/device) only becomes visible through a fresh fetch, same
+  // reasoning as the dispatch status page's own poll; a 'paid' or
+  // 'active' booking's own fetch is also what actually advances it to
+  // 'active'/'completed' once its time arrives
+  // (lib/services/session-lifecycle.ts runs as a side effect of
+  // GET /api/bookings/[id] itself).
   const bookingStatus = booking?.status;
   useEffect(() => {
-    if (bookingStatus !== "accepted" && bookingStatus !== "paid") return;
+    if (!["accepted", "paid", "active"].includes(bookingStatus ?? "")) return;
     const interval = setInterval(load, 5000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load() closes over id via props, re-created each render; only bookingStatus should restart the interval

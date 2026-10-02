@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 import { authErrorResponse, requireRole } from "@/lib/auth/require-user";
-import { computeCommissionSplit } from "@/lib/services/commission";
-import { createServiceRoleClient } from "@/lib/db/supabase-server";
+import { completeSession } from "@/lib/services/session-lifecycle";
 
 // Task 3.8 (closes the session) and 3.9 (credits the commission split
-// against the succeeded payment, at the configured rate). staff_profiles.
-// bookings_completed increments automatically via a trigger. Superseded:
-// ending a session is the caregiver's action alone now, not either
-// party — the parent finds out via their own home page's active-session
-// card (which polls for exactly this transition) rather than ending it
-// themselves.
+// against the succeeded payment, at the configured rate) — the actual
+// work is shared with the automatic end-of-session advance
+// (lib/services/session-lifecycle.ts's completeSession) that fires on
+// its own once a session's scheduled ends_at arrives, so this route is
+// now only for ending a session early. staff_profiles.bookings_completed
+// increments automatically via a trigger.
 export async function PATCH(request: Request, ctx: RouteContext<"/api/bookings/[id]/end">) {
   try {
     const { supabase } = await requireRole(request, ["staff"]);
@@ -26,52 +25,15 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/bookings/[
       return NextResponse.json({ error: "This session isn't active" }, { status: 400 });
     }
 
-    const now = new Date().toISOString();
+    const ok = await completeSession(supabase, id, new Date().toISOString());
+    if (!ok) return NextResponse.json({ error: "This session isn't active" }, { status: 400 });
+
     const { data: updated, error } = await supabase
       .from("bookings")
-      .update({ status: "completed", session_ended_at: now, completed_at: now })
+      .select("*")
       .eq("id", id)
-      .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-
-    // SafeTrack (caregiver safety spec): stop location sharing the
-    // instant the session ends, regardless of which party ended it — the
-    // caregiver-owned delete policy wouldn't cover a parent-initiated
-    // end, so this goes through the service role rather than the
-    // request-scoped client. Best-effort: a booking that never had
-    // sharing enabled has no row to delete, which is not an error.
-    await createServiceRoleClient().from("caregiver_locations").delete().eq("booking_id", id);
-
-    const { data: settingRow } = await supabase
-      .from("platform_settings")
-      .select("value")
-      .eq("key", "commission_rate")
-      .single();
-    const commissionRate = Number(settingRow?.value ?? 0.15);
-
-    const { data: succeededPayment } = await supabase
-      .from("payments")
-      .select("id, amount")
-      .eq("booking_id", id)
-      .eq("status", "succeeded")
-      .maybeSingle();
-
-    if (succeededPayment) {
-      const { commissionAmount, payoutAmount } = computeCommissionSplit(
-        succeededPayment.amount,
-        commissionRate,
-      );
-      await supabase
-        .from("payments")
-        .update({
-          commission_rate: commissionRate,
-          commission_amount: commissionAmount,
-          payout_amount: payoutAmount,
-          settled_at: now,
-        })
-        .eq("id", succeededPayment.id);
-    }
 
     return NextResponse.json({ booking: updated });
   } catch (error) {
