@@ -241,7 +241,16 @@ export default function CareRequestDispatchPage({ params }: { params: Promise<{ 
     !status ||
     !["exhausted", "cancelled"].includes(status.dispatchStatus) ||
     (status.dispatchStatus === "accepted" && status.activeOffer?.status === "accepted");
-  useDispatchPolling(id, setStatus, setError, active && !reselecting);
+  // Deliberately NOT gated on `!reselecting` — arriving here straight
+  // at ?reselect=1 (from the caregiver profile's "Not the right fit?")
+  // sets reselecting=true almost immediately, before `status` has ever
+  // loaded; gating polling on it too used to mean the very first fetch
+  // got cancelled before it could complete, leaving `status` null
+  // forever and the picker never actually rendering. Harmless to keep
+  // polling in the background while reselecting is shown — it just
+  // keeps status fresh underneath, the picker's own render doesn't
+  // depend on it either way.
+  useDispatchPolling(id, setStatus, setError, active);
 
   const searching =
     !status || ["not_started", "searching", "expanding"].includes(status.dispatchStatus);
