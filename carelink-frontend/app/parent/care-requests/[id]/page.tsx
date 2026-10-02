@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, PaperPlaneTilt } from "@phosphor-icons/react";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
@@ -106,6 +106,7 @@ function ChooseAnotherNanny({
   onReselected: (s: DispatchStatus) => void;
   onBack: () => void;
 }) {
+  const router = useRouter();
   const [nannies, setNannies] = useState<RecommendedNanny[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
@@ -205,7 +206,9 @@ function ChooseAnotherNanny({
               requesting={sendingId === n.staff_profile_id}
               onRequest={() => void requestNanny(n.staff_profile_id)}
               onViewProfile={() =>
-                window.open(`/parent/caregivers/${n.staff_profile_id}`, "_blank")
+                router.push(
+                  `/parent/caregivers/${n.staff_profile_id}?careRequestId=${careRequestId}`,
+                )
               }
             />
           ))}

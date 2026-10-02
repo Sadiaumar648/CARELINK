@@ -1,12 +1,12 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
 import { ErrorState } from "@/components/ui/empty-state";
-import { LinkButton } from "@/components/ui/button";
+import { Button, LinkButton } from "@/components/ui/button";
 import {
   CaregiverProfileView,
   type CaregiverProfile,
@@ -14,16 +14,22 @@ import {
 
 // A read-only caregiver profile: who they are, their rating, experience,
 // skills, languages and qualifications. Booking itself happens through
-// the Request a Nanny flow (Home → Find Care), not from here.
+// the Request a Nanny flow (Home → Find Care), not from here — except
+// for the two cases below, both arriving as a query param and both
+// re-verified server-side before either action shows (never trusted
+// from the URL alone):
 //
-// The one exception: arriving here with ?bookingId=... (from "View
-// Nanny" on the just-matched/awaiting-payment screen,
-// app/parent/care-requests/[id]/page.tsx) adds a "Pay & Confirm
-// Booking" action and a "Browse other caregivers" override beneath the
-// profile — never trusted from the URL alone, always re-verified
-// against the real booking (GET /api/bookings/[id], RLS-scoped to the
-// caller's own bookings) before either shows: it must still be
-// 'accepted' (matched, unpaid) and actually be for this caregiver.
+// ?bookingId=... — from "View Nanny" on the just-matched/awaiting-
+// payment screen (app/parent/care-requests/[id]/page.tsx). This
+// caregiver IS the current assignment; shows "Pay & Confirm Booking"
+// once GET /api/bookings/[id] confirms the booking is still 'accepted'
+// and really is for this caregiver.
+//
+// ?careRequestId=... — from "Browse other caregivers"
+// (ChooseAnotherNanny, same file), viewing a CANDIDATE who isn't
+// assigned yet. Shows "Select & Continue to Payment", which performs
+// the swap (POST .../dispatch/reselect) and only then moves on to
+// payment for the new booking it creates.
 type PendingBooking = {
   id: string;
   status: string;
@@ -31,15 +37,23 @@ type PendingBooking = {
   care_request_id: string | null;
 };
 
+type DispatchStatus = {
+  activeOffer: { bookingId: string; staffProfileId: string } | null;
+};
+
 export default function CaregiverProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const router = useRouter();
   const searchParams = useSearchParams();
   const bookingId = searchParams.get("bookingId");
+  const careRequestId = searchParams.get("careRequestId");
 
   const [caregiver, setCaregiver] = useState<CaregiverProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
   const [pendingBooking, setPendingBooking] = useState<PendingBooking | null>(null);
+  const [selecting, setSelecting] = useState(false);
+  const [selectError, setSelectError] = useState<string | null>(null);
 
   useEffect(() => {
     apiFetch<{ caregiver: CaregiverProfile }>(`/api/caregivers/${id}`)
@@ -66,6 +80,23 @@ export default function CaregiverProfilePage({ params }: { params: Promise<{ id:
       cancelled = true;
     };
   }, [bookingId, id]);
+
+  async function selectAndContinue() {
+    if (!careRequestId) return;
+    setSelecting(true);
+    setSelectError(null);
+    try {
+      const res = await apiFetch<DispatchStatus>(
+        `/api/care-requests/${careRequestId}/dispatch/reselect`,
+        { method: "POST", body: { staffProfileId: id } },
+      );
+      if (!res.activeOffer) throw new Error("Could not assign this caregiver. Please try again.");
+      router.push(`/parent/bookings/${res.activeOffer.bookingId}/pay`);
+    } catch (err) {
+      setSelectError(errorMessage(err));
+      setSelecting(false);
+    }
+  }
 
   if (error) {
     return (
@@ -97,7 +128,7 @@ export default function CaregiverProfilePage({ params }: { params: Promise<{ id:
       {pendingBooking && (
         <div className="flex flex-col items-center gap-2">
           <LinkButton
-            href={`/parent/bookings/${pendingBooking.id}`}
+            href={`/parent/bookings/${pendingBooking.id}/pay`}
             className="w-full max-w-sm justify-center"
           >
             Pay &amp; Confirm Booking
@@ -110,6 +141,19 @@ export default function CaregiverProfilePage({ params }: { params: Promise<{ id:
               Not the right fit? Browse other caregivers
             </Link>
           )}
+        </div>
+      )}
+
+      {careRequestId && !pendingBooking && (
+        <div className="flex flex-col items-center gap-2">
+          {selectError && <p className="text-[13px] text-error">{selectError}</p>}
+          <Button
+            onClick={() => void selectAndContinue()}
+            disabled={selecting}
+            className="w-full max-w-sm justify-center"
+          >
+            {selecting ? "Selecting…" : "Select & Continue to Payment"}
+          </Button>
         </div>
       )}
     </div>
