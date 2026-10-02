@@ -9,7 +9,6 @@ import {
   ChatCircleText,
   Prohibit,
   ShieldCheck,
-  ShieldWarning,
   Star,
 } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api/client";
@@ -23,7 +22,6 @@ import { VerificationBadge } from "@/components/ui/badge";
 import { ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportForm } from "@/components/report-form";
-import { SosScreen } from "@/components/sos-screen";
 import { SafeTrackCaregiverControl } from "@/components/safe-track";
 import { CaregiverLocationView } from "@/components/caregiver-location-view";
 import { SessionActionButton } from "@/components/staff/session-action-button";
@@ -184,7 +182,6 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState<"accept" | "decline" | null>(null);
   const [declineReason, setDeclineReason] = useState("");
-  const [sosOpen, setSosOpen] = useState(false);
   // A parent arriving here from their own home page (?from=home, e.g.
   // the active-session card's "View Details") gets a real way back to
   // Home instead of always landing on "My Bookings" regardless of where
@@ -681,32 +678,9 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
             <p className="text-[13px] text-ink-muted">
               Keep communication and booking information within CareLink whenever possible.
             </p>
-            {viewerRole === "staff" && ["accepted", "paid", "active"].includes(booking.status) && (
-              <button
-                type="button"
-                onClick={() => setSosOpen(true)}
-                className="flex min-h-[52px] items-center gap-3 rounded-[12px] border border-error/40 bg-error-tint px-4 py-3 text-left hover:border-error"
-              >
-                <ShieldWarning size={22} weight="fill" className="shrink-0 text-error" />
-                <span className="flex flex-col">
-                  <span className="text-[14px] font-semibold text-ink">SOS / Emergency</span>
-                  <span className="text-[12px] text-ink-muted">
-                    Police, fire, medical, or alert CareLink Safety Team
-                  </span>
-                </span>
-              </button>
-            )}
             <ReportForm bookingId={id} subjectUserId={counterpartyUserId} />
           </Sheet>
         )}
-
-      {sosOpen && counterpartyUserId && (
-        <SosScreen
-          bookingId={id}
-          bookingSubjectUserId={counterpartyUserId}
-          onClose={() => setSosOpen(false)}
-        />
-      )}
     </div>
   );
 }
