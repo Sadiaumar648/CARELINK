@@ -2,7 +2,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { calculateTotalAmount, hourlyRateFor, type SkillTag } from "@carelink/shared";
 import { findEligibleCaregivers, loadMatchWeights } from "@/lib/services/caregiver-search";
 import { generateBookingReference } from "@/lib/bookings";
-import { DISPATCH_VICINITY_RADII_KM, MAX_VICINITY_ROUND } from "@/lib/dispatch-config";
 import { notifyCaregiverAssigned } from "@/lib/services/notify";
 
 // CareLink's auto-assign dispatch engine. Every function here runs using
@@ -232,13 +231,8 @@ export async function advanceDispatch(
   }
 
   const weights = await loadMatchWeights(supabase);
-  let round = careRequest.vicinity_round;
   let next: EligibleCandidate | null = null;
 
-  // CareLink location system: a request with resolved coordinates gets a
-  // genuine distance-ring expansion instead of the original area-string
-  // round — see dispatch-config.ts for why both paths still exist and
-  // are capped at the same two rounds.
   const hasCoordinates =
     careRequest.service_latitude != null && careRequest.service_longitude != null;
 
@@ -273,49 +267,30 @@ export async function advanceDispatch(
   }
 
   if (!next) {
-    while (round <= MAX_VICINITY_ROUND) {
-      const outcome = await findEligibleCaregivers(
-        supabase,
-        {
-          // Round 0 = the requested area, exact match; round 1 drops the
-          // area filter entirely. Only used when the request has no
-          // resolved coordinates — see maxDistanceKm below otherwise.
-          area: !hasCoordinates && round === 0 ? careRequest.location : undefined,
-          latitude: hasCoordinates ? careRequest.service_latitude! : undefined,
-          longitude: hasCoordinates ? careRequest.service_longitude! : undefined,
-          date: careRequest.date,
-          startTime: careRequest.start_time.slice(0, 5),
-          endTime: careRequest.end_time.slice(0, 5),
-          skills: careRequest.skills?.length ? careRequest.skills : undefined,
-        },
-        weights,
-        {
-          caregiverType: careRequest.caregiver_type,
-          maxDistanceKm: hasCoordinates ? DISPATCH_VICINITY_RADII_KM[round] : undefined,
-          // CareLink's current dispatch rule: an approved, active
-          // caregiver is automatically dispatch-eligible —
-          // accepting_bookings (default true at profile creation) plus
-          // the same hard filters ordinary search already applies
-          // (caregiver type, schedule/conflicts, skills, verification
-          // via public_caregivers, and onDuty — never a caregiver
-          // already on an active booking). Distance prefers a live
-          // dispatch fix when the caregiver has location sharing on,
-          // falling back to their base/service location otherwise.
-        },
-      );
-      if (outcome.results.length > 0) {
-        next = outcome.results[0];
-        break;
-      }
-      round += 1;
-    }
-  }
-
-  if (round !== careRequest.vicinity_round) {
-    await supabase
-      .from("care_requests")
-      .update({ vicinity_round: Math.min(round, MAX_VICINITY_ROUND) })
-      .eq("id", careRequestId);
+    // CareLink's dispatch rule: a caregiver is matched irrespective of
+    // where they're based relative to the parent — the only thing that
+    // excludes them is already being on an active booking (the onDuty
+    // filter below) or a genuine schedule conflict. No area or distance
+    // hard filter is passed here, so every accepting, eligible
+    // caregiver platform-wide is considered; real coordinates (when the
+    // request has them) still feed computeProximityFit purely as a
+    // ranking signal, same as area still does for scoring either way —
+    // closer still ranks higher when more than one caregiver is
+    // eligible, it just never excludes anyone on its own.
+    const outcome = await findEligibleCaregivers(
+      supabase,
+      {
+        latitude: hasCoordinates ? careRequest.service_latitude! : undefined,
+        longitude: hasCoordinates ? careRequest.service_longitude! : undefined,
+        date: careRequest.date,
+        startTime: careRequest.start_time.slice(0, 5),
+        endTime: careRequest.end_time.slice(0, 5),
+        skills: careRequest.skills?.length ? careRequest.skills : undefined,
+      },
+      weights,
+      { caregiverType: careRequest.caregiver_type },
+    );
+    if (outcome.results.length > 0) next = outcome.results[0];
   }
 
   if (!next) {
@@ -333,11 +308,7 @@ export async function advanceDispatch(
     .update({ dispatch_status: "accepted" })
     .eq("id", careRequestId);
 
-  return summarize(
-    supabase,
-    { ...careRequest, dispatch_status: "accepted", vicinity_round: round },
-    booking,
-  );
+  return summarize(supabase, { ...careRequest, dispatch_status: "accepted" }, booking);
 }
 
 // "Browse other caregivers" — the parent doesn't want the auto-assigned
