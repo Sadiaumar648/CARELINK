@@ -12,7 +12,6 @@ import { VerificationBadge } from "@/components/ui/badge";
 import { Sheet } from "@/components/ui/sheet";
 import { ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ReportForm } from "@/components/report-form";
 import { caregiverPhotoUrl } from "@/lib/photo-url";
 import { formatMessageTime } from "@/lib/message-time";
 
@@ -285,7 +284,6 @@ export default function ParentConversationPage({
           <p className="text-[12.5px] text-ink-muted">
             Keep important booking communication within CareLink whenever possible.
           </p>
-          <ReportForm bookingId={bookingId} subjectUserId={counterpartyUserId} />
         </Sheet>
       )}
     </div>
