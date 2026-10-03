@@ -42,11 +42,13 @@ export function NannyCard({
   highlighted?: boolean;
   highlightLabel?: string;
 }) {
-  const primaryArea = nanny.areas?.find((a) => a.isPrimary)?.area ?? nanny.areas?.[0]?.area ?? null;
+  // No base location shown here any more — dispatch matches a parent
+  // with the best available caregiver irrespective of where either of
+  // them is based, so a caregiver's area is no longer something that
+  // determines or explains a match.
   const facts = [
     nanny.years_experience != null ? `${nanny.years_experience} yrs experience` : null,
     nanny.bookings_completed != null ? `${nanny.bookings_completed} completed care` : null,
-    primaryArea,
   ].filter(Boolean);
 
   return (

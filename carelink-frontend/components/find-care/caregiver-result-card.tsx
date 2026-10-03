@@ -48,8 +48,6 @@ export function CaregiverResultCard({
   appliedFilters: SearchFilters;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const primaryArea =
-    caregiver.areas?.find((a) => a.isPrimary)?.area ?? caregiver.areas?.[0]?.area ?? null;
   const reasons = matchReasons(caregiver, appliedFilters);
 
   return (
@@ -73,7 +71,6 @@ export function CaregiverResultCard({
                 ? `${caregiverTypeLabel(caregiver.caregiver_type)} · `
                 : ""}
               {caregiver.years_experience ?? 0} yrs
-              {primaryArea ? ` · ${primaryArea}` : ""}
             </p>
           </div>
         </div>
