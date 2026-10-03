@@ -95,7 +95,7 @@ const FAQ_ITEMS = [
   {
     question: "How does CareLink find a caregiver for me?",
     answer:
-      "CareLink matches you automatically — no waiting on a caregiver to respond. The moment you submit a request, our system checks your care type, timing, and needs against every available agency caregiver and assigns you the best match right away.",
+      "CareLink matches you automatically. The moment you submit a request, our system checks your care type, timing, and needs against every available agency caregiver and assigns you the best match right away.",
   },
   {
     question: "Are CareLink caregivers verified?",
