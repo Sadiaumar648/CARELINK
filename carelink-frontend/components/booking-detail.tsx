@@ -324,8 +324,12 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
   // onPaid redirect) — just the confirmation, nothing else. The full
   // location/care-profile/timeline/Safety view below is still exactly
   // where it's always been, for whenever this same booking is opened
-  // normally from My Bookings.
-  if (justPaid && viewerRole === "parent" && booking.status === "paid") {
+  // normally from My Bookings. Also matches 'active', not just 'paid'
+  // — a booking scheduled for right now (or already past its start
+  // time) can auto-start within seconds via the 5-second poll below
+  // (lib/services/session-lifecycle.ts), which would otherwise yank
+  // this confirmation away before the parent ever got to read it.
+  if (justPaid && viewerRole === "parent" && ["paid", "active"].includes(booking.status)) {
     return (
       <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
         <Sheet className="flex flex-col items-center gap-2 bg-wisteria-tint text-center">
