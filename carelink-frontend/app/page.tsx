@@ -40,12 +40,12 @@ const STEPS = [
   {
     number: "02",
     title: "We find your match",
-    body: "CareLink finds suitable agency caregivers near your location. If you have a preferred caregiver, we’ll try them first.",
+    body: "CareLink instantly matches you with the best available agency caregiver for your needs — no waiting on a response.",
   },
   {
     number: "03",
     title: "Confirm your booking",
-    body: "Once a caregiver accepts, review your booking details, pay securely, and your care is confirmed.",
+    body: "See your match and the booking cost right away, pay securely, and your care is confirmed.",
   },
 ];
 
@@ -95,7 +95,7 @@ const FAQ_ITEMS = [
   {
     question: "How does CareLink find a caregiver for me?",
     answer:
-      "CareLink uses your care type, requested time, location, experience needs and caregiver availability to find a suitable agency caregiver near you. Caregivers are contacted one at a time. If you have a preferred caregiver, we’ll try them first. If they’re unavailable, we’ll find another suitable caregiver.",
+      "CareLink matches you automatically — no waiting on a caregiver to respond. The moment you submit a request, our system checks your care type, timing, and needs against every available agency caregiver and assigns you the best match right away.",
   },
   {
     question: "Are CareLink caregivers verified?",
@@ -110,12 +110,12 @@ const FAQ_ITEMS = [
   {
     question: "How does payment work?",
     answer:
-      "Once a caregiver accepts your request, you’ll see the final booking cost. You can then pay securely using Mobile Money. Your booking is confirmed after successful payment.",
+      "Once you're matched with a caregiver, you'll see the final booking cost right away. You can then pay securely using Mobile Money. Your booking is confirmed after successful payment.",
   },
   {
-    question: "What happens if a caregiver doesn’t accept my request?",
+    question: "What happens if nobody is available right now?",
     answer:
-      "You don’t need to search for another caregiver yourself. If a caregiver declines or doesn’t respond, CareLink automatically moves to the next suitable agency caregiver. If needed, the search expands to other eligible caregivers nearby.",
+      "You'll see that clearly, and your request details are saved so you don't have to re-enter them — just try again for a different time, or check back shortly as caregiver availability changes.",
   },
   {
     question: "What happens if I have a problem during a booking?",
@@ -128,9 +128,9 @@ const FAQ_ITEMS = [
       "Your child’s care information is private. It is only shared with the caregiver assigned to your booking when the information is needed to provide the requested care.",
   },
   {
-    question: "Can I request a specific caregiver?",
+    question: "Can I choose a different caregiver than the one I'm matched with?",
     answer:
-      "Yes. You can choose a preferred caregiver when making your request. CareLink will try your preferred caregiver first. If they’re unavailable, we’ll continue searching for another suitable agency caregiver.",
+      "Yes. After you're matched, you can browse other available caregivers right from your matched caregiver's profile and switch to someone else if they're not the right fit.",
   },
 ];
 

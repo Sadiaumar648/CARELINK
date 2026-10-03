@@ -33,13 +33,24 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/bookings/[
       );
     }
 
+    // Guarded on status, not just id — makes this safe against a
+    // concurrent advanceDueSessions poll (lib/services/session-lifecycle.ts)
+    // racing the same booking between this route's own SELECT above and
+    // this UPDATE, same pattern completeSession already uses.
     const { data: updated, error } = await supabase
       .from("bookings")
       .update({ status: "active", session_started_at: new Date().toISOString() })
       .eq("id", id)
+      .eq("status", "paid")
       .select()
-      .single();
+      .maybeSingle();
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (!updated) {
+      return NextResponse.json(
+        { error: "This booking must be paid before starting" },
+        { status: 400 },
+      );
+    }
 
     return NextResponse.json({ booking: updated });
   } catch (error) {

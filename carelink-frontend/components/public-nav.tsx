@@ -1,5 +1,28 @@
+"use client";
+
 import Link from "next/link";
+import { Sun, Moon } from "@phosphor-icons/react";
 import { LinkButton } from "@/components/ui/button";
+import { useTheme } from "@/lib/theme/theme-context";
+
+// A single compact icon button rather than the segmented Light/Dark
+// control used inside an authenticated profile dropdown
+// (components/theme-toggle.tsx) — that control's label and two-option
+// layout doesn't fit this header's one-row, icon-only minimal direction.
+function ThemeIconToggle() {
+  const { theme, setTheme } = useTheme();
+  const isDark = theme === "dark";
+  return (
+    <button
+      type="button"
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted hover:bg-paper hover:text-ink"
+    >
+      {isDark ? <Sun size={18} /> : <Moon size={18} />}
+    </button>
+  );
+}
 
 // Simplified, minimal public header: logo on the left, Log in / Get
 // Started on the right — no navigation links. Previously listed Home,
@@ -15,7 +38,8 @@ export function PublicNav() {
           CareLink
         </a>
 
-        <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
+          <ThemeIconToggle />
           <Link
             href="/sign-in"
             className="px-2 text-[14px] font-semibold text-ink hover:text-wisteria"

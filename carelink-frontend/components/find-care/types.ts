@@ -42,7 +42,6 @@ export type SearchFilters = {
   date?: string;
   startTime?: string;
   endTime?: string;
-  budgetCeiling?: number;
   minExperience?: number;
   minRating?: number;
   skills?: string[];

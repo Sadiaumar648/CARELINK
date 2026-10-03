@@ -149,9 +149,12 @@ export default function ParentConversationPage({
   }
 
   const firstName = caregiver.full_name.split(" ")[0];
-  // Messaging opens once the booking is paid for — before that (status
-  // 'accepted'), the composer is replaced with a short explanation.
-  const messagingOpen = ["paid", "active", "completed"].includes(booking.status);
+  // Messaging opens once the booking is paid for, and closes again once
+  // the session is completed — matches the backend's own
+  // MESSAGEABLE_STATUSES (app/api/bookings/[id]/messages/route.ts) and
+  // the RLS policy that actually enforces it; existing message history
+  // still displays after completion, this only gates sending a new one.
+  const messagingOpen = ["paid", "active"].includes(booking.status);
 
   return (
     <div className="mx-auto flex h-full max-w-2xl flex-col gap-4 p-6">

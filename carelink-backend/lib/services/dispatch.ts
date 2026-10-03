@@ -286,6 +286,7 @@ export async function advanceDispatch(
         startTime: careRequest.start_time.slice(0, 5),
         endTime: careRequest.end_time.slice(0, 5),
         skills: careRequest.skills?.length ? careRequest.skills : undefined,
+        durationDays: careRequest.duration_days,
       },
       weights,
       { caregiverType: careRequest.caregiver_type },

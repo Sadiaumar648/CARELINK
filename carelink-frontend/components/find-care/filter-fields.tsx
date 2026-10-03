@@ -107,16 +107,6 @@ export function FilterFields({
         }
       />
 
-      <Field
-        label="Budget ceiling (GH₵/hr)"
-        type="number"
-        min={0}
-        value={filters.budgetCeiling ?? ""}
-        onChange={(e) =>
-          onChange({ budgetCeiling: e.target.value ? Number(e.target.value) : undefined })
-        }
-      />
-
       <div className="flex flex-col gap-2">
         <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
           Rating

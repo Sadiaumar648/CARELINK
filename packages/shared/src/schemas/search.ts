@@ -27,7 +27,6 @@ export const searchCaregiversQuerySchema = z
       .optional(),
     startTime: timeString.optional(),
     endTime: timeString.optional(),
-    budgetCeiling: z.coerce.number().int().positive().optional(),
     minExperience: z.coerce.number().int().min(0).optional(),
     minRating: z.coerce.number().min(0).max(5).optional(),
     skills: z.array(skillTagSchema).optional(),

@@ -11,7 +11,6 @@ export type ParsedSearchFilters = {
   date?: string;
   startTime?: string;
   endTime?: string;
-  budgetCeiling?: number;
   minExperience?: number;
   skills?: string[];
 };
@@ -37,9 +36,6 @@ export function sanitizeParsedFilters(raw: unknown): ParsedSearchFilters {
   if (typeof r.date === "string" && DATE_RE.test(r.date)) out.date = r.date;
   if (typeof r.startTime === "string" && TIME_RE.test(r.startTime)) out.startTime = r.startTime;
   if (typeof r.endTime === "string" && TIME_RE.test(r.endTime)) out.endTime = r.endTime;
-  if (typeof r.budgetCeiling === "number" && r.budgetCeiling > 0) {
-    out.budgetCeiling = Math.round(r.budgetCeiling);
-  }
   if (typeof r.minExperience === "number" && r.minExperience >= 0) {
     out.minExperience = Math.round(r.minExperience);
   }
@@ -76,8 +72,9 @@ function buildSystemPrompt(): string {
   return (
     "Convert a parent's plain-language caregiver search into structured filters. " +
     "Available fields: area (text), date (YYYY-MM-DD), startTime and endTime (24-hour HH:MM, include both or neither), " +
-    "budgetCeiling (maximum hourly rate in Ghana cedis, a plain number), minExperience (years, integer), " +
+    "minExperience (years, integer), " +
     "skills (array using exactly these snake_case strings, unchanged: infant_care, toddler_care, school_age_supervision, newborn_care, meal_preparation, special_needs_care, light_housekeeping). " +
+    "Every CareLink caregiver costs the same fixed rate — never extract a budget/price field even if the parent mentions a rate; it isn't a real filter. " +
     `Omit any field the parent didn't state. Today's date is ${today}; resolve relative dates against it. ` +
     "Respond with raw JSON only — no other text, no markdown code fences."
   );

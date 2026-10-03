@@ -146,9 +146,12 @@ export default function StaffConversationPage({
   }
 
   const title = wardsTitle(wards) ?? booking.reference;
-  // Messaging opens once the parent has paid for the booking — before
-  // that (status 'accepted'), the composer is replaced with a note.
-  const messagingOpen = ["paid", "active", "completed"].includes(booking.status);
+  // Messaging opens once the parent has paid for the booking, and closes
+  // again once the session is completed — matches the backend's own
+  // MESSAGEABLE_STATUSES (app/api/bookings/[id]/messages/route.ts) and
+  // the RLS policy that actually enforces it; existing message history
+  // still displays after completion, this only gates sending a new one.
+  const messagingOpen = ["paid", "active"].includes(booking.status);
 
   return (
     <div className="mx-auto flex h-full max-w-2xl flex-col gap-4 p-6">

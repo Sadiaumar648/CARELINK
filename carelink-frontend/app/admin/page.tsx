@@ -95,8 +95,10 @@ const CAREGIVER_TYPE_LABEL: Record<"nanny" | "babysitter", string> = {
 
 // One pastel accent per Quick Action card, drawn only from CareLink's
 // existing palette tokens (no new colors introduced): light blue,
-// lavender, mint, peach, pink, lavender again for the sixth and
-// seventh.
+// lavender, mint, peach, pink, lavender again for the sixth. The Admin
+// Assistant card below is deliberately NOT drawn from this array — its
+// gold accent marks it as the one AI-powered surface on this page,
+// kept separate from CareLink's ordinary purple-branded accents.
 const QUICK_ACTION_TINT = [
   "bg-bluebell-tint text-[var(--color-bluebell-pressed)]",
   "bg-wisteria-tint text-wisteria-pressed",
@@ -104,7 +106,6 @@ const QUICK_ACTION_TINT = [
   "bg-gold-tint text-[var(--color-gold)]",
   "bg-error-tint text-error",
   "bg-wisteria-tint text-wisteria-pressed",
-  "bg-bluebell-tint text-[var(--color-bluebell-pressed)]",
 ] as const;
 
 function activityDotClass(label: string): string {
@@ -390,7 +391,7 @@ export default function AdminOverviewPage() {
                 icon={Sparkle}
                 label="Ask the Admin Assistant"
                 description="Get quick answers about reports, revenue, bookings, and caregivers."
-                tint={QUICK_ACTION_TINT[6]}
+                tint="bg-gold-tint text-[var(--color-gold)]"
               />
             </div>
           </section>

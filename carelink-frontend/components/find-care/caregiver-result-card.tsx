@@ -13,9 +13,11 @@ import { caregiverTypeLabel, skillLabel, type CaregiverResult, type SearchFilter
 
 // Every reason here is grounded in something the backend actually did:
 // the hard filters in GET /api/search/caregivers exclude a candidate
-// entirely unless they satisfy area/date+time/skills/budget/experience,
-// so any of those the parent actually set is true of every remaining
-// result, not a soft guess. Rating is the one purely observational one.
+// entirely unless they satisfy area/date+time/skills/experience, so any
+// of those the parent actually set is true of every remaining result,
+// not a soft guess. Rating is the one purely observational one. There's
+// deliberately no budget reason — every caregiver costs the same fixed
+// CareLink rate, so a price filter would never mean anything real.
 function matchReasons(caregiver: CaregiverResult, applied: SearchFilters): string[] {
   const reasons: string[] = [];
   const primaryArea = caregiver.areas?.find((a) => a.isPrimary)?.area ?? caregiver.areas?.[0]?.area;
@@ -28,9 +30,6 @@ function matchReasons(caregiver: CaregiverResult, applied: SearchFilters): strin
   }
   if (applied.skills?.length) {
     reasons.push(`Experienced with ${applied.skills.map(skillLabel).join(", ")}`);
-  }
-  if (applied.budgetCeiling) {
-    reasons.push(`Within your GH₵${applied.budgetCeiling}/hr budget`);
   }
   if (applied.minExperience) {
     reasons.push(`${applied.minExperience}+ years of experience`);

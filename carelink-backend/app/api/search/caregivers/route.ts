@@ -21,7 +21,6 @@ export async function GET(request: Request) {
       date: url.searchParams.get("date") ?? undefined,
       startTime: url.searchParams.get("startTime") ?? undefined,
       endTime: url.searchParams.get("endTime") ?? undefined,
-      budgetCeiling: url.searchParams.get("budgetCeiling") ?? undefined,
       minExperience: url.searchParams.get("minExperience") ?? undefined,
       minRating: url.searchParams.get("minRating") ?? undefined,
       skills: skillsParam ? skillsParam.split(",").filter(Boolean) : undefined,

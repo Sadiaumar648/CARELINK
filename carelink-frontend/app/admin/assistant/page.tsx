@@ -71,7 +71,7 @@ export default function AdminAssistantPage() {
       </Link>
 
       <div className="flex items-center gap-2">
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-wisteria-tint text-wisteria-pressed">
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gold-tint text-[var(--color-gold)]">
           <Sparkle size={18} weight="fill" />
         </span>
         <div>
@@ -94,7 +94,7 @@ export default function AdminAssistantPage() {
                     key={prompt}
                     type="button"
                     onClick={() => void send(prompt)}
-                    className="rounded-[10px] border border-hairline bg-paper px-3.5 py-2.5 text-[13px] text-ink hover:border-wisteria"
+                    className="rounded-[10px] border border-hairline bg-paper px-3.5 py-2.5 text-[13px] text-ink hover:border-[var(--color-gold)]"
                   >
                     {prompt}
                   </button>
@@ -110,7 +110,7 @@ export default function AdminAssistantPage() {
             >
               <div
                 className={`max-w-[85%] whitespace-pre-wrap rounded-[14px] px-3.5 py-2.5 text-[14px] leading-relaxed ${
-                  m.role === "user" ? "bg-wisteria text-sheet" : "bg-paper text-ink"
+                  m.role === "user" ? "bg-[var(--color-gold)] text-sheet" : "bg-paper text-ink"
                 }`}
               >
                 {m.content}
@@ -137,13 +137,13 @@ export default function AdminAssistantPage() {
             placeholder="Ask about CareLink…"
             aria-label="Ask the admin assistant"
             disabled={sending}
-            className="flex-1 rounded-[10px] border border-hairline bg-paper px-3 py-2.5 text-[14px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15 disabled:opacity-60"
+            className="flex-1 rounded-[10px] border border-hairline bg-paper px-3 py-2.5 text-[14px] text-ink placeholder:text-ink-muted focus:border-[var(--color-gold)] focus:outline-none focus:ring-4 focus:ring-[var(--color-gold)]/15 disabled:opacity-60"
           />
           <button
             type="submit"
             disabled={sending || !draft.trim()}
             aria-label="Send"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-wisteria text-sheet hover:bg-wisteria-hover disabled:opacity-50"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-[var(--color-gold)] text-sheet hover:bg-[var(--color-gold)]/90 disabled:opacity-50"
           >
             <PaperPlaneTilt size={18} weight="fill" />
           </button>

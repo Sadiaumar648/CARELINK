@@ -65,13 +65,16 @@ async function getPlatformOverview(supabase: SupabaseClient, input: Record<strin
   if (bookingsRes.error) throw bookingsRes.error;
   if (paymentsRes.error) throw paymentsRes.error;
   if (staffRes.error) throw staffRes.error;
+  if (verificationsRes.error) throw verificationsRes.error;
+  if (reportsRes.error) throw reportsRes.error;
+  if (careRequestsRes.error) throw careRequestsRes.error;
 
   const bookingsByStatus: Record<string, number> = {};
   for (const b of bookingsRes.data ?? []) {
     bookingsByStatus[b.status] = (bookingsByStatus[b.status] ?? 0) + 1;
   }
   const totalBookings = bookingsRes.data?.length ?? 0;
-  const revenueCedis = (paymentsRes.data ?? []).reduce((sum, p) => sum + p.amount, 0) / 100;
+  const revenueCedis = (paymentsRes.data ?? []).reduce((sum, p) => sum + p.amount, 0);
 
   const activeStaffCount = (staffRes.data ?? []).filter(
     (s) =>
@@ -161,7 +164,7 @@ async function getPayments(supabase: SupabaseClient, input: Record<string, unkno
   for (const p of totalsData ?? []) {
     const bucket = (totalsByStatus[p.status] ??= { count: 0, amountCedis: 0 });
     bucket.count += 1;
-    bucket.amountCedis += p.amount / 100;
+    bucket.amountCedis += p.amount;
   }
 
   return {
@@ -171,7 +174,7 @@ async function getPayments(supabase: SupabaseClient, input: Record<string, unkno
       return {
         bookingReference: (booking as { reference: string } | null)?.reference ?? null,
         network: p.network,
-        amountCedis: p.amount / 100,
+        amountCedis: p.amount,
         status: p.status,
         failureReason: p.failure_reason,
         settledAt: p.settled_at,
@@ -214,7 +217,7 @@ async function getBookings(supabase: SupabaseClient, input: Record<string, unkno
       status: b.status,
       startsAt: b.starts_at,
       endsAt: b.ends_at,
-      totalAmountCedis: b.total_amount / 100,
+      totalAmountCedis: b.total_amount,
       createdAt: b.created_at,
     })),
   };
@@ -353,8 +356,14 @@ async function getReviews(supabase: SupabaseClient, input: Record<string, unknow
   if (parentRes.error) throw parentRes.error;
   if (caregiverRes.error) throw caregiverRes.error;
 
-  const { data: allParentRatings } = await supabase.from("reviews").select("rating");
-  const { data: allCaregiverRatings } = await supabase.from("caregiver_reviews").select("rating");
+  const { data: allParentRatings, error: parentRatingsErr } = await supabase
+    .from("reviews")
+    .select("rating");
+  if (parentRatingsErr) throw parentRatingsErr;
+  const { data: allCaregiverRatings, error: caregiverRatingsErr } = await supabase
+    .from("caregiver_reviews")
+    .select("rating");
+  if (caregiverRatingsErr) throw caregiverRatingsErr;
   const avg = (rows: { rating: number }[] | null) =>
     rows && rows.length > 0 ? rows.reduce((s, r) => s + r.rating, 0) / rows.length : null;
 

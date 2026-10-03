@@ -160,13 +160,6 @@ export async function findEligibleCaregivers(
       (c) => (c.years_experience ?? 0) >= query.minExperience!,
     );
   }
-  if (query.budgetCeiling != null) {
-    applyFilter(
-      "budgetCeiling",
-      "Try raising the budget.",
-      (c) => c.hourly_rate <= query.budgetCeiling!,
-    );
-  }
   if (query.minRating != null) {
     applyFilter(
       "minRating",
@@ -339,7 +332,13 @@ export async function findEligibleCaregivers(
             ? computeProximityFit(distanceKm)
             : computeAreaFit(query.area ?? null, primary, others),
         skills: computeSkillFit(query.skills ?? [], c.skills ?? []),
-        budget: computeBudgetFit(effectiveRate, query.budgetCeiling ?? null),
+        // No budget filter exists on this search any more — every
+        // caregiver costs the same fixed CareLink rate, so there is
+        // nothing left for a parent-specified ceiling to mean. Passing
+        // null keeps this scoring dimension neutral (always 1) rather
+        // than removing it outright, since match_weights.budget is
+        // still a real, admin-configurable weight elsewhere.
+        budget: computeBudgetFit(effectiveRate, null),
         ratingExperience: computeRatingExperienceFit(
           c.rating_avg != null ? Number(c.rating_avg) : null,
           c.rating_count,

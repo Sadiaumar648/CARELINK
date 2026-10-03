@@ -572,7 +572,7 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
 
       <div className="flex flex-col gap-3">
         {viewerRole === "staff" && booking.status === "pending" && confirming === null && (
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <Button size="lg" onClick={() => setConfirming("accept")}>
               Accept
             </Button>
@@ -588,7 +588,7 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
             <p className="text-[13px] text-ink-muted">
               You&apos;re agreeing to provide care at the date and time shown above.
             </p>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <Button size="lg" disabled={busy} onClick={() => void act("/accept")}>
                 Accept Request
               </Button>
@@ -618,7 +618,7 @@ export function BookingDetail({ id, viewerRole }: { id: string; viewerRole: "par
                 className="rounded-[10px] border border-hairline bg-sheet px-3 py-2 text-[14px] text-ink placeholder:text-ink-muted focus:border-wisteria focus:outline-none focus:ring-4 focus:ring-wisteria/15"
               />
             </label>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <Button
                 size="lg"
                 variant="danger"
@@ -723,7 +723,7 @@ function CancelForm({ bookingId, onCancelled }: { bookingId: string; onCancelled
         onChange={(e) => setReason(e.target.value)}
       />
       {error && <p className="text-[13px] text-error">{error}</p>}
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
           Keep Booking
         </Button>
