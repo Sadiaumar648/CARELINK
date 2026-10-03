@@ -3,14 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import {
-  ArrowLeft,
-  ArrowRight,
-  MagnifyingGlass,
-  ShieldCheck,
-  Sparkle,
-  X,
-} from "@phosphor-icons/react";
+import { ArrowLeft, ArrowRight, MagnifyingGlass, ShieldCheck, X } from "@phosphor-icons/react";
 import { hourlyRateFor } from "@carelink/shared";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { errorMessage } from "@/lib/error-message";
@@ -87,8 +80,6 @@ function FindCarePage() {
   const [caregiverType, setCaregiverType] = useState<"nanny" | "babysitter" | undefined>();
   const [fromRequestFlow, setFromRequestFlow] = useState(false);
   const [relaxationNotice, setRelaxationNotice] = useState<string | null>(null);
-  const [nlQuery, setNlQuery] = useState("");
-  const [nlSearching, setNlSearching] = useState(false);
 
   function selectSort(key: SortKey) {
     setSortBy(key);
@@ -203,14 +194,13 @@ function FindCarePage() {
     void runSearch({});
   }
 
-  // The one real NL-search entry point: typed into the visible search
-  // bar below, or arriving as ?q= from elsewhere (e.g. a link from
-  // another page) — both paths funnel through this same parse-then-
-  // search call, so they can never drift out of sync.
+  // The NL-search parse-then-search call, reachable here only via a
+  // ?q= link from elsewhere — the visible search bar itself now lives
+  // on the actual Request Care form instead
+  // (components/parent/request-flow-panel.tsx).
   async function runNLSearch(query: string) {
     const trimmed = query.trim();
     if (!trimmed) return;
-    setNlSearching(true);
     setError(null);
     try {
       const parseRes = await apiFetch<{ filters: Partial<SearchFilters> | null }>(
@@ -244,19 +234,17 @@ function FindCarePage() {
       setError(errorMessage(err));
     } finally {
       setLoading(false);
-      setNlSearching(false);
     }
   }
 
-  // A query arriving from elsewhere as ?q= — run it once, the same way
-  // typing it into the search bar below and submitting would.
+  // A query arriving from elsewhere as ?q= — there's no visible AI
+  // search bar on this page any more (moved to the actual Request Care
+  // form, components/parent/request-flow-panel.tsx), but this still
+  // runs it once for any existing link built around ?q=.
   useEffect(() => {
     const initial = searchParams.get("q");
     if (!initial) return;
-    void Promise.resolve().then(() => {
-      setNlQuery(initial);
-      void runNLSearch(initial);
-    });
+    void Promise.resolve().then(() => void runNLSearch(initial));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once, on the initial ?q= only
   }, []);
 
@@ -358,43 +346,6 @@ function FindCarePage() {
           CareLink&apos;s identity verification.
         </p>
       </div>
-
-      {/* The one AI-powered surface on this page — deliberately not
-          purple/wisteria like the rest of CareLink's UI, and no
-          gradient, so it reads as a distinct "this part is AI" moment
-          rather than blending into an ordinary filter field. Submits
-          straight into runNLSearch above; a parent who'd rather not use
-          it just scrolls past to the results empty state. */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void runNLSearch(nlQuery);
-        }}
-        className="flex flex-col gap-2 rounded-[16px] border border-[var(--color-gold)]/30 bg-gold-tint p-4"
-      >
-        <label
-          htmlFor="nl-search"
-          className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--color-gold)]"
-        >
-          <Sparkle size={14} weight="fill" /> Describe what you need
-        </label>
-        <div className="flex gap-2">
-          <input
-            id="nl-search"
-            value={nlQuery}
-            onChange={(e) => setNlQuery(e.target.value)}
-            placeholder="e.g. a nanny for my 3-year-old this Saturday afternoon"
-            className="flex-1 rounded-[10px] border border-hairline bg-sheet px-3.5 py-2.5 text-[14px] text-ink placeholder:text-ink-muted focus:border-[var(--color-gold)] focus:outline-none focus:ring-4 focus:ring-[var(--color-gold)]/15"
-          />
-          <button
-            type="submit"
-            disabled={nlSearching || !nlQuery.trim()}
-            className="shrink-0 rounded-[10px] bg-[var(--color-gold)] px-4 py-2.5 text-[15px] font-semibold font-heading text-sheet transition-colors hover:bg-[var(--color-gold)]/90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {nlSearching ? "Searching…" : "Search"}
-          </button>
-        </div>
-      </form>
 
       <div id="search-results-top" className="flex flex-col gap-4 scroll-mt-6">
         {hasSearched && !loading && sortedResults && (
