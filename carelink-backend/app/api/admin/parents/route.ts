@@ -95,27 +95,42 @@ export async function GET(request: Request) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // A parent's "photo" here is their own live identity-verification
-    // selfie (identity_documents_admin_read already grants an admin
-    // storage access to it — the same private bucket /admin/verifications
-    // already reads from) — their most recent one, as a short-lived
-    // signed URL each request, never a stored public copy. If the
-    // retention job has since purged it (30 days after a decision —
-    // /api/internal/retention), selfie_path is null and this parent
-    // simply has no photo, same as the app's existing retention policy.
-    const { data: selfieRows } = await supabase
-      .from("verification_submissions")
-      .select("user_id, selfie_path, created_at")
+    // The academic NIA/IVSP simulation result (see
+    // lib/services/identity-verification.ts) — each parent's most recent
+    // *successful* attempt only, never a stray later failed retry (a
+    // parent who's already verified and mistypes a PIN on a second
+    // attempt stays shown as verified here, matching users.
+    // verification_status, the authoritative flag, which a failed
+    // attempt never touches — see the route's own POST handler). A
+    // parent's "photo" is this same attempt's live selfie
+    // (identity_documents_admin_read grants an admin storage access to
+    // it) as a short-lived signed URL each request, never a stored
+    // public copy — once the retention job purges it (30 days after a
+    // decision — /api/internal/retention), selfie_path is null and this
+    // parent simply has no photo.
+    const { data: verificationRows } = await supabase
+      .from("parent_identity_verifications")
+      .select("user_id, status, provider, verification_reference, selfie_path, created_at")
       .in(
         "user_id",
         data.map((row) => row.id),
       )
-      .not("selfie_path", "is", null)
+      .eq("status", "verified")
       .order("created_at", { ascending: false });
+    const latestVerificationByUserId = new Map<
+      string,
+      { status: string; provider: string; reference: string; verifiedAt: string }
+    >();
     const latestSelfiePathByUserId = new Map<string, string>();
-    for (const s of selfieRows ?? []) {
-      if (!latestSelfiePathByUserId.has(s.user_id)) {
-        latestSelfiePathByUserId.set(s.user_id, s.selfie_path as string);
+    for (const v of verificationRows ?? []) {
+      if (!latestVerificationByUserId.has(v.user_id)) {
+        latestVerificationByUserId.set(v.user_id, {
+          status: v.status,
+          provider: v.provider,
+          reference: v.verification_reference,
+          verifiedAt: v.created_at,
+        });
+        if (v.selfie_path) latestSelfiePathByUserId.set(v.user_id, v.selfie_path);
       }
     }
     const photoUrlByUserId = new Map<string, string>();
@@ -127,40 +142,6 @@ export async function GET(request: Request) {
         if (signed?.signedUrl) photoUrlByUserId.set(userId, signed.signedUrl);
       }),
     );
-
-    // The academic NIA/IVSP simulation result (see
-    // lib/services/identity-verification.ts) — each parent's most recent
-    // *successful* attempt only, never a stray later failed retry (a
-    // parent who's already verified and mistypes a PIN on a second
-    // attempt stays shown as verified here, matching users.
-    // verification_status, the authoritative flag, which a failed
-    // attempt never touches — see the route's own POST handler).
-    // Deliberately narrow: provider, reference, and when, never the
-    // underlying PIN/biodata match booleans or the selfie itself (those
-    // aren't needed for this admin list/detail view).
-    const { data: verificationRows } = await supabase
-      .from("parent_identity_verifications")
-      .select("user_id, status, provider, verification_reference, created_at")
-      .in(
-        "user_id",
-        data.map((row) => row.id),
-      )
-      .eq("status", "verified")
-      .order("created_at", { ascending: false });
-    const latestVerificationByUserId = new Map<
-      string,
-      { status: string; provider: string; reference: string; verifiedAt: string }
-    >();
-    for (const v of verificationRows ?? []) {
-      if (!latestVerificationByUserId.has(v.user_id)) {
-        latestVerificationByUserId.set(v.user_id, {
-          status: v.status,
-          provider: v.provider,
-          reference: v.verification_reference,
-          verifiedAt: v.created_at,
-        });
-      }
-    }
 
     const parentProfileIds = data
       .map((row) => {

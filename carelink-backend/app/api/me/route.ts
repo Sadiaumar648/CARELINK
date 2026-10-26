@@ -3,9 +3,9 @@ import { authErrorResponse, requireUser } from "@/lib/auth/require-user";
 
 // The first call carelink-frontend makes after sign-in: who is this, and
 // which role's shell should they land on (doc 3, App Flow, §1).
-// verificationStatus is included so a page like /onboarding/identity can
+// verificationStatus is included so a page like claim-invitation can
 // tell "already verified" (including an existing agency user verified
-// at admin-invite time, who has no verification_submissions row at all)
+// at admin-invite time, who never goes through /verify-identity at all)
 // apart from "needs to go through the wizard", without a second route.
 export async function GET(request: Request) {
   try {

@@ -60,13 +60,10 @@ function MenuRow({
 // Verification below — there's no separate upload here, the same way
 // there's no separate "profile photo" concept for a parent anywhere
 // else in this app. It's fetched as a short-lived signed URL (the
-// storage bucket is private) and preferred from the current NIA/IVSP
-// simulation flow (GET /api/parent/identity-verification); a parent who
-// only ever completed the older onboarding verification still gets a
-// photo from that route's own selfie (GET /api/verification/
-// submissions) as a fallback. Either way, once the relevant retention
-// job purges the underlying image, this naturally goes back to no
-// photo, matching that existing policy rather than overriding it.
+// storage bucket is private) from the NIA/IVSP simulation flow (GET
+// /api/parent/identity-verification). Once the relevant retention job
+// purges the underlying image, this naturally goes back to no photo,
+// matching that existing policy rather than overriding it.
 function ProfilePhoto() {
   const { user } = useAuth();
   const fullName = (user?.user_metadata?.full_name as string | undefined) ?? "Your photo";
@@ -74,15 +71,7 @@ function ProfilePhoto() {
 
   useEffect(() => {
     apiFetch<{ photoUrl: string | null }>("/api/parent/identity-verification")
-      .then((res) => {
-        if (res.photoUrl) {
-          setPhotoUrl(res.photoUrl);
-          return;
-        }
-        return apiFetch<{ photoUrl: string | null }>("/api/verification/submissions").then((r) =>
-          setPhotoUrl(r.photoUrl),
-        );
-      })
+      .then((res) => setPhotoUrl(res.photoUrl))
       .catch(() => setPhotoUrl(null));
   }, []);
 

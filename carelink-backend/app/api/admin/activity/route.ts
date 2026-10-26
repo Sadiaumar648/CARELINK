@@ -3,10 +3,10 @@ import { authErrorResponse, requireRole } from "@/lib/auth/require-user";
 
 // Admin dashboard's "Recent Activity" — a real, merged feed from every
 // event source that already has a created/occurred timestamp: booking
-// status transitions (booking_events, the original source), caregiver
-// applications (verification_submissions), reviews submitted (both
-// directions, with real reviewer/reviewed names), payments received,
-// and care requests created. Every source here already exists and is
+// status transitions (booking_events, the original source), reviews
+// submitted (both directions, with real reviewer/reviewed names),
+// payments received, and care requests created. Every source here
+// already exists and is
 // already admin-readable under its own RLS; this route only merges and
 // sorts them by time — it never invents an event, and a source with
 // nothing recent simply contributes nothing to the merge rather than a
@@ -45,48 +45,39 @@ export async function GET(request: Request) {
   try {
     const { supabase } = await requireRole(request, ["admin"]);
 
-    const [
-      bookingEventsRes,
-      paymentsRes,
-      applicationsRes,
-      reviewsRes,
-      caregiverReviewsRes,
-      careRequestsRes,
-    ] = await Promise.all([
-      supabase
-        .from("booking_events")
-        .select("booking_id, to_status, occurred_at, bookings(reference)")
-        .order("occurred_at", { ascending: false })
-        .limit(PER_SOURCE_LIMIT),
-      supabase
-        .from("payments")
-        .select("booking_id, settled_at, created_at, bookings(reference)")
-        .eq("status", "succeeded")
-        .order("created_at", { ascending: false })
-        .limit(PER_SOURCE_LIMIT),
-      supabase
-        .from("verification_submissions")
-        .select("created_at, users!verification_submissions_user_id_fkey(full_name, role)")
-        .order("created_at", { ascending: false })
-        .limit(PER_SOURCE_LIMIT),
-      supabase
-        .from("reviews")
-        .select(
-          "booking_id, created_at, bookings(id, reference, parent_profile_id, staff_profile_id)",
-        )
-        .order("created_at", { ascending: false })
-        .limit(PER_SOURCE_LIMIT),
-      supabase
-        .from("caregiver_reviews")
-        .select("booking_id, parent_profile_id, staff_profile_id, created_at, bookings(reference)")
-        .order("created_at", { ascending: false })
-        .limit(PER_SOURCE_LIMIT),
-      supabase
-        .from("care_requests")
-        .select("id, created_at")
-        .order("created_at", { ascending: false })
-        .limit(PER_SOURCE_LIMIT),
-    ]);
+    const [bookingEventsRes, paymentsRes, reviewsRes, caregiverReviewsRes, careRequestsRes] =
+      await Promise.all([
+        supabase
+          .from("booking_events")
+          .select("booking_id, to_status, occurred_at, bookings(reference)")
+          .order("occurred_at", { ascending: false })
+          .limit(PER_SOURCE_LIMIT),
+        supabase
+          .from("payments")
+          .select("booking_id, settled_at, created_at, bookings(reference)")
+          .eq("status", "succeeded")
+          .order("created_at", { ascending: false })
+          .limit(PER_SOURCE_LIMIT),
+        supabase
+          .from("reviews")
+          .select(
+            "booking_id, created_at, bookings(id, reference, parent_profile_id, staff_profile_id)",
+          )
+          .order("created_at", { ascending: false })
+          .limit(PER_SOURCE_LIMIT),
+        supabase
+          .from("caregiver_reviews")
+          .select(
+            "booking_id, parent_profile_id, staff_profile_id, created_at, bookings(reference)",
+          )
+          .order("created_at", { ascending: false })
+          .limit(PER_SOURCE_LIMIT),
+        supabase
+          .from("care_requests")
+          .select("id, created_at")
+          .order("created_at", { ascending: false })
+          .limit(PER_SOURCE_LIMIT),
+      ]);
 
     if (bookingEventsRes.error)
       return NextResponse.json({ error: bookingEventsRes.error.message }, { status: 500 });
@@ -171,18 +162,6 @@ export async function GET(request: Request) {
         reference: (booking as { reference: string } | null)?.reference ?? null,
         label: "Payment received",
         occurredAt: p.settled_at ?? p.created_at,
-      });
-    }
-
-    for (const a of applicationsRes.data ?? []) {
-      const applicant = Array.isArray(a.users) ? a.users[0] : a.users;
-      const role = (applicant as { role: string } | null)?.role;
-      if (role !== "staff") continue; // parent verification submissions aren't "caregiver applications"
-      activity.push({
-        bookingId: null,
-        reference: (applicant as { full_name: string } | null)?.full_name ?? null,
-        label: "New caregiver application",
-        occurredAt: a.created_at,
       });
     }
 

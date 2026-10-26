@@ -5,11 +5,6 @@ import { joinOnboardingLinkSchema } from "@carelink/shared";
 import { createServiceRoleClient } from "@/lib/db/supabase-server";
 import { placeholderStaffEmail } from "@/lib/invitations";
 
-function extOf(file: File): string {
-  const parts = file.name.split(".");
-  return parts.length > 1 ? parts[parts.length - 1] : "bin";
-}
-
 // The self-registration counterpart to /api/auth/claim-invitation: no
 // account exists yet to claim (a shared link has no single pre-created
 // recipient — see api/admin/onboarding-links), so this route creates
@@ -19,27 +14,17 @@ function extOf(file: File): string {
 // 20260918000000_claim_onboarding_link_registration.sql). Unauthenticated
 // by design, same as claim-invitation.
 //
+// No identity document or photo is collected — only staff the agency
+// has already trained and approved ever receive this link, so the
+// link itself is the verification. The account is marked verified
+// (verification_method "agency") the moment it's created, the same
+// attestation api/admin/staff's own agencyVerified checkbox writes.
+//
 // Also creates a bare staff_profiles row (so /onboarding/caregiver's
-// later PATCH has something to upsert into) and a lightweight
-// verification_submissions row for the Ghana Card number + live photo
-// collected on the join form — no ID-card photo, no reference contact
-// (migration 20260919000000 made both nullable for exactly this case),
-// so it lands in the admin's existing Verifications queue exactly like
-// any other submission, just missing those two fields.
+// later PATCH has something to upsert into).
 export async function POST(request: Request) {
   try {
-    const formData = await request.formData();
-    const body = joinOnboardingLinkSchema.parse({
-      token: formData.get("token"),
-      fullName: formData.get("fullName"),
-      phone: formData.get("phone"),
-      idDocumentNumber: formData.get("idDocumentNumber"),
-      password: formData.get("password"),
-    });
-    const selfieFile = formData.get("selfieFile");
-    if (!(selfieFile instanceof File)) {
-      return NextResponse.json({ error: "Take a live photo before continuing" }, { status: 400 });
-    }
+    const body = joinOnboardingLinkSchema.parse(await request.json());
 
     const admin = createServiceRoleClient();
 
@@ -103,32 +88,16 @@ export async function POST(request: Request) {
     // A bare row, same pattern POST /api/wards uses for parent_profiles —
     // /onboarding/caregiver's own PATCH /api/staff/profile upserts the
     // real caregiverType/base location into it next.
-    const { data: staffProfile, error: profileErr } = await admin
-      .from("staff_profiles")
-      .insert({ user_id: userId })
-      .select("id")
-      .single();
+    await admin.from("staff_profiles").insert({ user_id: userId });
 
-    // The account itself is real and valid even if what follows here
-    // fails — never rolled back over a verification-data hiccup. The
-    // caregiver can still complete /onboarding/caregiver and, if
-    // needed, submit identity separately later via /onboarding/identity
-    // (open to any staff role — see RequireRole in the onboarding layout).
-    if (!profileErr && staffProfile) {
-      const selfieBuffer = Buffer.from(await selfieFile.arrayBuffer());
-      const selfiePath = `${userId}/selfie-${Date.now()}.${extOf(selfieFile)}`;
-      const { error: uploadErr } = await admin.storage
-        .from("identity-documents")
-        .upload(selfiePath, selfieBuffer, { contentType: selfieFile.type });
-      if (!uploadErr) {
-        await admin.from("verification_submissions").insert({
-          user_id: userId,
-          id_document_type: "ghana_card",
-          id_document_number: body.idDocumentNumber,
-          selfie_path: selfiePath,
-        });
-      }
-    }
+    // The agency's attestation that this person is already trained and
+    // approved, same as api/admin/staff's agencyVerified checkbox — never
+    // rolled back over this write failing, the account itself is still
+    // real and valid either way.
+    await admin
+      .from("users")
+      .update({ verification_status: "verified", verification_method: "agency" })
+      .eq("id", userId);
 
     const anon = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL as string,

@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useMemo, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -9,18 +9,16 @@ import { errorMessage } from "@/lib/error-message";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
-import { CameraCapture } from "@/components/camera-capture";
 
-// The self-registration counterpart to /register: mirrors that form's
-// identity fields (Ghana Card number + live photo) exactly, rather than
-// the older document-upload wizard's fuller set. No account exists yet
-// here, so this page is unauthenticated by design, same as
-// claim-invitation — and always continues straight into
-// /onboarding/caregiver afterward, since a caregiver reaching here is
-// always brand new.
+// The self-registration counterpart to /register: no identity document
+// or photo is collected — only staff the agency has already trained
+// and approved ever receive this link, so the link itself is the
+// verification. No account exists yet here, so this page is
+// unauthenticated by design, same as claim-invitation — and always
+// continues straight into /onboarding/caregiver afterward, since a
+// caregiver reaching here is always brand new.
 
 const PHONE_RE = /^[+\d][\d\s-]{6,}$/;
-const MAX_LIVE_PHOTO_BYTES = 8 * 1024 * 1024;
 
 type LinkStatus =
   | { checking: true }
@@ -41,23 +39,11 @@ export default function CaregiverJoinPage({ params }: { params: Promise<{ token:
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
-  const [idDocumentNumber, setIdDocumentNumber] = useState("");
-  const [livePhoto, setLivePhoto] = useState<File | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  const livePhotoPreview = useMemo(
-    () => (livePhoto ? URL.createObjectURL(livePhoto) : null),
-    [livePhoto],
-  );
-  useEffect(() => {
-    return () => {
-      if (livePhotoPreview) URL.revokeObjectURL(livePhotoPreview);
-    };
-  }, [livePhotoPreview]);
 
   useEffect(() => {
     apiFetch<{ valid: boolean; label?: string; reason?: string }>(`/api/onboarding-links/${token}`)
@@ -71,32 +57,10 @@ export default function CaregiverJoinPage({ params }: { params: Promise<{ token:
       .catch(() => setStatus({ checking: false, valid: false, reason: "not_found" }));
   }, [token]);
 
-  function onLivePhotoChange(file: File | null) {
-    setFieldErrors((prev) => {
-      const next = { ...prev };
-      delete next.livePhoto;
-      return next;
-    });
-    if (!file) {
-      setLivePhoto(null);
-      return;
-    }
-    if (file.size > MAX_LIVE_PHOTO_BYTES) {
-      setFieldErrors((prev) => ({
-        ...prev,
-        livePhoto: "That photo is too large — try one under 8MB.",
-      }));
-      return;
-    }
-    setLivePhoto(file);
-  }
-
   function validate(): boolean {
     const errors: Record<string, string> = {};
     if (!fullName.trim()) errors.fullName = "Enter your full name.";
     if (!PHONE_RE.test(phone)) errors.phone = "Please enter a valid phone number.";
-    if (!idDocumentNumber.trim()) errors.idDocumentNumber = "Enter your Ghana Card ID number.";
-    if (!livePhoto) errors.livePhoto = "Add a live photo of your face.";
     if (password.length < 8)
       errors.password = "Your password does not meet the required requirements.";
     if (password !== confirmPassword) errors.confirmPassword = "The passwords don't match.";
@@ -110,17 +74,12 @@ export default function CaregiverJoinPage({ params }: { params: Promise<{ token:
     if (!validate()) return;
     setLoading(true);
     try {
-      const form = new FormData();
-      form.set("token", token);
-      form.set("fullName", fullName.trim());
-      form.set("phone", phone.trim());
-      form.set("idDocumentNumber", idDocumentNumber.trim());
-      form.set("password", password);
-      if (livePhoto) form.set("selfieFile", livePhoto);
-
       const res = await apiFetch<{ accessToken: string; refreshToken: string }>(
         "/api/auth/join-onboarding-link",
-        { method: "POST", body: form },
+        {
+          method: "POST",
+          body: { token, fullName: fullName.trim(), phone: phone.trim(), password },
+        },
       );
       const { error: sessionErr } = await getSupabaseClient().auth.setSession({
         access_token: res.accessToken,
@@ -182,58 +141,6 @@ export default function CaregiverJoinPage({ params }: { params: Promise<{ token:
           onChange={(e) => setPhone(e.target.value)}
           error={fieldErrors.phone}
         />
-        <div className="flex flex-col gap-2">
-          <Field
-            label="Ghana Card ID number"
-            placeholder="Enter your Ghana Card ID number"
-            required
-            value={idDocumentNumber}
-            onChange={(e) => setIdDocumentNumber(e.target.value)}
-            error={fieldErrors.idDocumentNumber}
-          />
-          <p className="text-[12px] text-ink-muted">
-            This helps us verify your identity and keep our community safe.
-          </p>
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-            Live photo <span aria-hidden>*</span>
-          </label>
-          {livePhoto && livePhotoPreview ? (
-            <div className="flex items-center gap-3 rounded-[10px] border border-hairline bg-sheet p-3">
-              {/* eslint-disable-next-line @next/next/no-img-element -- a transient local object URL, not a static/remote asset */}
-              <img
-                src={livePhotoPreview}
-                alt="Your captured live photo"
-                className="h-14 w-14 shrink-0 rounded-full object-cover"
-              />
-              <div className="flex-1">
-                <p className="text-[13px] font-semibold text-ink">Photo captured</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => onLivePhotoChange(null)}
-                className="text-[13px] font-semibold text-wisteria hover:text-wisteria-hover"
-              >
-                Retake
-              </button>
-            </div>
-          ) : (
-            <div className="rounded-[14px] border-2 border-dashed border-hairline bg-sheet px-6 py-8">
-              <p className="mb-4 text-center text-[12px] text-ink-muted">
-                Take a clear photo of your face
-              </p>
-              <CameraCapture
-                onCapture={onLivePhotoChange}
-                onFallback={() => {}}
-                showFallback={false}
-              />
-            </div>
-          )}
-          {fieldErrors.livePhoto && (
-            <p className="text-[13px] text-error">{fieldErrors.livePhoto}</p>
-          )}
-        </div>
         <Field
           label="Password"
           type="password"

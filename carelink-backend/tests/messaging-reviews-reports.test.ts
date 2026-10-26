@@ -247,7 +247,7 @@ describe("messaging, reviews, reports (tasks 4.7-4.9)", () => {
     expect(staffRow!.rating_count).toBeGreaterThanOrEqual(1);
   }, 90000);
 
-  it("reports route to the admin queue, are invisible to the subject, and block verification until resolved", async () => {
+  it("reports route to the admin queue, are invisible to the subject, and require a note to resolve", async () => {
     const adminEmail = `carelink-test-mrr-admin-${Date.now()}@example.com`;
     const { data: adminUser } = await admin.auth.admin.createUser({
       email: adminEmail,
@@ -301,32 +301,6 @@ describe("messaging, reviews, reports (tasks 4.7-4.9)", () => {
     const adminList = await adminListRes.json();
     expect(adminList.reports.some((r: { id: string }) => r.id === report.id)).toBe(true);
 
-    // Submit a verification for the reported user, then try to approve it
-    const form = new FormData();
-    form.set("idDocumentType", "ghana_card");
-    form.set("idDocumentNumber", "GHA-000000000-0");
-    form.set("referenceName", "Ref");
-    form.set("referencePhone", randomPhone());
-    form.set("idDocumentFile", new Blob([Buffer.from("x")], { type: "image/jpeg" }), "id.jpg");
-    await fetch(`${BASE_URL}/api/verification/submissions`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${reportedToken}` },
-      body: form,
-    });
-    const pendingRes = await fetch(`${BASE_URL}/api/admin/verifications?status=pending`, {
-      headers: { Authorization: `Bearer ${adminToken}` },
-    });
-    const pending = (await pendingRes.json()).submissions.find(
-      (s: { user_id: string }) => s.user_id === reportedUser!.user!.id,
-    );
-
-    const blockedRes = await fetch(`${BASE_URL}/api/admin/verifications/${pending.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminToken}` },
-      body: JSON.stringify({ decision: "verified" }),
-    });
-    expect(blockedRes.status).toBe(400);
-
     const resolveNoNoteRes = await fetch(`${BASE_URL}/api/admin/reports/${report.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminToken}` },
@@ -343,13 +317,6 @@ describe("messaging, reviews, reports (tasks 4.7-4.9)", () => {
       }),
     });
     expect(resolveRes.status).toBe(200);
-
-    const nowAllowedRes = await fetch(`${BASE_URL}/api/admin/verifications/${pending.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminToken}` },
-      body: JSON.stringify({ decision: "verified" }),
-    });
-    expect(nowAllowedRes.status).toBe(200);
 
     await admin.auth.admin.deleteUser(adminUser!.user!.id);
     await admin.auth.admin.deleteUser(reportedUser!.user!.id);

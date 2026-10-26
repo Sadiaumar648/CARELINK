@@ -40,12 +40,20 @@ export default function ClaimInvitationPage() {
       // this mirrors sign-in/page.tsx's own role-based redirect exactly,
       // including its "no household yet" check for a parent, rather
       // than inventing a second version of that logic here.
-      const me = await apiFetch<{ role: UserRole }>("/api/me");
+      const me = await apiFetch<{ role: UserRole; verificationStatus: string }>("/api/me");
       if (me.role === "parent") {
+        // Only NIA (/verify-identity) ever verifies a parent now. An
+        // admin who already ticked "agency verified" at invite time
+        // (api/admin/parents) skips straight past it, same as a staff
+        // member onboarded via api/admin/staff's own checkbox.
+        if (me.verificationStatus !== "verified") {
+          router.replace("/verify-identity");
+          return;
+        }
         try {
           const { household } = await apiFetch<{ household: unknown }>("/api/parents/household");
           if (!household) {
-            router.replace("/onboarding/identity");
+            router.replace("/onboarding/setup");
             return;
           }
         } catch {
@@ -56,17 +64,17 @@ export default function ClaimInvitationPage() {
         // A caregiver claiming an invitation for the first time hasn't
         // set a caregiver type yet (admin invites only create the login,
         // not a staff_profiles row — see api/admin/staff) — send them
-        // through identity verification first, then caregiver type +
-        // service location (onboarding/identity's own nextHref chains
-        // to /onboarding/caregiver for a staff role). A caregiver who's
-        // already onboarded goes straight to their dashboard, same as
-        // everyone else.
+        // straight to caregiver type + service location. There's no
+        // identity step for staff at all: only someone the agency has
+        // already trained and approved ever receives an invitation in
+        // the first place. A caregiver who's already onboarded goes
+        // straight to their dashboard, same as everyone else.
         try {
           const { profile } = await apiFetch<{
             profile: { caregiver_type: string | null } | null;
           }>("/api/staff/profile");
           if (!profile || !profile.caregiver_type) {
-            router.replace("/onboarding/identity");
+            router.replace("/onboarding/caregiver");
             return;
           }
         } catch {

@@ -7,16 +7,15 @@ import Anthropic from "@anthropic-ai/sdk";
 // CareLink team: "are there reports to attend to," "how much revenue
 // this week," "have I paid all caregivers." It NEVER writes to the
 // database and never takes an action on the admin's behalf — every
-// admin write (resolving a report, approving a verification, etc.)
-// still happens on the admin's own dedicated pages. All it can do is
-// call the read-only tools below and answer in plain language from
-// what they return.
+// admin write (resolving a report, etc.) still happens on the admin's
+// own dedicated pages. All it can do is call the read-only tools below
+// and answer in plain language from what they return.
 //
 // Every tool here queries with the CALLING ADMIN's own RLS-scoped
 // Supabase client (never service-role) — the same client every other
 // /api/admin/* route already uses, and deliberately mirrors those
 // routes' exact query shapes (overview, reports, payments, bookings,
-// roster, verifications, reviews, parents) rather than inventing new
+// roster, reviews, parents) rather than inventing new
 // ones, so an answer here always matches what the admin would see by
 // clicking into that page themselves. Counts and sums are always
 // computed here in code, never left for the model to tally from a raw
@@ -41,31 +40,23 @@ async function getPlatformOverview(supabase: SupabaseClient, input: Record<strin
     str(input, "fromISO") ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const to = str(input, "toISO") ?? new Date().toISOString();
 
-  const [bookingsRes, paymentsRes, staffRes, verificationsRes, reportsRes, careRequestsRes] =
-    await Promise.all([
-      supabase.from("bookings").select("status").gte("created_at", from).lte("created_at", to),
-      supabase
-        .from("payments")
-        .select("amount")
-        .eq("status", "succeeded")
-        .gte("settled_at", from)
-        .lte("settled_at", to),
-      supabase
-        .from("staff_profiles")
-        .select("id, accepting_bookings, dispatch_available, users!inner(account_status)"),
-      supabase
-        .from("verification_submissions")
-        .select("created_at")
-        .eq("status", "pending")
-        .order("created_at", { ascending: true })
-        .limit(1),
-      supabase.from("reports").select("id").in("status", ["open", "investigating"]),
-      supabase.from("care_requests").select("id").in("dispatch_status", ["searching", "expanding"]),
-    ]);
+  const [bookingsRes, paymentsRes, staffRes, reportsRes, careRequestsRes] = await Promise.all([
+    supabase.from("bookings").select("status").gte("created_at", from).lte("created_at", to),
+    supabase
+      .from("payments")
+      .select("amount")
+      .eq("status", "succeeded")
+      .gte("settled_at", from)
+      .lte("settled_at", to),
+    supabase
+      .from("staff_profiles")
+      .select("id, accepting_bookings, dispatch_available, users!inner(account_status)"),
+    supabase.from("reports").select("id").in("status", ["open", "investigating"]),
+    supabase.from("care_requests").select("id").in("dispatch_status", ["searching", "expanding"]),
+  ]);
   if (bookingsRes.error) throw bookingsRes.error;
   if (paymentsRes.error) throw paymentsRes.error;
   if (staffRes.error) throw staffRes.error;
-  if (verificationsRes.error) throw verificationsRes.error;
   if (reportsRes.error) throw reportsRes.error;
   if (careRequestsRes.error) throw careRequestsRes.error;
 
@@ -95,7 +86,6 @@ async function getPlatformOverview(supabase: SupabaseClient, input: Record<strin
     availableCaregiversRightNow: availableCaregiversNow,
     careRequestsStillSearching: careRequestsRes.data?.length ?? 0,
     openOrInvestigatingReports: reportsRes.data?.length ?? 0,
-    oldestPendingVerificationSince: verificationsRes.data?.[0]?.created_at ?? null,
   };
 }
 
@@ -308,33 +298,6 @@ async function getFamilies(supabase: SupabaseClient, input: Record<string, unkno
   };
 }
 
-async function getPendingVerifications(supabase: SupabaseClient, input: Record<string, unknown>) {
-  const role = str(input, "role");
-  const query = supabase
-    .from("verification_submissions")
-    .select("id, created_at, users!verification_submissions_user_id_fkey(full_name, role)")
-    .eq("status", "pending")
-    .order("created_at", { ascending: true })
-    .limit(LIST_SAMPLE_LIMIT);
-
-  const { data, error } = await query;
-  if (error) throw error;
-
-  const rows = (data ?? []).map((row) => ({
-    fullName:
-      (row.users as unknown as { full_name: string; role: string } | null)?.full_name ?? null,
-    role: (row.users as unknown as { full_name: string; role: string } | null)?.role ?? null,
-    submittedAt: row.created_at,
-  }));
-  const filtered = role ? rows.filter((r) => r.role === role) : rows;
-
-  return {
-    totalPending: filtered.length,
-    oldestSubmittedAt: filtered[0]?.submittedAt ?? null,
-    submissions: filtered,
-  };
-}
-
 async function getReviews(supabase: SupabaseClient, input: Record<string, unknown>) {
   const maxRating = typeof input.maxRating === "number" ? input.maxRating : undefined;
 
@@ -532,17 +495,6 @@ const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
-    name: "get_pending_verifications",
-    description:
-      "List identity verification submissions still awaiting admin review, oldest first.",
-    input_schema: {
-      type: "object",
-      properties: {
-        role: { type: "string", enum: ["parent", "staff"] },
-      },
-    },
-  },
-  {
     name: "get_reviews",
     description:
       "Get review stats and a recent sample, in both directions: parents reviewing caregivers, and caregivers reviewing parents. Use for 'any complaints' or satisfaction questions.",
@@ -571,7 +523,6 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   get_bookings: getBookings,
   get_caregivers: getCaregivers,
   get_families: getFamilies,
-  get_pending_verifications: getPendingVerifications,
   get_reviews: getReviews,
   get_unsettled_payouts: (supabase) => getUnsettledPayouts(supabase),
 };
@@ -582,12 +533,11 @@ function buildSystemPrompt(): string {
     "You are CareLink's admin assistant — an internal, read-only Q&A tool for the CareLink " +
     "operations team on a Ghanaian childcare marketplace. You help an admin quickly understand " +
     "what's happening on the platform: reports needing attention, revenue, bookings, caregivers, " +
-    "families, verifications, reviews, and whether caregivers have been paid out. " +
+    "families, reviews, and whether caregivers have been paid out. " +
     "\n\nYou can ONLY read data, via the tools provided. You can NEVER take an action — you cannot " +
-    "resolve a report, approve or reject a verification, pay a caregiver, cancel a booking, or " +
-    "change anything. If asked to do something like that, say plainly that you can't take actions " +
-    "and point to the relevant admin page (e.g. Reports, Verifications, Roster) where they can do " +
-    "it themselves. " +
+    "resolve a report, pay a caregiver, cancel a booking, or change anything. If asked to do " +
+    "something like that, say plainly that you can't take actions and point to the relevant admin " +
+    "page (e.g. Reports, Roster) where they can do it themselves. " +
     "\n\nAlways call a tool to get real figures before answering a factual question — never guess, " +
     "estimate, or recall a number from earlier in the conversation if it might have changed. Use as " +
     "many tool calls as needed to fully answer a question (e.g. a broad question may need several " +

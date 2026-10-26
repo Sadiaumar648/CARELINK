@@ -25,9 +25,9 @@ export function RequireRole({
   loadingFallback,
 }: {
   // A single role, or a list when the same page is legitimately shared
-  // by more than one role — e.g. /onboarding/identity, whose identity
-  // verification wizard is reused by both a parent and a caregiver
-  // completing onboarding after claim-invitation.
+  // by more than one role — e.g. /onboarding, which both a parent's
+  // household/setup wizard and a caregiver's post-claim onboarding
+  // live under.
   role: UserRole | UserRole[];
   children: ReactNode;
   // Optional per-role loading UI, shown for the exact same window the

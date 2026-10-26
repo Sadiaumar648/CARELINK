@@ -30,9 +30,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 // below reads real, already-existing backend data: GET
 // /api/admin/bookings powers Live Care;
 // GET /api/admin/roster and GET /api/admin/parents supply caregiver/
-// family names for those rows; GET /api/admin/overview and
-// GET /api/admin/verifications supply Needs Attention's real counts;
-// GET /api/admin/activity is the real, merged Recent Activity feed
+// family names for those rows; GET /api/admin/overview supplies Needs
+// Attention's real counts; GET /api/admin/activity is the real, merged
+// Recent Activity feed
 // (only its 4 newest rows show here — the same route's full result,
 // currently up to 15, is reachable via "View all"). Nothing here is
 // fabricated or hardcoded.
@@ -81,8 +81,6 @@ type ActivityRow = {
   label: string;
   occurredAt: string;
 };
-
-type VerificationSubmission = { users: { role: string } | null };
 
 // Only the 4 newest show on Home — the rest of what the API already
 // returns (up to 15) is reachable via "View all" on /admin/activity.
@@ -272,7 +270,6 @@ function AttentionItem({
 
 export default function AdminOverviewPage() {
   const [overview, setOverview] = useState<Overview | null>(null);
-  const [pendingCaregiverApps, setPendingCaregiverApps] = useState<number | null>(null);
   const [roster, setRoster] = useState<RosterEntry[] | null>(null);
   const [parents, setParents] = useState<ParentEntry[] | null>(null);
   const [bookings, setBookings] = useState<Booking[] | null>(null);
@@ -287,12 +284,6 @@ export default function AdminOverviewPage() {
         setOverview(res);
       })
       .catch((err) => setError(errorMessage(err)));
-
-    apiFetch<{ submissions: VerificationSubmission[] }>("/api/admin/verifications?status=pending")
-      .then((res) =>
-        setPendingCaregiverApps(res.submissions.filter((s) => s.users?.role === "staff").length),
-      )
-      .catch(() => setPendingCaregiverApps(0));
 
     apiFetch<{ roster: RosterEntry[] }>("/api/admin/roster")
       .then((res) => setRoster(res.roster))
@@ -475,21 +466,15 @@ export default function AdminOverviewPage() {
                 subtitle="Items that require your action."
               />
 
-              {(overview === null || pendingCaregiverApps === null) && (
+              {overview === null && (
                 <div className="flex flex-col gap-2">
                   <Skeleton className="h-14 w-full" />
                   <Skeleton className="h-14 w-full" />
                 </div>
               )}
 
-              {overview !== null && pendingCaregiverApps !== null && (
+              {overview !== null && (
                 <div className="flex flex-col gap-2">
-                  <AttentionItem
-                    href="/admin/verifications"
-                    icon={ShieldWarning}
-                    count={pendingCaregiverApps}
-                    description="Caregiver applications awaiting review"
-                  />
                   <AttentionItem
                     href="/admin/reports"
                     icon={Flag}

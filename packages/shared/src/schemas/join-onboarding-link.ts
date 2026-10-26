@@ -8,19 +8,15 @@ import { z } from "zod";
 // placeholder account to claim, since the link was never issued to one
 // specific person.
 //
-// Mirrors the parent registration form's identity fields (Ghana Card
-// number + live photo, app/register/page.tsx) rather than the older
-// document-upload wizard's fuller set (ID type choice, physical ID
-// card photo, reference contact) — this route is always a Ghana Card
-// number, submitted as a lightweight verification_submissions row for
-// an admin to review, same queue as everything else at
-// /admin/verifications. The live photo itself travels as multipart
-// form data, not through this schema (see the route).
+// No identity document or photo is collected here: only staff the
+// agency has already trained and approved ever receive this link in
+// the first place, so the link itself is the verification — the
+// account is marked agency-verified the moment it's created (see the
+// route).
 export const joinOnboardingLinkSchema = z.object({
   token: z.string().trim().min(1, "Missing invitation link"),
   fullName: z.string().trim().min(1, "Enter your full name"),
   phone: z.string().trim().min(1, "Enter your phone number"),
-  idDocumentNumber: z.string().trim().min(1, "Enter your Ghana Card ID number"),
   password: z.string().min(8, "Use at least 8 characters"),
 });
 
