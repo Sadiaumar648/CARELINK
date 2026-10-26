@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { submitVerificationSchema } from "@carelink/shared";
 import { authErrorResponse, requireRole } from "@/lib/auth/require-user";
-import { createServiceRoleClient } from "@/lib/db/supabase-server";
-import { checkPhotoPlausibility } from "@/lib/services/photo-check";
 
 function extOf(file: File): string {
   const parts = file.name.split(".");
@@ -75,37 +73,6 @@ export async function POST(request: Request) {
       .single();
 
     if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 400 });
-
-    // Task 4.2, run inline so the result is on the record by the time an
-    // administrator opens the review queue. A provider failure leaves
-    // photo_verdict at its "not_run" default rather than failing the
-    // submission — this is never on the critical path (doc 2 §6).
-    if (selfieFile instanceof File && selfieBuffer && body.consentPhoto) {
-      const result = await checkPhotoPlausibility(
-        idBuffer.toString("base64"),
-        idFile.type,
-        selfieBuffer.toString("base64"),
-        selfieFile.type,
-      );
-      if (result) {
-        // The submitter has no UPDATE grant on this table (migration
-        // 0016: only an administrator updates a verification record) —
-        // correctly so, since a user shouldn't be able to set their own
-        // verdict. This write is the AI's own output, not the user's, so
-        // it goes through the service role rather than widening RLS.
-        const { data: withVerdict } = await createServiceRoleClient()
-          .from("verification_submissions")
-          .update({
-            photo_verdict: result.verdict,
-            photo_rationale: result.rationale,
-            photo_model_version: result.modelVersion,
-          })
-          .eq("id", submission.id)
-          .select()
-          .single();
-        if (withVerdict) return NextResponse.json({ submission: withVerdict }, { status: 201 });
-      }
-    }
 
     return NextResponse.json({ submission }, { status: 201 });
   } catch (error) {

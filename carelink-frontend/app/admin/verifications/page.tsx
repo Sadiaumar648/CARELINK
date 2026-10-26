@@ -17,8 +17,6 @@ type Submission = {
   id_document_number: string;
   reference_name: string | null;
   reference_phone: string | null;
-  photo_verdict: string;
-  photo_rationale: string | null;
   status: string;
   rejection_reason: string | null;
   created_at: string;
@@ -38,16 +36,6 @@ const TONE: Record<string, "neutral" | "positive" | "attention" | "info"> = {
   verified: "positive",
   rejected: "attention",
 };
-
-function VerdictNote({ verdict, rationale }: { verdict: string; rationale: string | null }) {
-  if (verdict === "not_run") return null;
-  return (
-    <p className="text-[13px] text-ink-muted">
-      Model plausibility check: <span className="font-semibold">{verdict.replace(/_/g, " ")}</span>
-      {rationale && ` — ${rationale}`}
-    </p>
-  );
-}
 
 function ReviewPanel({ id, onDecided }: { id: string; onDecided: () => void }) {
   const [detail, setDetail] = useState<Detail | null>(null);
@@ -111,10 +99,6 @@ function ReviewPanel({ id, onDecided }: { id: string; onDecided: () => void }) {
           />
         )}
       </div>
-      <VerdictNote
-        verdict={detail.submission.photo_verdict}
-        rationale={detail.submission.photo_rationale}
-      />
       <p className="text-[13px] text-ink-muted">
         {detail.submission.id_document_type.replace(/_/g, " ")} ·{" "}
         {detail.submission.id_document_number}

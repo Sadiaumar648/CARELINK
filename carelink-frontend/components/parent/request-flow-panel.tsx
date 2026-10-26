@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Plus, Sparkle } from "@phosphor-icons/react";
+import { ArrowLeft, Check, Plus } from "@phosphor-icons/react";
 import {
   CARE_DAY_HOURS,
   MAX_CARE_DAYS,
@@ -266,37 +266,6 @@ export function RequestFlowPanel({
   const [addingWard, setAddingWard] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [aiQuery, setAiQuery] = useState("");
-  const [aiPrefilling, setAiPrefilling] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-
-  // Same NL parser as Find Care's own AI search bar
-  // (POST /api/search/parse) — pre-fills timing and care needs only.
-  // Never the ward (the parser has no concept of "which of my real
-  // children") and never location: CareLink AI copy elsewhere
-  // (lib/services/care-assistant.ts) establishes the same rule — a
-  // free-text area is never carried onto the real request, which
-  // always requires the parent's own exact GPS location.
-  async function runAIPrefill(query: string) {
-    const trimmed = query.trim();
-    if (!trimmed) return;
-    setAiPrefilling(true);
-    setAiError(null);
-    try {
-      const res = await apiFetch<{ filters: Partial<SearchFilters> | null }>("/api/search/parse", {
-        method: "POST",
-        body: { query: trimmed },
-      });
-      const parsed = res.filters ?? {};
-      if (parsed.date) setStartDate(parsed.date);
-      if (parsed.startTime) setStartTime(parsed.startTime);
-      if (parsed.skills?.length) setRequirementChips(new Set(parsed.skills));
-    } catch (err) {
-      setAiError(errorMessage(err));
-    } finally {
-      setAiPrefilling(false);
-    }
-  }
 
   // Every field the backend will require — checked before "Find Care"
   // (surfacing it early) and again before "Send Request".
@@ -456,46 +425,6 @@ export function RequestFlowPanel({
 
       {/* No "Request a Nanny" title block — the Back button and the
           numbered sections already say where the parent is. */}
-
-      {/* The one AI-powered surface on this flow — same gold, non-
-          purple, non-gradient treatment as Find Care's own AI search
-          bar, so it reads as "the AI part" rather than another ordinary
-          field. Pre-fills timing and care needs below; the parent can
-          still just fill the numbered steps manually and ignore this
-          entirely. */}
-      {!addingWard && (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void runAIPrefill(aiQuery);
-          }}
-          className="flex flex-col gap-2 rounded-[16px] border border-[var(--color-gold)]/30 bg-gold-tint p-4"
-        >
-          <label
-            htmlFor="ai-prefill"
-            className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--color-gold)]"
-          >
-            <Sparkle size={14} weight="fill" /> Describe what you need
-          </label>
-          <div className="flex gap-2">
-            <input
-              id="ai-prefill"
-              value={aiQuery}
-              onChange={(e) => setAiQuery(e.target.value)}
-              placeholder="e.g. toddler care this Saturday afternoon"
-              className="flex-1 rounded-[10px] border border-hairline bg-sheet px-3.5 py-2.5 text-[14px] text-ink placeholder:text-ink-muted focus:border-[var(--color-gold)] focus:outline-none focus:ring-4 focus:ring-[var(--color-gold)]/15"
-            />
-            <button
-              type="submit"
-              disabled={aiPrefilling || !aiQuery.trim()}
-              className="shrink-0 rounded-[10px] bg-[var(--color-gold)] px-4 py-2.5 text-[15px] font-semibold font-heading text-sheet transition-colors hover:bg-[var(--color-gold)]/90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {aiPrefilling ? "Filling in…" : "Fill In"}
-            </button>
-          </div>
-          {aiError && <p className="text-[12.5px] text-error">{aiError}</p>}
-        </form>
-      )}
 
       <div className="w-full">
         {addingWard ? (

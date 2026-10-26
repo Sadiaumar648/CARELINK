@@ -194,60 +194,6 @@ function FindCarePage() {
     void runSearch({});
   }
 
-  // The NL-search parse-then-search call, reachable here only via a
-  // ?q= link from elsewhere — the visible search bar itself now lives
-  // on the actual Request Care form instead
-  // (components/parent/request-flow-panel.tsx).
-  async function runNLSearch(query: string) {
-    const trimmed = query.trim();
-    if (!trimmed) return;
-    setError(null);
-    try {
-      const parseRes = await apiFetch<{ filters: Partial<SearchFilters> | null }>(
-        "/api/search/parse",
-        { method: "POST", body: { query: trimmed } },
-      );
-      setLoading(true);
-      const parsed = parseRes.filters ?? {};
-      setFilters(parsed);
-      setAppliedFilters(parsed);
-      setHasSearched(true);
-
-      const params = new URLSearchParams();
-      if (parsed.area) params.set("area", parsed.area);
-      if (parsed.date) params.set("date", parsed.date);
-      if (parsed.startTime) params.set("startTime", parsed.startTime);
-      if (parsed.endTime) params.set("endTime", parsed.endTime);
-      if (parsed.minExperience) params.set("minExperience", String(parsed.minExperience));
-      if (parsed.skills?.length) params.set("skills", parsed.skills.join(","));
-
-      const searchRes = await apiFetch<{
-        results: CaregiverResult[];
-        emptyState: { message: string } | null;
-      }>(`/api/search/caregivers?${params.toString()}`);
-      setRawResults(searchRes.results);
-      setResults(applyTypeFilter(searchRes.results));
-      if (searchRes.results.length === 0 && searchRes.emptyState) {
-        setEmptyMessage(searchRes.emptyState.message);
-      }
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // A query arriving from elsewhere as ?q= — there's no visible AI
-  // search bar on this page any more (moved to the actual Request Care
-  // form, components/parent/request-flow-panel.tsx), but this still
-  // runs it once for any existing link built around ?q=.
-  useEffect(() => {
-    const initial = searchParams.get("q");
-    if (!initial) return;
-    void Promise.resolve().then(() => void runNLSearch(initial));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once, on the initial ?q= only
-  }, []);
-
   // A request arriving from the parent Home page's Nanny/Babysitter
   // request flow lands here as ?panel=nanny|babysitter plus the already-
   // resolved structured filters (area/date/startTime/endTime/skills) —

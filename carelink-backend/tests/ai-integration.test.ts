@@ -51,7 +51,8 @@ describe("AI features, live (tasks 4.2, 4.4)", () => {
     expect(body.filters.skills).toContain("toddler_care");
     expect(body.filters.budgetCeiling).toBeLessThanOrEqual(25);
 
-    await admin.auth.admin.deleteUser(data!.user!.id);
+    const { error: deleteErr } = await admin.auth.admin.deleteUser(data!.user!.id);
+    if (deleteErr) throw new Error(`cleanup failed: ${deleteErr.message}`);
   }, 30000);
 
   it("returns a real plausibility verdict on a verification submission with a live photo", async () => {
@@ -95,6 +96,14 @@ describe("AI features, live (tasks 4.2, 4.4)", () => {
     expect(body.submission.photo_rationale).toBeTruthy();
     expect(body.submission.photo_model_version).toBe("claude-opus-5");
 
-    await admin.auth.admin.deleteUser(data!.user!.id);
+    // FK-safe order: this test's own verification_submissions row
+    // references this user and has no cascade, so deleting the auth
+    // user first silently fails (deleteUser returns an error rather
+    // than throwing) and leaks the account — confirmed live: this
+    // exact gap let 33+ "pending" test accounts accumulate in
+    // production over more than a month before being cleaned up.
+    await admin.from("verification_submissions").delete().eq("user_id", data!.user!.id);
+    const { error: deleteErr } = await admin.auth.admin.deleteUser(data!.user!.id);
+    if (deleteErr) throw new Error(`cleanup failed: ${deleteErr.message}`);
   }, 30000);
 });

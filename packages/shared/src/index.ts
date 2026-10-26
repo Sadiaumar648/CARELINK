@@ -18,7 +18,6 @@ export * from "./schemas/verification";
 export * from "./schemas/payment";
 export * from "./schemas/messaging";
 export * from "./schemas/settings";
-export * from "./schemas/nl-search";
 export * from "./schemas/care-request";
 export * from "./schemas/register";
 export * from "./schemas/admin-assistant";
