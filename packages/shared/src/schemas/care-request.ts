@@ -5,19 +5,14 @@ import { caregiverTypeSchema } from "./staff-profile";
 
 const timeString = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use 24-hour HH:MM time");
 
-// The one new structured-request contract, shared by the AI assistant's
-// confirmation step and the direct Nanny/Babysitter form — both create a
-// care_requests row through this same schema, so the location rule is
-// enforced identically no matter which path a parent came through.
+// The structured-request contract the direct Nanny/Babysitter form
+// creates a care_requests row through, enforcing the location rule
+// server-side.
 export const createCareRequestSchema = z
   .object({
-    // The child (or children) this request is for. The "Request a Nanny"
-    // form sends `wardIds` — one or more children, all owned by the
-    // parent, the first being the primary. `wardId` remains for the
-    // CareLink AI flow and any older caller; when both are sent, wardIds
-    // wins. Price is regular rate × hours × wardIds.length, computed
-    // server-side.
-    wardId: z.string().uuid().optional(),
+    // The child (or children) this request is for — one or more,
+    // all owned by the parent, the first being the primary. Price is
+    // regular rate × hours × wardIds.length, computed server-side.
     wardIds: z.array(z.string().uuid()).min(1).max(10).optional(),
     // Optional: a parent may name one specific caregiver to try before
     // CareLink's normal sequential search — see lib/services/dispatch.ts.
@@ -25,14 +20,12 @@ export const createCareRequestSchema = z
     // checked server-side when dispatch actually runs; this is never
     // trusted as a guarantee.
     preferredStaffProfileId: z.string().uuid().optional(),
-    source: z.enum(["ai", "direct"]),
     caregiverType: caregiverTypeSchema,
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD"),
     startTime: timeString,
     endTime: timeString,
     // How many consecutive days of care, each a standard care day
     // (CARE_DAY_HOURS) starting at startTime. `date` is day one.
-    // Defaults to 1 for the CareLink AI flow and any older caller.
     durationDays: z.number().int().min(1).max(7).default(1),
     // The enforced rule: no location, no request. Real backend
     // validation, not a UI-only check. Kept as the coarse area/suburb
@@ -56,8 +49,6 @@ export const createCareRequestSchema = z
     locationResolved: z.boolean(),
     skills: z.array(skillTagSchema).max(10).optional(),
     notes: z.string().trim().max(1000).optional(),
-    aiRecommendation: caregiverTypeSchema.optional(),
-    aiRecommendationReason: z.string().trim().max(500).optional(),
     // CareLink's finalized fixed-rate model needs a real, structured
     // recurrence pattern to independently calculate a session count —
     // "Weekly" and "Custom schedule" are no longer just descriptive text
@@ -108,77 +99,3 @@ export const createCareRequestSchema = z
   );
 
 export type CreateCareRequestInput = z.infer<typeof createCareRequestSchema>;
-
-// What the AI assistant returns each turn. `readyToConfirm` is
-// recomputed server-side from `draft` — see lib/services/care-assistant.ts
-// — never trusted verbatim from the model's own claim.
-// caregiverType was removed once Nanny/Babysitter merged into one
-// "Nanny" concept for parents — Nia no longer recommends a type, so
-// nothing populates it any more. `location` is still deliberately never
-// prefilled from here onto the real request form (see care-ai/page.tsx)
-// even though it's captured in this draft for Nia's own conversational
-// memory.
-export const careRequestDraftSchema = z.object({
-  wardAgeYears: z.number().min(0).max(17).optional(),
-  wardName: z.string().max(100).optional(),
-  date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
-  startTime: timeString.optional(),
-  endTime: timeString.optional(),
-  location: z.string().max(200).optional(),
-  skills: z.array(skillTagSchema).optional(),
-  notes: z.string().max(500).optional(),
-});
-
-export type CareRequestDraft = z.infer<typeof careRequestDraftSchema>;
-
-// One turn of the CareLink AI conversation. The full visible transcript
-// (what the parent actually saw — the assistant's plain-text replies,
-// never the raw structured output) is sent each time, since the endpoint
-// is stateless — mirrors this project's existing single-shot AI route
-// (/api/search/parse) in spirit, just carrying history. `draft` is the
-// client's current accumulated understanding, sent back each turn so the
-// model always has perfect memory of what's already confirmed instead of
-// having to re-infer it from the conversation alone.
-export const careAssistantMessageSchema = z.object({
-  messages: z
-    .array(
-      z.object({
-        role: z.enum(["user", "assistant"]),
-        content: z.string().trim().min(1).max(2000),
-      }),
-    )
-    .min(1)
-    .max(40),
-  draft: careRequestDraftSchema.optional(),
-});
-
-export type CareAssistantMessageInput = z.infer<typeof careAssistantMessageSchema>;
-
-// "Help me pick" — the parent is looking at the real caregiver list from
-// their Request a Nanny flow and asks Nia to choose one. The client
-// sends what the parent typed plus the exact list on screen (ids +
-// public facts only); the route returns one recommended id (validated
-// against this list) and a reason. Nia never searches or books here.
-export const recommendCaregiverSchema = z.object({
-  message: z.string().trim().min(1).max(1000),
-  candidates: z
-    .array(
-      z.object({
-        staffProfileId: z.string().uuid(),
-        fullName: z.string().min(1).max(200),
-        yearsExperience: z.number().int().min(0).max(80).nullable().optional(),
-        ratingAvg: z.number().min(0).max(5).nullable().optional(),
-        ratingCount: z.number().int().min(0).optional(),
-        bio: z.string().max(2000).nullable().optional(),
-        skills: z.array(z.string().max(60)).max(20).optional(),
-        primaryArea: z.string().max(120).nullable().optional(),
-      }),
-    )
-    .min(1)
-    .max(10),
-});
-
-export type RecommendCaregiverInput = z.infer<typeof recommendCaregiverSchema>;

@@ -311,7 +311,6 @@ export function RequestFlowPanel({
         method: "POST",
         body: {
           wardIds,
-          source: "direct",
           // Every caregiver is a Nanny to parents now — there's no type
           // choice here, and no specific caregiver picked yet either.
           caregiverType: "nanny",

@@ -466,11 +466,6 @@ function ParentDashboard() {
           list (request-flow-panel.tsx's own two-step flow). */}
       <RequestCareHero onClick={() => openPanel("nanny")} />
 
-      {/* Nia now lives inside the request flow itself — on the "Choose a
-          caregiver" step, a parent who isn't sure who to pick can ask
-          her to recommend one from the real list on screen. There's no
-          separate Nia entry point on Home any more. */}
-
       {/* RECENT ACTIVITY + SAFETY */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
         <Sheet className="flex flex-col gap-3 border-[var(--color-lavender-border)]">

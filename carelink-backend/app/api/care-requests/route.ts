@@ -6,13 +6,12 @@ import { getOwnParentProfileId } from "@/lib/parents";
 import { findEligibleCaregivers, loadMatchWeights } from "@/lib/services/caregiver-search";
 
 // Creates a care_requests row — a structured, storable record of what a
-// parent asked for (via CareLink AI or the direct Nanny/Babysitter
-// form), confirmed before any search runs. This route never searches or
-// scores a caregiver itself: the frontend still calls the existing
-// GET /api/search/caregivers with the same filters afterward. The one
-// real rule this route enforces server-side, independent of the
-// frontend or the AI layer: no resolved, map-verified service location,
-// no row — createCareRequestSchema requires serviceLatitude/
+// parent asked for via the Nanny/Babysitter form, confirmed before any
+// search runs. This route never searches or scores a caregiver itself:
+// the frontend still calls the existing GET /api/search/caregivers with
+// the same filters afterward. The one real rule this route enforces
+// server-side, independent of the frontend: no resolved, map-verified
+// service location, no row — createCareRequestSchema requires serviceLatitude/
 // serviceLongitude and locationResolved === true together, so a
 // request with only a typed area name (no real coordinates) fails
 // validation with 400 here, exactly as it would with no location at
@@ -35,11 +34,8 @@ export async function POST(request: Request) {
 
     const body = createCareRequestSchema.parse(await request.json());
 
-    // One or more children, first = primary. `wardIds` from the Request
-    // a Nanny form wins; `wardId` is the fallback for the AI flow.
-    const wardIds = (
-      body.wardIds && body.wardIds.length > 0 ? body.wardIds : body.wardId ? [body.wardId] : []
-    ).filter((id, i, all) => all.indexOf(id) === i);
+    // One or more children, first = primary.
+    const wardIds = (body.wardIds ?? []).filter((id, i, all) => all.indexOf(id) === i);
 
     if (wardIds.length > 0) {
       // wards RLS already scopes SELECT to the parent's own children, so
@@ -138,7 +134,7 @@ export async function POST(request: Request) {
         ward_id: wardIds[0] ?? null,
         ward_ids: wardIds,
         preferred_staff_profile_id: body.preferredStaffProfileId ?? null,
-        source: body.source,
+        source: "direct",
         caregiver_type: body.caregiverType,
         date: body.date,
         start_time: body.startTime,
@@ -153,8 +149,6 @@ export async function POST(request: Request) {
         location_resolved: body.locationResolved,
         skills: body.skills ?? [],
         notes: body.notes ?? null,
-        ai_recommendation: body.aiRecommendation ?? null,
-        ai_recommendation_reason: body.aiRecommendationReason ?? null,
         confirmed_at: new Date().toISOString(),
         repeat_mode: body.repeatMode,
         repeat_weekdays: body.repeatWeekdays,
